@@ -86,17 +86,25 @@ pub async fn build_graph(
                 // a proper conversion method from CodeGraph to PetCodeGraph
                 let mut pet_graph = crate::codegraph::types::PetCodeGraph::new();
                 
-                // Add all functions to the pet graph
+                // First, add all functions to the pet graph
                 for function in cg.functions.values() {
                     pet_graph.add_function(function.clone());
                 }
                 
-                // Add all call relations
+                tracing::info!("Added {} functions to PetCodeGraph", cg.functions.len());
+                
+                // Then, add all call relations
+                let mut successful_relations = 0;
                 for relation in &cg.call_relations {
                     if let Err(e) = pet_graph.add_call_relation(relation.clone()) {
                         tracing::warn!("Failed to add call relation: {}", e);
+                    } else {
+                        successful_relations += 1;
                     }
                 }
+                
+                tracing::info!("Successfully added {}/{} call relations to PetCodeGraph", 
+                              successful_relations, cg.call_relations.len());
                 
                 // Update stats
                 pet_graph.update_stats();
@@ -157,15 +165,27 @@ pub async fn query_call_graph(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
     
+    // Debug: Log graph information
+    tracing::info!("Loaded graph: {}", graph.debug_info());
+    
     let mut functions = Vec::new();
     
     if let Some(func_name) = function_name {
         // Query specific function by name
         let matching_functions = graph.find_functions_by_name(&func_name);
         
+        tracing::info!("Found {} functions matching name '{}'", matching_functions.len(), func_name);
+        
         for function in matching_functions {
+            tracing::info!("Processing function: {} (ID: {})", function.name, function.id);
+            
+            // Debug: Log function-specific debug info
+            tracing::debug!("Function debug info: {}", graph.debug_function(&function.id));
+            
             let callers = graph.get_callers(&function.id);
             let callees = graph.get_callees(&function.id);
+            
+            tracing::info!("Function {} has {} callers and {} callees", function.name, callers.len(), callees.len());
             
             // Convert to API response format
             let api_function = super::models::FunctionInfo {
@@ -196,9 +216,18 @@ pub async fn query_call_graph(
         let file_path = std::path::PathBuf::from(&filepath);
         let file_functions = graph.find_functions_by_file(&file_path);
         
+        tracing::info!("Found {} functions in file '{}'", file_functions.len(), filepath);
+        
         for function in file_functions {
+            tracing::info!("Processing function: {} (ID: {})", function.name, function.id);
+            
+            // Debug: Log function-specific debug info
+            tracing::debug!("Function debug info: {}", graph.debug_function(&function.id));
+            
             let callers = graph.get_callers(&function.id);
             let callees = graph.get_callees(&function.id);
+            
+            tracing::info!("Function {} has {} callers and {} callees", function.name, callers.len(), callees.len());
             
             // Convert to API response format
             let api_function = super::models::FunctionInfo {
