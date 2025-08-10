@@ -130,19 +130,192 @@ pub async fn build_graph(
 }
 
 pub async fn query_call_graph(
-    State(_storage): State<Arc<StorageManager>>,
+    State(storage): State<Arc<StorageManager>>,
     Json(request): Json<QueryCallGraphRequest>,
 ) -> Result<Json<ApiResponse<QueryCallGraphResponse>>, StatusCode> {
-    // TODO: Implement query call graph logic
+    // Extract request parameters
+    let filepath = request.filepath;
+    let function_name = request.function_name;
+    let max_depth = request.max_depth.unwrap_or(3); // Default max depth is 3
+    
+    // Try to find the project ID by searching through stored graphs
+    // In a real implementation, you might want to store project_id -> project_dir mapping
+    let project_id = if let Ok(projects) = storage.get_persistence().list_projects() {
+        // For now, use the first available project
+        // In practice, you'd want to implement a proper project lookup mechanism
+        projects.first().cloned()
+    } else {
+        return Err(StatusCode::NOT_FOUND);
+    };
+    
+    let project_id = project_id.ok_or(StatusCode::NOT_FOUND)?;
+    
+    // Load the code graph for the project
+    let graph = match storage.get_persistence().load_graph(&project_id) {
+        Ok(Some(graph)) => graph,
+        Ok(None) => return Err(StatusCode::NOT_FOUND),
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    
+    let mut functions = Vec::new();
+    
+    if let Some(func_name) = function_name {
+        // Query specific function by name
+        let matching_functions = graph.find_functions_by_name(&func_name);
+        
+        for function in matching_functions {
+            let callers = graph.get_callers(&function.id);
+            let callees = graph.get_callees(&function.id);
+            
+            // Convert to API response format
+            let api_function = super::models::FunctionInfo {
+                id: function.id.to_string(),
+                name: function.name.clone(),
+                line_start: function.line_start,
+                line_end: function.line_end,
+                callers: callers.iter().map(|(caller_func, relation)| {
+                    super::models::CallRelation {
+                        function_name: caller_func.name.clone(),
+                        file_path: caller_func.file_path.display().to_string(),
+                        line_number: relation.line_number,
+                    }
+                }).collect(),
+                callees: callees.iter().map(|(callee_func, relation)| {
+                    super::models::CallRelation {
+                        function_name: callee_func.name.clone(),
+                        file_path: callee_func.file_path.display().to_string(),
+                        line_number: relation.line_number,
+                    }
+                }).collect(),
+            };
+            
+            functions.push(api_function);
+        }
+    } else {
+        // Query all functions in the specified file
+        let file_path = std::path::PathBuf::from(&filepath);
+        let file_functions = graph.find_functions_by_file(&file_path);
+        
+        for function in file_functions {
+            let callers = graph.get_callers(&function.id);
+            let callees = graph.get_callees(&function.id);
+            
+            // Convert to API response format
+            let api_function = super::models::FunctionInfo {
+                id: function.id.to_string(),
+                name: function.name.clone(),
+                line_start: function.line_start,
+                line_end: function.line_end,
+                callers: callers.iter().map(|(caller_func, relation)| {
+                    super::models::CallRelation {
+                        function_name: caller_func.name.clone(),
+                        file_path: caller_func.file_path.display().to_string(),
+                        line_number: relation.line_number,
+                    }
+                }).collect(),
+                callees: callees.iter().map(|(callee_func, relation)| {
+                    super::models::CallRelation {
+                        function_name: callee_func.name.clone(),
+                        file_path: callee_func.file_path.display().to_string(),
+                        line_number: relation.line_number,
+                    }
+                }).collect(),
+            };
+            
+            functions.push(api_function);
+        }
+    }
+    
+    // If max_depth > 1, expand the call chains
+    if max_depth > 1 {
+        let mut expanded_functions = functions.clone();
+        
+        for function in &functions {
+            // Expand callers chain
+            let mut visited = std::collections::HashSet::new();
+            expand_call_chain(&graph, &function.id, &mut visited, &mut expanded_functions, max_depth - 1, true);
+            
+            // Expand callees chain
+            let mut visited = std::collections::HashSet::new();
+            expand_call_chain(&graph, &function.id, &mut visited, &mut expanded_functions, max_depth - 1, false);
+        }
+        
+        functions = expanded_functions;
+    }
+    
     let response = QueryCallGraphResponse {
-        filepath: request.filepath,
-        functions: vec![],
+        filepath,
+        functions,
     };
     
     Ok(Json(ApiResponse {
         success: true,
         data: response,
     }))
+}
+
+/// Helper function to expand call chains recursively
+fn expand_call_chain(
+    graph: &crate::codegraph::types::PetCodeGraph,
+    function_id: &str,
+    visited: &mut std::collections::HashSet<String>,
+    functions: &mut Vec<super::models::FunctionInfo>,
+    depth: usize,
+    is_caller: bool,
+) {
+    if depth == 0 || visited.contains(function_id) {
+        return;
+    }
+    
+    visited.insert(function_id.to_string());
+    
+    // Parse UUID from string
+    let uuid = match uuid::Uuid::parse_str(function_id) {
+        Ok(uuid) => uuid,
+        Err(_) => return,
+    };
+    
+    let relations = if is_caller {
+        graph.get_callers(&uuid)
+    } else {
+        graph.get_callees(&uuid)
+    };
+    
+    for (related_func, _relation) in relations {
+        let related_id = related_func.id.to_string();
+        
+        // Check if this function is already in our list
+        if !functions.iter().any(|f| f.id == related_id) {
+            let callers = graph.get_callers(&related_func.id);
+            let callees = graph.get_callees(&related_func.id);
+            
+            let api_function = super::models::FunctionInfo {
+                id: related_id.clone(),
+                name: related_func.name.clone(),
+                line_start: related_func.line_start,
+                line_end: related_func.line_end,
+                callers: callers.iter().map(|(caller_func, relation)| {
+                    super::models::CallRelation {
+                        function_name: caller_func.name.clone(),
+                        file_path: caller_func.file_path.display().to_string(),
+                        line_number: relation.line_number,
+                    }
+                }).collect(),
+                callees: callees.iter().map(|(callee_func, relation)| {
+                    super::models::CallRelation {
+                        function_name: callee_func.name.clone(),
+                        file_path: callee_func.file_path.display().to_string(),
+                        line_number: relation.line_number,
+                    }
+                }).collect(),
+            };
+            
+            functions.push(api_function);
+        }
+        
+        // Recursively expand
+        expand_call_chain(graph, &related_id, visited, functions, depth - 1, is_caller);
+    }
 }
 
 pub async fn query_code_snippet(

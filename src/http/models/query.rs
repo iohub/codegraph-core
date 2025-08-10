@@ -7,7 +7,7 @@ pub struct QueryCallGraphRequest {
     pub max_depth: Option<usize>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct FunctionInfo {
     pub id: String,
     pub name: String,
@@ -17,7 +17,7 @@ pub struct FunctionInfo {
     pub callees: Vec<CallRelation>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct CallRelation {
     pub function_name: String,
     pub file_path: String,
