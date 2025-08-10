@@ -7,7 +7,6 @@ pub mod file_ast_markup;
 
 use std::path::PathBuf;
 use crate::codegraph::treesitter::parsers::{get_ast_parser_by_filename, ParserError};
-use crate::codegraph::treesitter::ast_instance_structs::AstSymbolInstanceArc;
 
 pub use language_id::LanguageId;
 pub use structs::*;

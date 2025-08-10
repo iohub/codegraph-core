@@ -255,6 +255,13 @@ impl CodeGraphAnalyzer {
                 report.push_str(&format!("  {}: {}\n", lang, count));
             }
             
+            // 文件分布
+            report.push_str("\nFile Distribution:\n");
+            let file_dist = self.get_file_distribution();
+            for (file, count) in file_dist {
+                report.push_str(&format!("  {}: {} functions\n", file, count));
+            }
+            
             // 最复杂的函数
             report.push_str("\nMost Complex Functions:\n");
             let complex_functions = self.find_most_complex_functions(10);

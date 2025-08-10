@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
     use std::fs;
-    use std::collections::HashMap;
     use uuid::Uuid;
     use tempfile::TempDir;
 

@@ -14,7 +14,25 @@ use crate::codegraph::treesitter::language_id::LanguageId;
 use crate::codegraph::treesitter::parsers::AstLanguageParser;
 use crate::codegraph::treesitter::skeletonizer::make_formatter;
 use crate::codegraph::treesitter::structs::SymbolType;
-use crate::files_in_workspace::Document;
+// Mock Document structure for testing
+#[derive(Clone)]
+struct Document {
+    doc_path: PathBuf,
+    doc_text: Option<Rope>,
+}
+
+// Mock ast module for testing
+mod ast {
+    use super::*;
+    use crate::codegraph::treesitter::file_ast_markup::FileASTMarkup;
+    use crate::codegraph::treesitter::ast_instance_structs::SymbolInformation;
+    
+    pub fn lowlevel_file_markup(_doc: &Document, symbols_struct: &Vec<SymbolInformation>) -> Result<FileASTMarkup, Box<dyn std::error::Error>> {
+        Ok(FileASTMarkup {
+            symbols_sorted_by_path_len: symbols_struct.clone(),
+        })
+    }
+}
 
 mod rust;
 mod python;
@@ -219,7 +237,7 @@ pub(crate) fn base_skeletonizer_test(lang: &LanguageId,
         doc_text: Some(Rope::from_str(code)),
     };
     let guid_to_children: HashMap<Uuid, Vec<Uuid>> = symbols.iter().map(|s| (s.read().guid().clone(), s.read().childs_guid().clone())).collect();
-    let ast_markup: FileASTMarkup = crate::ast::lowlevel_file_markup(&doc, &symbols_struct).unwrap();
+    let ast_markup: FileASTMarkup = ast::lowlevel_file_markup(&doc, &symbols_struct).unwrap();
     let guid_to_info: HashMap<Uuid, &SymbolInformation> = ast_markup.symbols_sorted_by_path_len.iter().map(|s| (s.guid.clone(), s)).collect();
     let formatter = make_formatter(lang);
     let class_symbols: Vec<_> = ast_markup.symbols_sorted_by_path_len.iter().filter(|x| x.symbol_type == SymbolType::StructDeclaration).collect();
@@ -255,7 +273,7 @@ pub(crate) fn base_declaration_formatter_test(lang: &LanguageId,
         doc_text: Some(Rope::from_str(code)),
     };
     let guid_to_children: HashMap<Uuid, Vec<Uuid>> = symbols.iter().map(|s| (s.read().guid().clone(), s.read().childs_guid().clone())).collect();
-    let ast_markup: FileASTMarkup = crate::ast::lowlevel_file_markup(&doc, &symbols_struct).unwrap();
+    let ast_markup: FileASTMarkup = ast::lowlevel_file_markup(&doc, &symbols_struct).unwrap();
     let guid_to_info: HashMap<Uuid, &SymbolInformation> = ast_markup.symbols_sorted_by_path_len.iter().map(|s| (s.guid.clone(), s)).collect();
     let formatter = make_formatter(lang);
     let mut decls: HashSet<Decl> = Default::default();

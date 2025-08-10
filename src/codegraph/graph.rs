@@ -51,6 +51,10 @@ impl CodeGraph {
         // 更新统计信息
         self.stats.total_functions += 1;
         *self.stats.languages.entry(language).or_default() += 1;
+        
+        // 更新文件统计
+        self.stats.total_files = self.file_functions.len();
+        self.stats.total_languages = self.stats.languages.len();
     }
 
     /// 添加调用关系
@@ -108,6 +112,12 @@ impl CodeGraph {
         let mut chains = Vec::new();
         let mut visited = HashSet::new();
         self._get_call_chain_recursive(function_id, &mut chains, &mut visited, 0, max_depth);
+        
+        // 如果没有找到任何调用链，至少返回包含函数本身的链
+        if chains.is_empty() {
+            chains.push(vec![*function_id]);
+        }
+        
         chains
     }
 
@@ -147,17 +157,17 @@ impl CodeGraph {
         
         // 添加节点
         for function in self.functions.values() {
-            let node_id = function.id.to_string().replace("-", "_");
+            let node_id = function.name.replace(" ", "_").replace("-", "_");
             let label = format!("{}\\n{}", function.name, function.file_path.display());
             mermaid.push_str(&format!("    {}[\"{}\"]\n", node_id, label));
         }
         
         // 添加边
         for relation in &self.call_relations {
-            let caller_id = relation.caller_id.to_string().replace("-", "_");
-            let callee_id = relation.callee_id.to_string().replace("-", "_");
+            let caller_name = relation.caller_name.replace(" ", "_").replace("-", "_");
+            let callee_name = relation.callee_name.replace(" ", "_").replace("-", "_");
             let style = if relation.is_resolved { "" } else { ":::unresolved" };
-            mermaid.push_str(&format!("    {} --> {}{}\n", caller_id, callee_id, style));
+            mermaid.push_str(&format!("    {} --> {}{}\n", caller_name, callee_name, style));
         }
         
         // 添加样式
@@ -174,17 +184,17 @@ impl CodeGraph {
         
         // 添加节点
         for function in self.functions.values() {
-            let node_id = function.id.to_string().replace("-", "_");
+            let node_id = function.name.replace(" ", "_").replace("-", "_");
             let label = format!("{}\\n{}", function.name, function.file_path.display());
             dot.push_str(&format!("    {} [label=\"{}\"];\n", node_id, label));
         }
         
         // 添加边
         for relation in &self.call_relations {
-            let caller_id = relation.caller_id.to_string().replace("-", "_");
-            let callee_id = relation.callee_id.to_string().replace("-", "_");
+            let caller_name = relation.caller_name.replace(" ", "_").replace("-", "_");
+            let callee_name = relation.callee_name.replace(" ", "_").replace("-", "_");
             let style = if relation.is_resolved { "" } else { " [style=dashed]" };
-            dot.push_str(&format!("    {} -> {}{};\n", caller_id, callee_id, style));
+            dot.push_str(&format!("    {} -> {}{};\n", caller_name, callee_name, style));
         }
         
         dot.push_str("}\n");
