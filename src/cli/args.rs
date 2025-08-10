@@ -20,4 +20,8 @@ pub struct Cli {
     /// Verbose mode
     #[clap(short, long, action)]
     pub verbose: bool,
+
+    /// Start HTTP server on specified address (e.g., 127.0.0.1:8080)
+    #[clap(long, value_parser)]
+    pub server: Option<String>,
 } 
