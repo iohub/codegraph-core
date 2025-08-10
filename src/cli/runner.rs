@@ -20,17 +20,20 @@ impl CodeGraphRunner {
             .finish();
         tracing::subscriber::set_global_default(subscriber)?;
 
+        // Validate that input is provided when not in server mode
+        let input = cli.input.ok_or("Input directory is required when not running in server mode")?;
+
         info!("Starting CodeGraph analysis...");
 
         // Create parser and analyze code
         let mut parser = CodeParser::new();
         
-        info!("Parsing directory: {:?}", cli.input);
-        let code_graph = parser.build_petgraph_code_graph(&cli.input)?;
+        info!("Parsing directory: {:?}", input);
+        let code_graph = parser.build_petgraph_code_graph(&input)?;
         
         // Get output path
         let output_path = cli.output.unwrap_or_else(|| {
-            let mut path = cli.input.clone();
+            let mut path = input.clone();
             path.push("codegraph.json");
             path
         });

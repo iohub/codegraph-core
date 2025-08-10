@@ -7,7 +7,7 @@ use clap::Parser;
 pub struct Cli {
     /// Input directory to analyze
     #[clap(short, long, value_parser)]
-    pub input: PathBuf,
+    pub input: Option<PathBuf>,
 
     /// Output file path
     #[clap(short, long, value_parser)]
