@@ -256,43 +256,51 @@ impl CodeParser {
             
             // 检查是否为函数调用
             if symbol_ref.symbol_type() == crate::codegraph::treesitter::structs::SymbolType::FunctionCall {
-                self._process_function_call(symbol_ref, functions, code_graph);
+                let call_name = symbol_ref.name();
+                let call_file = symbol_ref.file_path();
+                let call_line = symbol_ref.full_range().start_point.row + 1;
+                // 1. 先在本文件查找被调用函数
+                if let Some(callee_idx) = self._find_function_by_name_in_list(call_name, functions) {
+                    // 查找调用者函数（通过分析调用位置）
+                    if let Some(caller_idx) = self._find_caller_function(call_file, call_line, functions) {
+                        let callee = &functions[callee_idx];
+                        let caller = &functions[caller_idx];
+                        let relation = CallRelation {
+                            caller_id: caller.id,
+                            callee_id: callee.id,
+                            caller_name: caller.name.clone(),
+                            callee_name: callee.name.clone(),
+                            caller_file: caller.file_path.clone(),
+                            callee_file: callee.file_path.clone(),
+                            line_number: call_line,
+                            is_resolved: true,
+                        };
+                        code_graph.add_call_relation(relation);
+                        continue;
+                    }
+                }
+                // 2. 跨文件查找被调用函数
+                if let Some(callee) = self._find_function_by_name_global(call_name) {
+                    // 查找调用者函数（通过分析调用位置）
+                    if let Some(caller_idx) = self._find_caller_function(call_file, call_line, functions) {
+                        let caller = &functions[caller_idx];
+                        let relation = CallRelation {
+                            caller_id: caller.id,
+                            callee_id: callee.id,
+                            caller_name: caller.name.clone(),
+                            callee_name: callee.name.clone(),
+                            caller_file: caller.file_path.clone(),
+                            callee_file: callee.file_path.clone(),
+                            line_number: call_line,
+                            is_resolved: true,
+                        };
+                        code_graph.add_call_relation(relation);
+                        continue;
+                    }
+                }
+                // 3. 无法解析的调用
+                self._handle_unresolved_call(call_name, call_file, call_line, functions, code_graph);
             }
-        }
-    }
-
-    /// 处理函数调用，建立调用关系
-    fn _process_function_call(
-        &self,
-        call_symbol: &dyn crate::codegraph::treesitter::AstSymbolInstance,
-        functions: &[FunctionInfo],
-        code_graph: &mut CodeGraph
-    ) {
-        let call_name = call_symbol.name();
-        let call_file = call_symbol.file_path();
-        let call_line = call_symbol.full_range().start_point.row + 1; // TreeSitter的行号从0开始
-        
-        // 查找被调用的函数
-        if let Some(callee_idx) = self._find_function_by_name_in_list(call_name, functions) {
-            // 查找调用者函数（通过分析调用位置）
-            if let Some(caller_idx) = self._find_caller_function(call_file, call_line, functions) {
-                let callee = &functions[callee_idx];
-                let caller = &functions[caller_idx];
-                let relation = CallRelation {
-                    caller_id: caller.id,
-                    callee_id: callee.id,
-                    caller_name: caller.name.clone(),
-                    callee_name: callee.name.clone(),
-                    caller_file: caller.file_path.clone(),
-                    callee_file: callee.file_path.clone(),
-                    line_number: call_line,
-                    is_resolved: true,
-                };
-                code_graph.add_call_relation(relation);
-            }
-        } else {
-            // 函数调用无法解析，可能是外部函数或未定义的函数
-            self._handle_unresolved_call(call_name, call_file, call_line, functions, code_graph);
         }
     }
 
@@ -357,6 +365,18 @@ impl CodeParser {
             for function in functions {
                 if function.name == name {
                     return Some(function);
+                }
+            }
+        }
+        None
+    }
+
+    /// 全局查找函数名（跨文件）
+    fn _find_function_by_name_global(&self, name: &str) -> Option<FunctionInfo> {
+        for (_file_path, functions) in &self.file_functions {
+            for function in functions {
+                if function.name == name {
+                    return Some(function.clone());
                 }
             }
         }
