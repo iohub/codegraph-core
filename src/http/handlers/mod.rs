@@ -352,17 +352,112 @@ fn expand_call_chain(
 }
 
 pub async fn query_code_snippet(
-    State(_storage): State<Arc<StorageManager>>,
+    State(storage): State<Arc<StorageManager>>,
     Json(request): Json<QueryCodeSnippetRequest>,
 ) -> Result<Json<ApiResponse<CodeSnippetResponse>>, StatusCode> {
-    // TODO: Implement query code snippet logic
+    // Try to find the project ID by searching through stored graphs
+    let project_id = if let Ok(projects) = storage.get_persistence().list_projects() {
+        projects.first().cloned()
+    } else {
+        return Err(StatusCode::NOT_FOUND);
+    };
+    
+    let project_id = project_id.ok_or(StatusCode::NOT_FOUND)?;
+    
+    // Load the code graph for the project
+    let graph = match storage.get_persistence().load_graph(&project_id) {
+        Ok(Some(graph)) => graph,
+        Ok(None) => return Err(StatusCode::NOT_FOUND),
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    
+    // Find the target function
+    let target_function = if let Some(func_name) = &request.function_name {
+        // Query specific function by name
+        let matching_functions = graph.find_functions_by_name(func_name);
+        if matching_functions.is_empty() {
+            return Err(StatusCode::NOT_FOUND);
+        }
+        // For now, take the first matching function
+        // In a real implementation, you might want to handle multiple matches
+        matching_functions[0]
+    } else {
+        // Query all functions in the specified file and take the first one
+        let file_path = std::path::PathBuf::from(&request.filepath);
+        let file_functions = graph.find_functions_by_file(&file_path);
+        if file_functions.is_empty() {
+            return Err(StatusCode::NOT_FOUND);
+        }
+        file_functions[0]
+    };
+    
+    // Read the file contents
+    let file_contents = match std::fs::read_to_string(&target_function.file_path) {
+        Ok(contents) => contents,
+        Err(e) => {
+            tracing::error!("Failed to read file {}: {}", target_function.file_path.display(), e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    
+    // Split file into lines
+    let lines: Vec<&str> = file_contents.lines().collect();
+    
+    // Calculate line range for the snippet
+    let context_lines = request.context_lines.unwrap_or(3);
+    let include_context = request.include_context.unwrap_or(true);
+    
+    let (line_start, line_end) = if include_context {
+        let start = target_function.line_start.saturating_sub(context_lines);
+        let end = (target_function.line_end + context_lines).min(lines.len());
+        (start, end)
+    } else {
+        (target_function.line_start, target_function.line_end)
+    };
+    
+    // Extract the code snippet
+    let code_snippet = if line_start < lines.len() && line_end <= lines.len() && line_start < line_end {
+        lines[line_start..line_end].join("\n")
+    } else {
+        // Fallback: return the entire function range
+        if target_function.line_start < lines.len() && target_function.line_end <= lines.len() {
+            lines[target_function.line_start..target_function.line_end].join("\n")
+        } else {
+            "// Function not found in file".to_string()
+        }
+    };
+    
+    // Determine language from file extension
+    let language: String = target_function.file_path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| match ext.to_lowercase().as_str() {
+            "rs" => "rust",
+            "py" => "python",
+            "js" => "javascript",
+            "ts" => "typescript",
+            "java" => "java",
+            "cpp" | "cc" | "cxx" => "cpp",
+            "c" => "c",
+            "go" => "go",
+            "php" => "php",
+            "rb" => "ruby",
+            "swift" => "swift",
+            "kt" => "kotlin",
+            "scala" => "scala",
+            "cs" => "csharp",
+            _ => "unknown"
+        })
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    
     let response = CodeSnippetResponse {
-        filepath: request.filepath,
-        function_name: request.function_name,
-        code_snippet: "// TODO: Implement".to_string(),
-        line_start: 0,
-        line_end: 0,
-        language: "unknown".to_string(),
+        filepath: target_function.file_path.display().to_string(),
+        function_name: Some(target_function.name.clone()),
+        code_snippet,
+        line_start: target_function.line_start,
+        line_end: target_function.line_end,
+        language,
     };
     
     Ok(Json(ApiResponse {
