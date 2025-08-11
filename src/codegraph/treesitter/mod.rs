@@ -25,9 +25,15 @@ impl TreeSitterParser {
 
     /// 解析文件并返回AST符号实例
     pub fn parse_file(&self, file_path: &PathBuf) -> Result<Vec<AstSymbolInstanceArc>, ParserError> {
-        let (_parser, _language_id) = get_ast_parser_by_filename(file_path)?;
-        // 这里需要读取文件内容，暂时返回空结果
-        // TODO: 实现文件读取和解析
-        Ok(Vec::new())
+        let (mut parser, language_id) = get_ast_parser_by_filename(file_path)?;
+        // 读取文件内容
+        let code = std::fs::read_to_string(file_path)
+            .map_err(|e| ParserError {
+                message: format!("Failed to read file {}: {}", file_path.display(), e)
+            })?;
+        
+        // 解析文件内容
+        let symbols = parser.parse(&code, file_path);
+        Ok(symbols)
     }
 } 

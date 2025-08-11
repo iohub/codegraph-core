@@ -166,7 +166,7 @@ pub async fn query_call_graph(
     };
     
     // Debug: Log graph information
-    tracing::info!("Loaded graph: {}", graph.debug_info());
+    tracing::info!("Loaded graph with {} functions", graph.get_stats().total_functions);
     
     let mut functions = Vec::new();
     
@@ -180,7 +180,9 @@ pub async fn query_call_graph(
             tracing::info!("Processing function: {} (ID: {})", function.name, function.id);
             
             // Debug: Log function-specific debug info
-            tracing::debug!("Function debug info: {}", graph.debug_function(&function.id));
+            if let Some(func) = graph.get_function_by_id(&function.id) {
+                tracing::debug!("Function debug info: {} at {}:{}", func.name, func.file_path.display(), func.line_start);
+            }
             
             let callers = graph.get_callers(&function.id);
             let callees = graph.get_callees(&function.id);
@@ -222,7 +224,9 @@ pub async fn query_call_graph(
             tracing::info!("Processing function: {} (ID: {})", function.name, function.id);
             
             // Debug: Log function-specific debug info
-            tracing::debug!("Function debug info: {}", graph.debug_function(&function.id));
+            if let Some(func) = graph.get_function_by_id(&function.id) {
+                tracing::debug!("Function debug info: {} at {}:{}", func.name, func.file_path.display(), func.line_start);
+            }
             
             let callers = graph.get_callers(&function.id);
             let callees = graph.get_callees(&function.id);
