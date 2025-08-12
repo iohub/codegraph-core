@@ -62,10 +62,11 @@ pub async fn build_graph(
     });
     
     // Get changed files for incremental update (currently not used but kept for future incremental processing)
-    let _changed_files = storage.get_incremental().get_changed_files(
-        project_dir,
-        &exclude_patterns,
-    );
+    // TODO: Implement incremental update functionality
+    // let _changed_files = storage.get_incremental().get_changed_files(
+    //     project_dir,
+    //     &exclude_patterns,
+    // );
     
     // Use CodeGraphAnalyzer to build the actual graph
     let mut analyzer = CodeGraphAnalyzer::new();
