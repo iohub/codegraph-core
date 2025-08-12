@@ -219,7 +219,7 @@ impl IncrementalManager {
                 let call_line = symbol_ref.full_range().start_point.row + 1;
 
                 // 查找调用者函数
-                if let Some(caller_id) = self._find_caller_function(file_path, call_line, function_ids) {
+                if let Some(caller_id) = self._find_caller_function(file_path, call_line, function_ids, call_graph) {
                     // 查找被调用函数（先在本文件，再全局）
                     if let Some(callee_id) = self._find_callee_function(call_name, function_ids, call_graph) {
                         let relation = CallRelation {
@@ -247,10 +247,18 @@ impl IncrementalManager {
     }
 
     /// 查找调用者函数
-    fn _find_caller_function<'a>(&self, _file_path: &PathBuf, _call_line: usize, function_ids: &'a [Uuid]) -> Option<&'a Uuid> {
-        // 这里需要根据行号范围查找包含调用行的函数
-        // 简化实现：返回第一个函数ID
-        function_ids.first()
+    fn _find_caller_function<'a>(&self, file_path: &PathBuf, call_line: usize, function_ids: &'a [Uuid], call_graph: &PetCodeGraph) -> Option<&'a Uuid> {
+        // 根据行号范围查找包含调用行的函数
+        for function_id in function_ids {
+            if let Some(function) = call_graph.get_function_by_id(function_id) {
+                if function.file_path == *file_path && 
+                   call_line >= function.line_start && 
+                   call_line <= function.line_end {
+                    return Some(function_id);
+                }
+            }
+        }
+        None
     }
 
     /// 查找被调用函数
@@ -388,9 +396,65 @@ impl IncrementalManager {
     }
 
     /// 提取命名空间
-    fn _extract_namespace(&self, _file_path: &Path) -> String {
-        // 简化实现，实际应该从文件内容解析
+    fn _extract_namespace(&self, file_path: &Path) -> String {
+        // 从文件内容解析命名空间
+        if let Ok(content) = fs::read_to_string(file_path) {
+            return self._extract_namespace_from_content(&content, file_path);
+        }
         "global".to_string()
+    }
+
+    /// 从文件内容提取命名空间
+    fn _extract_namespace_from_content(&self, content: &str, file_path: &Path) -> String {
+        let language = self._detect_language(file_path);
+        
+        match language.as_str() {
+            "rust" => {
+                // 查找mod声明
+                for line in content.lines() {
+                    if line.trim().starts_with("mod ") {
+                        if let Some(name) = line.trim().split_whitespace().nth(1) {
+                            return name.to_string();
+                        }
+                    }
+                }
+                "crate".to_string()
+            },
+            "python" => {
+                // 查找包名或模块名
+                for line in content.lines() {
+                    if line.trim().starts_with("__package__") {
+                        if let Some(name) = line.split('=').nth(1) {
+                            return name.trim().trim_matches('"').trim_matches('\'').to_string();
+                        }
+                    }
+                }
+                "global".to_string()
+            },
+            "java" => {
+                // 查找package声明
+                for line in content.lines() {
+                    if line.trim().starts_with("package ") {
+                        if let Some(package) = line.trim().split_whitespace().nth(1) {
+                            return package.trim_end_matches(';').to_string();
+                        }
+                    }
+                }
+                "default".to_string()
+            },
+            "cpp" => {
+                // 查找namespace声明
+                for line in content.lines() {
+                    if line.trim().starts_with("namespace ") {
+                        if let Some(name) = line.trim().split_whitespace().nth(1) {
+                            return name.to_string();
+                        }
+                    }
+                }
+                "global".to_string()
+            },
+            _ => "global".to_string(),
+        }
     }
 
     /// 获取文件索引

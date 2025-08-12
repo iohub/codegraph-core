@@ -564,6 +564,17 @@ impl EntityGraph {
             .and_then(|&node_index| self.graph.node_weight(node_index))
     }
 
+    /// 根据类ID获取类信息
+    pub fn get_class_by_id(&self, class_id: &Uuid) -> Option<&ClassInfo> {
+        self.get_entity_by_id(class_id).and_then(|entity| {
+            if let EntityNode::Class(class) = entity {
+                Some(class)
+            } else {
+                None
+            }
+        })
+    }
+
     /// 根据类名查找类
     pub fn find_classes_by_name(&self, name: &str) -> Vec<&ClassInfo> {
         self.class_names
