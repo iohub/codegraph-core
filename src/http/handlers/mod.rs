@@ -7,6 +7,8 @@ use std::sync::Arc;
 use crate::storage::StorageManager;
 use crate::codegraph::CodeGraphAnalyzer;
 use super::models::*;
+use md5;
+use uuid;
 
 pub async fn build_graph(
     State(storage): State<Arc<StorageManager>>,
@@ -14,11 +16,11 @@ pub async fn build_graph(
 ) -> Result<Json<ApiResponse<BuildGraphResponse>>, StatusCode> {
     let start_time = std::time::Instant::now();
     
-    // Generate project ID
-    let project_id = uuid::Uuid::new_v4().to_string();
-    
     // Get project directory path
     let project_dir = std::path::Path::new(&request.project_dir);
+    
+    // Generate project ID using MD5 hash of project directory
+    let project_id = format!("{:x}", md5::compute(request.project_dir.as_bytes()));
     if !project_dir.exists() || !project_dir.is_dir() {
         return Err(StatusCode::BAD_REQUEST);
     }
@@ -51,22 +53,6 @@ pub async fn build_graph(
         }
     };
     
-    // Get exclude patterns
-    let exclude_patterns = request.exclude_patterns.unwrap_or_else(|| {
-        vec![
-            "node_modules".to_string(),
-            ".venv".to_string(),
-            "__pycache__".to_string(),
-            "target".to_string(),
-        ]
-    });
-    
-    // Get changed files for incremental update (currently not used but kept for future incremental processing)
-    // TODO: Implement incremental update functionality
-    // let _changed_files = storage.get_incremental().get_changed_files(
-    //     project_dir,
-    //     &exclude_patterns,
-    // );
     
     // Use CodeGraphAnalyzer to build the actual graph
     let mut analyzer = CodeGraphAnalyzer::new();
