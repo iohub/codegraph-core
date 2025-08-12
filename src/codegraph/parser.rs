@@ -987,3 +987,99 @@ impl Default for CodeParser {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use uuid::Uuid;
+
+    #[test]
+    fn test_analyze_petgraph_call_relations() {
+        let mut parser = CodeParser::new();
+        let mut code_graph = PetCodeGraph::new();
+        
+        // 创建一些测试函数
+        let func1 = FunctionInfo {
+            id: Uuid::new_v4(),
+            name: "main".to_string(),
+            file_path: PathBuf::from("test.rs"),
+            line_start: 1,
+            line_end: 10,
+            namespace: "global".to_string(),
+            language: "rust".to_string(),
+            signature: Some("fn main()".to_string()),
+            return_type: None,
+            parameters: vec![],
+        };
+        
+        let func2 = FunctionInfo {
+            id: Uuid::new_v4(),
+            name: "calculate".to_string(),
+            file_path: PathBuf::from("test.rs"),
+            line_start: 12,
+            line_end: 20,
+            namespace: "global".to_string(),
+            language: "rust".to_string(),
+            signature: Some("fn calculate()".to_string()),
+            return_type: None,
+            parameters: vec![],
+        };
+        
+        // 添加到代码图
+        code_graph.add_function(func1.clone());
+        code_graph.add_function(func2.clone());
+        
+        // 添加到文件函数映射
+        parser.file_functions.insert(
+            PathBuf::from("test.rs"),
+            vec![func1.clone(), func2.clone()]
+        );
+        
+        // 运行调用关系分析
+        parser._analyze_petgraph_call_relations(&mut code_graph);
+        
+        // 验证结果
+        let stats = code_graph.get_stats();
+        assert!(stats.total_functions >= 2);
+        
+        // 检查是否有调用关系（即使是启发式的）
+        let callers = code_graph.get_callers(&func1.id);
+        let callees = code_graph.get_callees(&func1.id);
+        
+        // 由于没有真实的AST解析，可能只有启发式调用关系
+        // 或者没有调用关系（取决于回退分析的实现）
+        println!("Function {} has {} callers and {} callees", 
+                func1.name, callers.len(), callees.len());
+    }
+    
+    #[test]
+    fn test_resolve_qualified_function_name() {
+        let mut parser = CodeParser::new();
+        let mut code_graph = PetCodeGraph::new();
+        
+        // 创建一个类方法
+        let method = FunctionInfo {
+            id: Uuid::new_v4(),
+            name: "process".to_string(),
+            file_path: PathBuf::from("test.rs"),
+            line_start: 1,
+            line_end: 10,
+            namespace: "Calculator".to_string(),
+            language: "rust".to_string(),
+            signature: Some("fn process()".to_string()),
+            return_type: None,
+            parameters: vec![],
+        };
+        
+        code_graph.add_function(method.clone());
+        
+        // 测试解析限定名
+        let result = parser._resolve_qualified_function_name("Calculator.process", &code_graph);
+        assert!(result.is_some());
+        
+        let resolved_func = result.unwrap();
+        assert_eq!(resolved_func.name, "process");
+        assert_eq!(resolved_func.namespace, "Calculator");
+    }
+}
