@@ -27,8 +27,9 @@ impl CodeGraphRunner {
             Commands::Repo { path, state_dir, incremental, search, stats } => {
                 Self::run_repo_analysis(path, state_dir, incremental, search, stats)?;
             }
-            Commands::Server { address } => {
-                Self::run_server(address)?;
+            Commands::Server { address: _ } => {
+                // HTTP server is handled in main.rs
+                return Err("HTTP server should be started from main.rs".into());
             }
         }
 
@@ -154,15 +155,7 @@ impl CodeGraphRunner {
         Ok(())
     }
 
-    fn run_server(address: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
-        let addr = address.unwrap_or_else(|| "127.0.0.1:8080".to_string());
-        info!("Starting HTTP server on {}", addr);
-        
-        // TODO: 实现HTTP服务器
-        info!("HTTP server functionality not yet implemented");
-        
-        Ok(())
-    }
+
 
     fn export_code_graph(
         code_graph: &crate::codegraph::PetCodeGraph,
