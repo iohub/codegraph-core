@@ -6,7 +6,7 @@ use tracing::{info, warn};
 
 use crate::codegraph::types::{
     FunctionInfo, CallRelation, PetCodeGraph, EntityGraph, ClassInfo, ClassType,
-    EntityEdge, EntityEdgeType, FileMetadata, FileIndex, SnippetIndex
+    FileIndex, SnippetIndex
 };
 use crate::codegraph::graph::CodeGraph;
 use crate::codegraph::treesitter::TreeSitterParser;
@@ -288,7 +288,7 @@ impl CodeParser {
         // 获取文件的所有实体ID
         let entity_ids = self.file_index.get_all_entity_ids(file_path);
         let function_ids = self.file_index.get_all_function_ids(file_path);
-        let class_ids = self.file_index.get_all_class_ids(file_path);
+        let _class_ids = self.file_index.get_all_class_ids(file_path);
 
         // 从图中移除
         for entity_id in entity_ids {
@@ -681,57 +681,305 @@ impl CodeParser {
         None
     }
 
-    /// 分析petgraph调用关系（简化版）
+    /// 分析petgraph调用关系（完整实现）
     fn _analyze_petgraph_call_relations(&self, code_graph: &mut PetCodeGraph) {
-        // 简化版调用关系分析
-        // 实际实现需要更复杂的逻辑来解析函数调用
-        for (_file_path, functions) in &self.file_functions {
-            for function in functions {
-                // 基于函数名创建合理的调用关系
-                match function.name.as_str() {
-                    "main" => {
-                        // main 调用 calculate
-                        if let Some(calc_func) = self._find_function_by_name("calculate") {
-                            let relation = CallRelation {
-                                caller_id: function.id,
-                                callee_id: calc_func.id,
-                                caller_name: function.name.clone(),
-                                callee_name: calc_func.name.clone(),
-                                caller_file: function.file_path.clone(),
-                                callee_file: calc_func.file_path.clone(),
-                                line_number: 1,
-                                is_resolved: true,
-                            };
-                            if let Err(e) = code_graph.add_call_relation(relation) {
-                                warn!("Failed to add call relation: {}", e);
-                            }
+        info!("Starting petgraph call relation analysis for {} files", self.file_functions.len());
+        
+        let mut total_calls = 0;
+        let mut resolved_calls = 0;
+        let mut unresolved_calls = 0;
+        
+        // 遍历每个文件的函数
+        for (file_path, functions) in &self.file_functions {
+            if functions.is_empty() {
+                continue;
+            }
+            
+            // 使用TreeSitter解析器分析文件中的函数调用
+            match self.ts_parser.parse_file(file_path) {
+                Ok(symbols) => {
+                    let file_calls = self._analyze_file_calls_for_petgraph(
+                        &symbols, 
+                        functions, 
+                        code_graph,
+                        file_path
+                    );
+                    total_calls += file_calls.total;
+                    resolved_calls += file_calls.resolved;
+                    unresolved_calls += file_calls.unresolved;
+                },
+                Err(e) => {
+                    warn!("Failed to parse file {} for call analysis: {:?}", file_path.display(), e);
+                    // 即使解析失败，也尝试基于函数名的简单分析
+                    self._fallback_call_analysis(functions, code_graph);
+                }
+            }
+        }
+        
+        info!("Call analysis completed: {} total calls, {} resolved, {} unresolved", 
+              total_calls, resolved_calls, unresolved_calls);
+    }
+    
+    /// 分析单个文件的函数调用（用于petgraph）
+    fn _analyze_file_calls_for_petgraph(
+        &self,
+        symbols: &[crate::codegraph::treesitter::AstSymbolInstanceArc],
+        functions: &[FunctionInfo],
+        code_graph: &mut PetCodeGraph,
+        file_path: &PathBuf,
+    ) -> CallAnalysisStats {
+        let mut stats = CallAnalysisStats::default();
+        
+        // 分析每个AST符号
+        for symbol in symbols {
+            let symbol_guard = symbol.read();
+            let symbol_ref = symbol_guard.as_ref();
+            
+            // 检查是否为函数调用
+            if symbol_ref.symbol_type() == crate::codegraph::treesitter::structs::SymbolType::FunctionCall {
+                stats.total += 1;
+                let call_name = symbol_ref.name();
+                let call_line = symbol_ref.full_range().start_point.row + 1;
+                
+                // 查找调用者函数（通过分析调用位置）
+                if let Some(caller_idx) = self._find_caller_function_by_line(file_path, call_line, functions) {
+                    let caller = &functions[caller_idx];
+                    
+                    // 尝试解析被调用函数
+                    if let Some(callee_info) = self._resolve_callee_function(
+                        call_name, 
+                        file_path, 
+                        functions, 
+                        code_graph
+                    ) {
+                        // 创建已解析的调用关系
+                        let relation = CallRelation {
+                            caller_id: caller.id,
+                            callee_id: callee_info.id,
+                            caller_name: caller.name.clone(),
+                            callee_name: callee_info.name.clone(),
+                            caller_file: caller.file_path.clone(),
+                            callee_file: callee_info.file_path.clone(),
+                            line_number: call_line,
+                            is_resolved: true,
+                        };
+                        
+                        if let Err(e) = code_graph.add_call_relation(relation) {
+                            warn!("Failed to add resolved call relation: {}", e);
+                        } else {
+                            stats.resolved += 1;
                         }
-                    },
-                    "calculate" => {
-                        // calculate 调用 add
-                        if let Some(add_func) = self._find_function_by_name("add") {
-                            let relation = CallRelation {
-                                caller_id: function.id,
-                                callee_id: add_func.id,
-                                caller_name: function.name.clone(),
-                                callee_name: add_func.name.clone(),
-                                caller_file: function.file_path.clone(),
-                                callee_file: add_func.file_path.clone(),
-                                line_number: 1,
-                                is_resolved: true,
-                            };
-                            if let Err(e) = code_graph.add_call_relation(relation) {
-                                warn!("Failed to add call relation: {}", e);
-                            }
-                        }
-                    },
-                    _ => {
-                        // 其他函数不创建调用关系
+                    } else {
+                        // 创建未解析的调用关系
+                        self._create_unresolved_call_relation(
+                            caller, 
+                            call_name, 
+                            file_path, 
+                            call_line, 
+                            code_graph
+                        );
+                        stats.unresolved += 1;
+                    }
+                }
+            }
+        }
+        
+        stats
+    }
+    
+    /// 解析被调用函数
+    fn _resolve_callee_function(
+        &self,
+        call_name: &str,
+        _current_file: &PathBuf,
+        current_functions: &[FunctionInfo],
+        code_graph: &PetCodeGraph,
+    ) -> Option<FunctionInfo> {
+        // 1. 先在本文件查找
+        for function in current_functions {
+            if function.name == call_name {
+                return Some(function.clone());
+            }
+        }
+        
+        // 2. 在全局函数注册表中查找
+        if let Some(global_func) = self._find_function_by_name_global(call_name) {
+            return Some(global_func);
+        }
+        
+        // 3. 在代码图中查找
+        let global_functions = code_graph.find_functions_by_name(call_name);
+        if let Some(func) = global_functions.first() {
+            return Some((*func).clone());
+        }
+        
+        // 4. 尝试解析限定名（如 Class.method, module.function）
+        if let Some(qualified_func) = self._resolve_qualified_function_name(call_name, code_graph) {
+            return Some(qualified_func);
+        }
+        
+        None
+    }
+    
+    /// 解析限定函数名（如 Class.method, module.function）
+    fn _resolve_qualified_function_name(
+        &self,
+        qualified_name: &str,
+        code_graph: &PetCodeGraph,
+    ) -> Option<FunctionInfo> {
+        // 检查是否包含分隔符
+        if let Some(dot_pos) = qualified_name.rfind('.') {
+            let (prefix, method_name) = qualified_name.split_at(dot_pos);
+            let method_name = &method_name[1..]; // 去掉点号
+            
+            // 查找匹配的方法
+            let candidates = code_graph.find_functions_by_name(method_name);
+            for func in candidates {
+                // 检查函数是否在指定的类/模块中
+                if func.namespace.contains(prefix) || func.name == method_name {
+                    return Some(func.clone());
+                }
+            }
+        }
+        
+        None
+    }
+    
+    /// 创建未解析的调用关系
+    fn _create_unresolved_call_relation(
+        &self,
+        caller: &FunctionInfo,
+        call_name: &str,
+        file_path: &PathBuf,
+        call_line: usize,
+        code_graph: &mut PetCodeGraph,
+    ) {
+        // 为未解析的调用创建一个临时函数节点
+        let temp_callee_id = Uuid::new_v4();
+        let temp_callee = FunctionInfo {
+            id: temp_callee_id,
+            name: call_name.to_string(),
+            file_path: file_path.clone(),
+            line_start: call_line,
+            line_end: call_line,
+            namespace: "unresolved".to_string(),
+            language: caller.language.clone(),
+            signature: Some(format!("unresolved_call_{}", call_name)),
+            return_type: None,
+            parameters: vec![],
+        };
+        
+        // 添加到代码图
+        let _node_index = code_graph.add_function(temp_callee);
+        
+        // 创建未解析的调用关系
+        let relation = CallRelation {
+            caller_id: caller.id,
+            callee_id: temp_callee_id,
+            caller_name: caller.name.clone(),
+            callee_name: call_name.to_string(),
+            caller_file: caller.file_path.clone(),
+            callee_file: file_path.clone(),
+            line_number: call_line,
+            is_resolved: false,
+        };
+        
+        if let Err(e) = code_graph.add_call_relation(relation) {
+            warn!("Failed to add unresolved call relation: {}", e);
+        }
+    }
+    
+    /// 回退调用分析（当TreeSitter解析失败时使用）
+    fn _fallback_call_analysis(
+        &self,
+        functions: &[FunctionInfo],
+        code_graph: &mut PetCodeGraph,
+    ) {
+        // 基于函数名的简单启发式分析
+        for function in functions {
+            let function_name = function.name.to_lowercase();
+            
+            // 根据函数名推断可能的调用关系
+            if function_name.contains("main") || function_name.contains("entry") {
+                // main/entry 函数可能调用其他函数
+                self._create_heuristic_calls(function, functions, code_graph);
+            } else if function_name.contains("test") || function_name.contains("spec") {
+                // 测试函数可能调用被测试的函数
+                self._create_test_calls(function, functions, code_graph);
+            }
+        }
+    }
+    
+    /// 创建启发式调用关系
+    fn _create_heuristic_calls(
+        &self,
+        main_function: &FunctionInfo,
+        all_functions: &[FunctionInfo],
+        code_graph: &mut PetCodeGraph,
+    ) {
+        // 为main函数创建到其他函数的调用关系
+        for other_func in all_functions {
+            if other_func.id != main_function.id {
+                let relation = CallRelation {
+                    caller_id: main_function.id,
+                    callee_id: other_func.id,
+                    caller_name: main_function.name.clone(),
+                    callee_name: other_func.name.clone(),
+                    caller_file: main_function.file_path.clone(),
+                    callee_file: other_func.file_path.clone(),
+                    line_number: main_function.line_start,
+                    is_resolved: false, // 启发式调用标记为未解析
+                };
+                
+                if let Err(e) = code_graph.add_call_relation(relation) {
+                    warn!("Failed to add heuristic call relation: {}", e);
+                }
+            }
+        }
+    }
+    
+    /// 创建测试调用关系
+    fn _create_test_calls(
+        &self,
+        test_function: &FunctionInfo,
+        all_functions: &[FunctionInfo],
+        code_graph: &mut PetCodeGraph,
+    ) {
+        // 为测试函数创建到被测试函数的调用关系
+        let test_name = test_function.name.to_lowercase();
+        
+        for other_func in all_functions {
+            if other_func.id != test_function.id {
+                let other_name = other_func.name.to_lowercase();
+                
+                // 检查是否是被测试的函数
+                if test_name.contains(&other_name) || other_name.contains("test") {
+                    let relation = CallRelation {
+                        caller_id: test_function.id,
+                        callee_id: other_func.id,
+                        caller_name: test_function.name.clone(),
+                        callee_name: other_func.name.clone(),
+                        caller_file: test_function.file_path.clone(),
+                        callee_file: other_func.file_path.clone(),
+                        line_number: test_function.line_start,
+                        is_resolved: false, // 启发式调用标记为未解析
+                    };
+                    
+                    if let Err(e) = code_graph.add_call_relation(relation) {
+                        warn!("Failed to add test call relation: {}", e);
                     }
                 }
             }
         }
     }
+}
+
+/// 调用分析统计信息
+#[derive(Default, Debug)]
+struct CallAnalysisStats {
+    total: usize,
+    resolved: usize,
+    unresolved: usize,
 }
 
 impl Default for CodeParser {
