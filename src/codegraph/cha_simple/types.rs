@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use std::path::PathBuf;
 
 /// 简化的类信息结构
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SimpleClassInfo {
     pub id: Uuid,
     pub name: String,

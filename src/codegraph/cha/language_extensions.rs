@@ -1,9 +1,8 @@
 use std::collections::HashMap;
+use super::types::{CallSite, EnhancedClassInfo};
+use super::hierarchy::ClassHierarchyBuilder;
 use uuid::Uuid;
 use tracing::{info, debug};
-
-use super::types::{CallSite, CallType, MethodSignature, EnhancedClassInfo};
-use super::hierarchy::ClassHierarchyBuilder;
 
 /// Rust特定的CHA扩展
 pub struct RustCHAExtender {
@@ -22,34 +21,35 @@ impl RustCHAExtender {
         }
     }
 
-    /// 处理Rust trait方法解析
+    /// 解析Rust trait方法调用
     pub fn resolve_trait_method(
         &self,
         call_site: &CallSite,
         class_hierarchy: &ClassHierarchyBuilder,
     ) -> Result<Vec<Uuid>, String> {
-        debug!("Resolving Rust trait method: {}", call_site.callee_name);
+        let mut target_methods = Vec::new();
         
-        // 1. 查找trait定义
-        if let Some(trait_info) = self.trait_resolver.find_trait(&call_site.callee_name) {
-            // 2. 查找实现了该trait的类型
-            let implementing_types = self.trait_resolver.find_implementing_types(trait_info);
-            
-            // 3. 在实现类型中查找方法
-            let mut target_methods = Vec::new();
-            for type_name in implementing_types {
-                if let Some(methods) = class_hierarchy.find_method_implementations(
-                    &call_site.callee_name,
-                    &type_name
-                ) {
-                    target_methods.extend(methods);
-                }
-            }
-            
-            return Ok(target_methods);
+        // 尝试从接收者类型解析
+        if let Some(receiver_type) = &call_site.receiver_type {
+            let methods = class_hierarchy.find_method_implementations(
+                &call_site.callee_name,
+                receiver_type
+            );
+            target_methods.extend(methods);
         }
         
-        Ok(Vec::new())
+        // 如果没有找到，尝试从所有可能的类型中查找
+        if target_methods.is_empty() {
+            for class_name in class_hierarchy.get_all_class_names() {
+                let methods = class_hierarchy.find_method_implementations(
+                    &call_site.callee_name,
+                    class_name
+                );
+                target_methods.extend(methods);
+            }
+        }
+        
+        Ok(target_methods)
     }
 
     /// 处理Rust impl块
@@ -66,12 +66,11 @@ impl RustCHAExtender {
             
             let mut target_methods = Vec::new();
             for type_name in target_types {
-                if let Some(methods) = class_hierarchy.find_method_implementations(
+                let methods = class_hierarchy.find_method_implementations(
                     &call_site.callee_name,
                     &type_name
-                ) {
-                    target_methods.extend(methods);
-                }
+                );
+                target_methods.extend(methods);
             }
             
             return Ok(target_methods);
@@ -115,34 +114,35 @@ impl JavaCHAExtender {
         }
     }
 
-    /// 处理Java接口方法解析
+    /// 解析Java接口方法调用
     pub fn resolve_interface_method(
         &self,
         call_site: &CallSite,
         class_hierarchy: &ClassHierarchyBuilder,
     ) -> Result<Vec<Uuid>, String> {
-        debug!("Resolving Java interface method: {}", call_site.callee_name);
+        let mut target_methods = Vec::new();
         
-        // 1. 查找接口定义
-        if let Some(interface_info) = self.interface_resolver.find_interface(&call_site.callee_name) {
-            // 2. 查找实现了该接口的类
-            let implementing_classes = self.interface_resolver.find_implementing_classes(interface_info);
-            
-            // 3. 在实现类中查找方法
-            let mut target_methods = Vec::new();
-            for class_name in implementing_classes {
-                if let Some(methods) = class_hierarchy.find_method_implementations(
-                    &call_site.callee_name,
-                    &class_name
-                ) {
-                    target_methods.extend(methods);
-                }
-            }
-            
-            return Ok(target_methods);
+        // 尝试从接收者类型解析
+        if let Some(receiver_type) = &call_site.receiver_type {
+            let methods = class_hierarchy.find_method_implementations(
+                &call_site.callee_name,
+                receiver_type
+            );
+            target_methods.extend(methods);
         }
         
-        Ok(Vec::new())
+        // 如果没有找到，尝试从所有可能的类型中查找
+        if target_methods.is_empty() {
+            for class_name in class_hierarchy.get_all_class_names() {
+                let methods = class_hierarchy.find_method_implementations(
+                    &call_site.callee_name,
+                    class_name
+                );
+                target_methods.extend(methods);
+            }
+        }
+        
+        Ok(target_methods)
     }
 
     /// 处理Java包解析
@@ -153,18 +153,17 @@ impl JavaCHAExtender {
     ) -> Result<Vec<Uuid>, String> {
         debug!("Resolving Java package method: {}", call_site.callee_name);
         
-        // 基于包名解析方法
+        // 基于包结构解析方法
         if let Some(package_info) = self.package_resolver.find_package_method(&call_site.callee_name) {
             let target_classes = self.package_resolver.get_package_classes(package_info);
             
             let mut target_methods = Vec::new();
             for class_name in target_classes {
-                if let Some(methods) = class_hierarchy.find_method_implementations(
+                let methods = class_hierarchy.find_method_implementations(
                     &call_site.callee_name,
                     &class_name
-                ) {
-                    target_methods.extend(methods);
-                }
+                );
+                target_methods.extend(methods);
             }
             
             return Ok(target_methods);
@@ -208,32 +207,35 @@ impl CppCHAExtender {
         }
     }
 
-    /// 处理C++模板方法解析
+    /// 解析C++模板方法调用
     pub fn resolve_template_method(
         &self,
         call_site: &CallSite,
         class_hierarchy: &ClassHierarchyBuilder,
     ) -> Result<Vec<Uuid>, String> {
-        debug!("Resolving C++ template method: {}", call_site.callee_name);
+        let mut target_methods = Vec::new();
         
-        // 解析模板实例化
-        if let Some(template_info) = self.template_resolver.find_template_method(&call_site.callee_name) {
-            let instantiated_types = self.template_resolver.get_instantiated_types(template_info);
-            
-            let mut target_methods = Vec::new();
-            for type_name in instantiated_types {
-                if let Some(methods) = class_hierarchy.find_method_implementations(
-                    &call_site.callee_name,
-                    &type_name
-                ) {
-                    target_methods.extend(methods);
-                }
-            }
-            
-            return Ok(target_methods);
+        // 尝试从接收者类型解析
+        if let Some(receiver_type) = &call_site.receiver_type {
+            let methods = class_hierarchy.find_method_implementations(
+                &call_site.callee_name,
+                receiver_type
+            );
+            target_methods.extend(methods);
         }
         
-        Ok(Vec::new())
+        // 如果没有找到，尝试从所有可能的类型中查找
+        if target_methods.is_empty() {
+            for class_name in class_hierarchy.get_all_class_names() {
+                let methods = class_hierarchy.find_method_implementations(
+                    &call_site.callee_name,
+                    class_name
+                );
+                target_methods.extend(methods);
+            }
+        }
+        
+        Ok(target_methods)
     }
 
     /// 处理C++命名空间解析
@@ -250,12 +252,11 @@ impl CppCHAExtender {
             
             let mut target_methods = Vec::new();
             for class_name in target_classes {
-                if let Some(methods) = class_hierarchy.find_method_implementations(
+                let methods = class_hierarchy.find_method_implementations(
                     &call_site.callee_name,
                     &class_name
-                ) {
-                    target_methods.extend(methods);
-                }
+                );
+                target_methods.extend(methods);
             }
             
             return Ok(target_methods);

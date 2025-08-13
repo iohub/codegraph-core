@@ -15,6 +15,7 @@ pub use skeletonizer::*;
 pub use file_ast_markup::*;
 
 /// TreeSitter解析器的主要接口
+#[derive(Clone)]
 pub struct TreeSitterParser;
 
 impl TreeSitterParser {

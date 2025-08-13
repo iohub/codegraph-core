@@ -47,16 +47,29 @@ impl SimpleCHA {
     pub fn analyze(&mut self) -> Result<(), String> {
         info!("Starting simple CHA analysis for {} call sites", self.call_sites.len());
         
+        // 收集所有解析结果，避免借用冲突
+        let mut resolution_results = Vec::new();
+        
         for call_site in &self.call_sites {
-            self.resolve_call_site(call_site)?;
+            let result = self.resolve_call_site_internal(call_site)?;
+            resolution_results.push((call_site.id, result));
+        }
+        
+        // 应用解析结果
+        for (call_site_id, target_methods) in resolution_results {
+            // 存储解析结果
+            if !target_methods.is_empty() {
+                self.resolved_calls.insert(call_site_id, target_methods.clone());
+                debug!("Resolved call to {} methods", target_methods.len());
+            }
         }
         
         info!("Simple CHA analysis completed");
         Ok(())
     }
 
-    /// 解析单个调用点
-    fn resolve_call_site(&mut self, call_site: &SimpleCallSite) -> Result<(), String> {
+    /// 内部解析单个调用点（不需要可变借用）
+    fn resolve_call_site_internal(&self, call_site: &SimpleCallSite) -> Result<Vec<Uuid>, String> {
         debug!("Resolving call site: {} at line {}", 
                call_site.callee_name, call_site.line_number);
         
@@ -70,13 +83,7 @@ impl SimpleCHA {
             target_methods = self.resolve_method_call_by_name(&call_site.callee_name);
         }
         
-        // 存储解析结果
-        if !target_methods.is_empty() {
-            self.resolved_calls.insert(call_site.id, target_methods);
-            debug!("Resolved call to {} methods", target_methods.len());
-        }
-        
-        Ok(())
+        Ok(target_methods)
     }
 
     /// 使用CHA解析方法调用

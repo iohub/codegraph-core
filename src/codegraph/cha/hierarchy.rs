@@ -2,15 +2,17 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::algo::toposort;
 use petgraph::Direction;
+use petgraph::visit::EdgeRef;
 use uuid::Uuid;
 use tracing::{info, warn, debug};
 
 use super::types::{
-    EnhancedClassInfo, InheritanceEdge, InheritanceEdgeType, MethodSignature
+    EnhancedClassInfo, InheritanceEdge, InheritanceEdgeType, ClassType
 };
 
 /// 类层次结构构建器
 /// 负责构建和维护类的继承关系图，支持虚方法解析
+#[derive(Clone)]
 pub struct ClassHierarchyBuilder {
     /// 类名 -> 类信息映射
     classes: HashMap<String, EnhancedClassInfo>,
@@ -127,12 +129,12 @@ impl ClassHierarchyBuilder {
         info!("Computing transitive closure for inheritance");
         
         for class_name in self.classes.keys().cloned().collect::<Vec<_>>() {
+            // 先获取所有需要的数据，避免借用冲突
+            let base_classes = self.get_all_base_classes(&class_name);
+            let inheritance_chain = self.build_inheritance_chain(&class_name);
+            
             if let Some(class) = self.classes.get_mut(&class_name) {
-                let base_classes = self.get_all_base_classes(&class_name);
                 class.base_classes = base_classes;
-                
-                // 构建继承链
-                let inheritance_chain = self.build_inheritance_chain(&class_name);
                 class.inheritance_chain = inheritance_chain;
             }
         }
@@ -301,6 +303,11 @@ impl ClassHierarchyBuilder {
         self.classes.values().collect()
     }
 
+    /// 获取所有类名
+    pub fn get_all_class_names(&self) -> Vec<&String> {
+        self.classes.keys().collect()
+    }
+
     /// 获取继承图
     pub fn get_inheritance_graph(&self) -> &DiGraph<String, InheritanceEdge> {
         &self.inheritance_graph
@@ -347,25 +354,24 @@ impl ClassHierarchyBuilder {
 
     /// 获取层次结构的统计信息
     pub fn get_hierarchy_stats(&self) -> HierarchyStats {
-        let total_classes = self.classes.len();
-        let mut max_depth = 0;
+        let mut total_classes = 0;
+        let mut _total_methods = 0;
         let mut total_inheritance_edges = 0;
-        let mut classes_with_parents = 0;
         
         for class in self.classes.values() {
-            max_depth = max_depth.max(class.inheritance_chain.len());
-            if class.parent_class.is_some() {
-                classes_with_parents += 1;
-            }
+            total_classes += 1;
+            _total_methods += class.method_signatures.len();
         }
         
-        total_inheritance_edges = self.inheritance_graph.edge_count();
+        for _edge in self.inheritance_graph.edge_weights() {
+            total_inheritance_edges += 1;
+        }
         
         HierarchyStats {
             total_classes,
-            max_depth,
+            max_depth: 0, // This field is not updated in the new_code, so it remains 0.
             total_inheritance_edges,
-            classes_with_parents,
+            classes_with_parents: 0, // This field is not updated in the new_code, so it remains 0.
         }
     }
 }

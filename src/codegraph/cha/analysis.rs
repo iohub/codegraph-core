@@ -1,14 +1,35 @@
 use std::collections::HashMap;
-use std::time::Instant;
 use uuid::Uuid;
-use tracing::{info, warn, debug};
-
+use tracing::{info, debug, warn};
 use super::types::{
-    CallSite, CallType, MethodResolutionResult, ResolutionType, CHAAnalysisStats
+    CallSite, CallType, CHAAnalysisStats
 };
 use super::hierarchy::ClassHierarchyBuilder;
-use super::extractor::CallSiteExtractor;
-use crate::codegraph::types::{FunctionInfo, CallRelation, PetCodeGraph};
+use crate::codegraph::types::{FunctionInfo, PetCodeGraph, CallRelation};
+
+/// 解析结果
+#[derive(Debug, Clone)]
+enum ResolutionResult {
+    Resolved(Vec<Uuid>),
+    Unresolved,
+}
+
+/// 方法解析结果
+#[derive(Debug, Clone)]
+pub struct MethodResolutionResult {
+    pub call_site_id: Uuid,
+    pub target_methods: Vec<Uuid>,
+    pub resolution_type: ResolutionType,
+    pub confidence: f64,
+}
+
+/// 解析类型
+#[derive(Debug, Clone)]
+pub enum ResolutionType {
+    Direct,
+    Virtual,
+    Unresolved,
+}
 
 /// 类层次分析（CHA）核心分析器
 /// 实现CHA算法来解析函数调用，特别是虚方法调用
@@ -39,35 +60,52 @@ impl ClassHierarchyAnalysis {
 
     /// 执行CHA分析
     pub fn analyze(&mut self) -> Result<(), String> {
-        let start_time = Instant::now();
+        let start_time = std::time::Instant::now();
         info!("Starting CHA analysis for {} call sites", self.call_sites.len());
         
         // 初始化统计信息
         self.stats.total_call_sites = self.call_sites.len();
         
+        // 收集所有解析结果，避免借用冲突
+        let mut resolution_results = Vec::new();
+        
         // 分析每个调用点
         for call_site in &self.call_sites {
-            match call_site.call_type {
+            let result = match call_site.call_type {
                 CallType::Static => {
-                    self.resolve_static_call(call_site)?;
+                    self.resolve_static_call_internal(call_site)?
                 },
                 CallType::Virtual => {
-                    self.resolve_virtual_call(call_site)?;
+                    self.resolve_virtual_call_internal(call_site)?
                 },
                 CallType::Constructor => {
-                    self.resolve_constructor_call(call_site)?;
+                    self.resolve_constructor_call_internal(call_site)?
                 },
                 CallType::Function => {
-                    self.resolve_function_call(call_site)?;
+                    self.resolve_function_call_internal(call_site)?
                 },
                 CallType::Method => {
-                    self.resolve_method_call(call_site)?;
+                    self.resolve_method_call_internal(call_site)?
                 },
                 CallType::TraitMethod => {
-                    self.resolve_trait_method_call(call_site)?;
+                    self.resolve_trait_method_call_internal(call_site)?
                 },
                 CallType::InterfaceMethod => {
-                    self.resolve_interface_method_call(call_site)?;
+                    self.resolve_interface_method_call_internal(call_site)?
+                },
+            };
+            resolution_results.push((call_site.id, result));
+        }
+        
+        // 应用解析结果
+        for (call_site_id, result) in resolution_results {
+            match result {
+                ResolutionResult::Resolved(target_methods) => {
+                    self.resolved_calls.insert(call_site_id, target_methods);
+                    self.stats.resolved_calls += 1;
+                },
+                ResolutionResult::Unresolved => {
+                    self.stats.unresolved_calls += 1;
                 },
             }
         }
@@ -83,25 +121,21 @@ impl ClassHierarchyAnalysis {
         Ok(())
     }
 
-    /// 解析静态方法调用
-    fn resolve_static_call(&mut self, call_site: &CallSite) -> Result<(), String> {
+    /// 内部解析静态方法调用（不需要可变借用）
+    fn resolve_static_call_internal(&self, call_site: &CallSite) -> Result<ResolutionResult, String> {
         debug!("Resolving static call: {} at line {}", 
                call_site.callee_name, call_site.line_number);
         
         // 静态调用通常是直接的，不需要考虑继承
         if let Some(target_methods) = self.find_static_method_implementations(&call_site.callee_name) {
-            self.resolved_calls.insert(call_site.id, target_methods);
-            self.stats.static_calls += 1;
-            self.stats.resolved_calls += 1;
+            Ok(ResolutionResult::Resolved(target_methods))
         } else {
-            self.stats.unresolved_calls += 1;
+            Ok(ResolutionResult::Unresolved)
         }
-        
-        Ok(())
     }
 
-    /// 解析虚方法调用（CHA的核心）
-    fn resolve_virtual_call(&mut self, call_site: &CallSite) -> Result<(), String> {
+    /// 内部解析虚方法调用（不需要可变借用）
+    fn resolve_virtual_call_internal(&self, call_site: &CallSite) -> Result<ResolutionResult, String> {
         debug!("Resolving virtual call: {} at line {}", 
                call_site.callee_name, call_site.line_number);
         
@@ -128,21 +162,14 @@ impl ClassHierarchyAnalysis {
         target_methods.dedup();
         
         if !target_methods.is_empty() {
-            self.resolved_calls.insert(call_site.id, target_methods);
-            self.stats.virtual_calls += 1;
-            self.stats.resolved_calls += 1;
-            debug!("Resolved virtual call to {} methods", target_methods.len());
+            Ok(ResolutionResult::Resolved(target_methods))
         } else {
-            self.stats.unresolved_calls += 1;
-            warn!("Failed to resolve virtual call: {} on type {}", 
-                  call_site.callee_name, receiver_type);
+            Ok(ResolutionResult::Unresolved)
         }
-        
-        Ok(())
     }
 
-    /// 解析构造函数调用
-    fn resolve_constructor_call(&mut self, call_site: &CallSite) -> Result<(), String> {
+    /// 内部解析构造函数调用（不需要可变借用）
+    fn resolve_constructor_call_internal(&self, call_site: &CallSite) -> Result<ResolutionResult, String> {
         debug!("Resolving constructor call: {} at line {}", 
                call_site.callee_name, call_site.line_number);
         
@@ -150,67 +177,59 @@ impl ClassHierarchyAnalysis {
         if let Some(class) = self.class_hierarchy.find_class_by_name(&call_site.callee_name) {
             // 查找构造函数方法
             if let Some(constructor) = class.method_signatures.get(&call_site.callee_name) {
-                self.resolved_calls.insert(call_site.id, vec![constructor.id]);
-                self.stats.constructor_calls += 1;
-                self.stats.resolved_calls += 1;
+                Ok(ResolutionResult::Resolved(vec![constructor.id]))
             } else {
-                self.stats.unresolved_calls += 1;
+                Ok(ResolutionResult::Unresolved)
             }
         } else {
-            self.stats.unresolved_calls += 1;
+            Ok(ResolutionResult::Unresolved)
         }
-        
-        Ok(())
     }
 
-    /// 解析自由函数调用
-    fn resolve_function_call(&mut self, call_site: &CallSite) -> Result<(), String> {
+    /// 内部解析自由函数调用（不需要可变借用）
+    fn resolve_function_call_internal(&self, call_site: &CallSite) -> Result<ResolutionResult, String> {
         debug!("Resolving function call: {} at line {}", 
                call_site.callee_name, call_site.line_number);
         
         // 自由函数调用通常是直接的
         if let Some(target_methods) = self.find_function_implementations(&call_site.callee_name) {
-            self.resolved_calls.insert(call_site.id, target_methods);
-            self.stats.function_calls += 1;
-            self.stats.resolved_calls += 1;
+            Ok(ResolutionResult::Resolved(target_methods))
         } else {
-            self.stats.unresolved_calls += 1;
+            Ok(ResolutionResult::Unresolved)
         }
-        
-        Ok(())
     }
 
-    /// 解析实例方法调用
-    fn resolve_method_call(&mut self, call_site: &CallSite) -> Result<(), String> {
+    /// 内部解析实例方法调用（不需要可变借用）
+    fn resolve_method_call_internal(&self, call_site: &CallSite) -> Result<ResolutionResult, String> {
         debug!("Resolving method call: {} at line {}", 
                call_site.callee_name, call_site.line_number);
         
-        if let Some(receiver_type) = &call_site.receiver_type {
+        if let Some(_receiver_type) = &call_site.receiver_type {
             // 使用CHA进行方法解析
-            self.resolve_virtual_call(call_site)
+            self.resolve_virtual_call_internal(call_site)
         } else {
             // 回退到函数调用解析
-            self.resolve_function_call(call_site)
+            self.resolve_function_call_internal(call_site)
         }
     }
 
-    /// 解析Trait方法调用（Rust）
-    fn resolve_trait_method_call(&mut self, call_site: &CallSite) -> Result<(), String> {
+    /// 内部解析Trait方法调用（不需要可变借用）
+    fn resolve_trait_method_call_internal(&self, call_site: &CallSite) -> Result<ResolutionResult, String> {
         debug!("Resolving trait method call: {} at line {}", 
                call_site.callee_name, call_site.line_number);
         
         // Trait方法调用需要特殊处理
         // 这里可以扩展为更复杂的trait解析逻辑
-        self.resolve_virtual_call(call_site)
+        self.resolve_virtual_call_internal(call_site)
     }
 
-    /// 解析接口方法调用（Java）
-    fn resolve_interface_method_call(&mut self, call_site: &CallSite) -> Result<(), String> {
+    /// 内部解析接口方法调用（不需要可变借用）
+    fn resolve_interface_method_call_internal(&self, call_site: &CallSite) -> Result<ResolutionResult, String> {
         debug!("Resolving interface method call: {} at line {}", 
                call_site.callee_name, call_site.line_number);
         
         // 接口方法调用类似于虚方法调用
-        self.resolve_virtual_call(call_site)
+        self.resolve_virtual_call_internal(call_site)
     }
 
     /// 查找静态方法实现

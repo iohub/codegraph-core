@@ -881,7 +881,7 @@ impl CodeParser {
 
     /// 提取增强的类信息
     fn extract_enhanced_classes(&self) -> Result<Vec<EnhancedClassInfo>, String> {
-        let mut enhanced_classes = Vec::new();
+        let mut enhanced_classes: Vec<EnhancedClassInfo> = Vec::new();
         
         // 从现有的类信息转换为增强的类信息
         for (_file_path, functions) in &self.file_functions {
@@ -1040,7 +1040,7 @@ impl CodeParser {
 
     /// 提取简化的类信息
     fn extract_simple_classes(&self) -> Result<Vec<SimpleClassInfo>, String> {
-        let mut classes = Vec::new();
+        let mut classes: Vec<SimpleClassInfo> = Vec::new();
         
         for (_file_path, functions) in &self.file_functions {
             for function in functions {
