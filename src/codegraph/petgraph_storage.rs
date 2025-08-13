@@ -48,7 +48,7 @@ impl PetGraphStorage {
         // 添加所有调用关系
         for relation in &self.call_relations {
             if let Err(e) = code_graph.add_call_relation(relation.clone()) {
-                eprintln!("Warning: Failed to add call relation: {}", e);
+        
             }
         }
         

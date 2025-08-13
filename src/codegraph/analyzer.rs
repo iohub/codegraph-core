@@ -46,18 +46,15 @@ impl CodeGraphAnalyzer {
     pub fn find_callers(&self, function_name: &str) -> Vec<&FunctionInfo> {
         if let Some(code_graph) = &self.code_graph {
             let functions = code_graph.find_functions_by_name(function_name);
-            println!("find_callers: found {} functions for name '{}'", functions.len(), function_name);
             let mut all_callers = Vec::new();
             for function in functions {
                 let callers = code_graph.get_callers(&function.id);
-                println!("find_callers: function {} has {} callers", function.name, callers.len());
                 for rel in callers {
                     if let Some(caller) = code_graph.functions.get(&rel.caller_id) {
                         all_callers.push(caller);
                     }
                 }
             }
-            println!("find_callers: returning {} callers", all_callers.len());
             all_callers
         } else {
             Vec::new()
@@ -68,18 +65,15 @@ impl CodeGraphAnalyzer {
     pub fn find_callees(&self, function_name: &str) -> Vec<&FunctionInfo> {
         if let Some(code_graph) = &self.code_graph {
             let functions = code_graph.find_functions_by_name(function_name);
-            println!("find_callees: found {} functions for name '{}'", functions.len(), function_name);
             let mut all_callees = Vec::new();
             for function in functions {
                 let callees = code_graph.get_callees(&function.id);
-                println!("find_callees: function {} has {} callees", function.name, callees.len());
                 for rel in callees {
                     if let Some(callee) = code_graph.functions.get(&rel.callee_id) {
                         all_callees.push(callee);
                     }
                 }
             }
-            println!("find_callees: returning {} callees", all_callees.len());
             all_callees
         } else {
             Vec::new()

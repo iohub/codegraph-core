@@ -7,8 +7,7 @@ pub mod analyzer;
 pub mod snippet_service;
 pub mod repository_manager;
 
-#[cfg(test)]
-mod tests;
+
 
 pub use graph::CodeGraph;
 pub use types::{

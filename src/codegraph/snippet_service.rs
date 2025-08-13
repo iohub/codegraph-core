@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::codegraph::types::{SnippetIndex, SnippetInfo, EntityGraph, PetCodeGraph};
 

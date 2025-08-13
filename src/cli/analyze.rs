@@ -56,15 +56,7 @@ pub fn run_analyze(args: &AnalyzeArgs) -> Result<(), Box<dyn std::error::Error>>
     // 显示统计信息
     if args.stats {
         let stats = repo_manager.get_repository_stats();
-        println!("Repository Analysis Statistics:");
-        println!("  Total Classes: {}", stats.total_classes);
-        println!("  Total Functions: {}", stats.total_functions);
-        println!("  Total Files: {}", stats.total_files);
-        println!("  Total Languages: {}", stats.total_languages);
-        println!("  Resolved Calls: {}", stats.resolved_calls);
-        println!("  Unresolved Calls: {}", stats.unresolved_calls);
-        println!("  Total Snippets: {}", stats.total_snippets);
-        println!("  Cached Snippets: {}", stats.cached_snippets);
+
     }
 
     // 执行搜索
@@ -73,9 +65,8 @@ pub fn run_analyze(args: &AnalyzeArgs) -> Result<(), Box<dyn std::error::Error>>
         let results = repo_manager.search_entities(query);
         
         if results.is_empty() {
-            println!("No results found for query: {}", query);
+            // No results found
         } else {
-            println!("Search results for '{}':", query);
             for result in results {
                 println!("  {} [{}] - {}:{}:{} ({})", 
                     result.name, 

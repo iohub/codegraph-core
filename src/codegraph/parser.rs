@@ -1325,7 +1325,7 @@ impl Calculator {
 pub fn main() {
     let mut calc = Calculator::new(10);
     let result = calc.add(5);
-    println!("Result: {}", result);
+    
 }
 "#;
         
@@ -1358,7 +1358,7 @@ pub fn main() {
             assert!(!content.is_empty(), "Empty snippet content for function {}", function.name);
         }
         
-        println!("Successfully parsed {} functions from test file", functions.len());
+
     }
 
     #[test]
@@ -1412,7 +1412,7 @@ if __name__ == "__main__":
         assert!(function_names.contains(&"calculate_sum"), "Function 'calculate_sum' not found");
         assert!(function_names.contains(&"multiply_numbers"), "Function 'multiply_numbers' not found");
         
-        println!("Successfully parsed {} functions from Python test file", functions.len());
+
     }
 
     #[test]
@@ -1470,8 +1470,6 @@ if __name__ == "__main__":
         
         // 由于没有真实的AST解析，可能只有启发式调用关系
         // 或者没有调用关系（取决于回退分析的实现）
-        println!("Function {} has {} callers and {} callees", 
-                func1.name, callers.len(), callees.len());
     }
     
     #[test]
