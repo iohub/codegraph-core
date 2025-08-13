@@ -10,6 +10,10 @@ use crate::codegraph::types::{
 };
 use crate::codegraph::graph::CodeGraph;
 use crate::codegraph::treesitter::TreeSitterParser;
+use crate::codegraph::cha::{
+    ClassHierarchyBuilder, ClassHierarchyAnalysis, CallSiteExtractor, EnhancedClassInfo
+};
+use crate::codegraph::cha_simple::{SimpleCHA, SimpleClassInfo, SimpleCallSite};
 
 /// 代码解析器，负责解析源代码文件并提取函数调用关系
 pub struct CodeParser {
@@ -823,6 +827,297 @@ impl CodeParser {
         code_graph.update_stats();
         
         Ok(code_graph)
+    }
+
+    /// 构建基于CHA的调用图（新方法）
+    pub fn build_cha_call_graph(&mut self, dir: &Path) -> Result<PetCodeGraph, String> {
+        info!("Building call graph using Class Hierarchy Analysis (CHA)");
+        
+        // 1. 解析所有文件
+        self.parse_directory(dir)?;
+        
+        // 2. 提取增强的类信息
+        let enhanced_classes = self.extract_enhanced_classes()?;
+        
+        // 3. 构建类层次结构
+        let mut hierarchy_builder = ClassHierarchyBuilder::new();
+        hierarchy_builder.build_hierarchy(enhanced_classes)?;
+        
+        // 4. 创建调用点提取器
+        let mut call_extractor = CallSiteExtractor::new(
+            &self.ts_parser,
+            &hierarchy_builder
+        );
+        
+        // 5. 提取所有调用点
+        let mut all_call_sites = Vec::new();
+        for file_path in self.file_functions.keys() {
+            let call_sites = call_extractor.extract_call_sites(file_path)?;
+            all_call_sites.extend(call_sites);
+        }
+        
+        // 6. 执行CHA分析
+        let mut cha_analysis = ClassHierarchyAnalysis::new(
+            hierarchy_builder,
+            all_call_sites
+        );
+        cha_analysis.analyze()?;
+        
+        // 7. 从CHA结果构建调用图
+        let functions: Vec<FunctionInfo> = self.file_functions.values()
+            .flat_map(|fs| fs.iter().cloned())
+            .collect();
+        
+        let call_graph = cha_analysis.build_call_graph(&functions)?;
+        
+        // 8. 验证结果
+        cha_analysis.validate_results()?;
+        
+        info!("CHA call graph built successfully");
+        info!("{}", cha_analysis.get_analysis_summary());
+        
+        Ok(call_graph)
+    }
+
+    /// 提取增强的类信息
+    fn extract_enhanced_classes(&self) -> Result<Vec<EnhancedClassInfo>, String> {
+        let mut enhanced_classes = Vec::new();
+        
+        // 从现有的类信息转换为增强的类信息
+        for (_file_path, functions) in &self.file_functions {
+            for function in functions {
+                // 检查函数是否在类中（通过命名空间推断）
+                if let Some(class_name) = self.infer_class_from_function(function) {
+                    // 检查是否已经存在该类
+                    if let Some(existing_class) = enhanced_classes.iter_mut()
+                        .find(|c| c.name == class_name) {
+                        // 添加方法到现有类
+                        existing_class.member_functions.push(function.id);
+                        
+                        // 添加方法签名
+                        let method_signature = self.create_method_signature(function);
+                        existing_class.add_method_signature(method_signature);
+                    } else {
+                        // 创建新的增强类
+                        let mut enhanced_class = EnhancedClassInfo::new(
+                            Uuid::new_v4(),
+                            class_name.clone(),
+                            function.file_path.clone(),
+                            function.line_start,
+                            function.line_end,
+                            function.namespace.clone(),
+                            function.language.clone(),
+                            crate::codegraph::cha::types::ClassType::Class,
+                        );
+                        
+                        enhanced_class.member_functions.push(function.id);
+                        
+                        let method_signature = self.create_method_signature(function);
+                        enhanced_class.add_method_signature(method_signature);
+                        
+                        enhanced_classes.push(enhanced_class);
+                    }
+                }
+            }
+        }
+        
+        // 分析继承关系
+        self.analyze_inheritance_relationships(&mut enhanced_classes)?;
+        
+        Ok(enhanced_classes)
+    }
+
+    /// 从函数信息推断类名
+    fn infer_class_from_function(&self, function: &FunctionInfo) -> Option<String> {
+        if function.namespace.contains("::") {
+            // Rust风格的命名空间
+            let parts: Vec<&str> = function.namespace.split("::").collect();
+            if parts.len() > 1 {
+                return Some(parts[parts.len() - 2].to_string());
+            }
+        } else if function.namespace.contains('.') {
+            // Java风格的包名
+            let parts: Vec<&str> = function.namespace.split('.').collect();
+            if parts.len() > 1 {
+                return Some(parts[parts.len() - 1].to_string());
+            }
+        }
+        
+        None
+    }
+
+    /// 创建方法签名
+    fn create_method_signature(&self, function: &FunctionInfo) -> crate::codegraph::cha::types::MethodSignature {
+        use crate::codegraph::cha::types::{AccessModifier, ParameterInfo as CHAParameterInfo};
+        
+        let parameters: Vec<CHAParameterInfo> = function.parameters.iter().map(|p| {
+            CHAParameterInfo {
+                name: p.name.clone(),
+                type_name: p.type_name.clone(),
+                default_value: p.default_value.clone(),
+                is_reference: false,
+                is_const: false,
+            }
+        }).collect();
+        
+        crate::codegraph::cha::types::MethodSignature {
+            id: function.id,
+            name: function.name.clone(),
+            parameters,
+            return_type: function.return_type.clone(),
+            is_virtual: false, // 默认值，需要进一步分析
+            is_override: false, // 默认值，需要进一步分析
+            base_method: None,
+            access_modifier: AccessModifier::Public, // 默认值
+            is_static: false, // 默认值，需要进一步分析
+        }
+    }
+
+    /// 分析继承关系
+    fn analyze_inheritance_relationships(&self, classes: &mut [EnhancedClassInfo]) -> Result<(), String> {
+        // 这里可以实现更复杂的继承关系分析
+        // 目前使用简化的实现
+        for class in classes.iter_mut() {
+            // 基于命名空间推断父类
+            if let Some(parent_class) = self.infer_parent_class(class) {
+                class.add_parent_class(parent_class);
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// 推断父类
+    fn infer_parent_class(&self, class: &EnhancedClassInfo) -> Option<String> {
+        // 简化的父类推断逻辑
+        // 在实际实现中，这需要分析AST来找到extends、implements等关键字
+        None
+    }
+
+    /// 构建基于简化CHA的调用图
+    pub fn build_simple_cha_call_graph(&mut self, dir: &Path) -> Result<PetCodeGraph, String> {
+        info!("Building call graph using Simple Class Hierarchy Analysis (CHA)");
+        
+        // 1. 解析所有文件
+        self.parse_directory(dir)?;
+        
+        // 2. 创建简化CHA分析器
+        let mut simple_cha = SimpleCHA::new();
+        
+        // 3. 提取简化的类信息
+        let simple_classes = self.extract_simple_classes()?;
+        for class in simple_classes {
+            simple_cha.add_class(class);
+        }
+        
+        // 4. 添加所有函数
+        for (_file_path, functions) in &self.file_functions {
+            for function in functions {
+                simple_cha.add_function(function.clone());
+            }
+        }
+        
+        // 5. 提取调用点（简化版本）
+        let call_sites = self.extract_simple_call_sites()?;
+        for call_site in call_sites {
+            simple_cha.add_call_site(call_site);
+        }
+        
+        // 6. 执行CHA分析
+        simple_cha.analyze()?;
+        
+        // 7. 构建调用图
+        let call_graph = simple_cha.build_call_graph()?;
+        
+        // 8. 输出统计信息
+        let stats = simple_cha.get_stats();
+        info!("Simple CHA call graph built successfully");
+        info!("Total call sites: {}, Resolved: {}, Unresolved: {}", 
+              stats.total_call_sites, stats.resolved_calls, stats.unresolved_calls);
+        
+        Ok(call_graph)
+    }
+
+    /// 提取简化的类信息
+    fn extract_simple_classes(&self) -> Result<Vec<SimpleClassInfo>, String> {
+        let mut classes = Vec::new();
+        
+        for (_file_path, functions) in &self.file_functions {
+            for function in functions {
+                if let Some(class_name) = self.infer_class_from_function(function) {
+                    // 检查是否已经存在该类
+                    if let Some(existing_class) = classes.iter_mut()
+                        .find(|c| c.name == class_name) {
+                        existing_class.add_method(function.id);
+                    } else {
+                        // 创建新的简化类
+                        let mut simple_class = SimpleClassInfo::new(
+                            Uuid::new_v4(),
+                            class_name.clone(),
+                            function.file_path.clone(),
+                            function.line_start,
+                            function.line_end,
+                            function.namespace.clone(),
+                            function.language.clone(),
+                        );
+                        
+                        simple_class.add_method(function.id);
+                        classes.push(simple_class);
+                    }
+                }
+            }
+        }
+        
+        Ok(classes)
+    }
+
+    /// 提取简化的调用点
+    fn extract_simple_call_sites(&self) -> Result<Vec<SimpleCallSite>, String> {
+        let mut call_sites = Vec::new();
+        
+        // 遍历每个文件的函数
+        for (file_path, functions) in &self.file_functions {
+            if functions.is_empty() {
+                continue;
+            }
+            
+            // 使用TreeSitter解析器分析文件中的函数调用
+            match self.ts_parser.parse_file(file_path) {
+                Ok(symbols) => {
+                    for symbol in symbols {
+                        let symbol_guard = symbol.read();
+                        let symbol_ref = symbol_guard.as_ref();
+                        
+                        // 检查是否为函数调用
+                        if symbol_ref.symbol_type() == crate::codegraph::treesitter::structs::SymbolType::FunctionCall {
+                            let call_name = symbol_ref.name();
+                            let call_line = symbol_ref.full_range().start_point.row + 1;
+                            
+                            // 查找调用者函数
+                            if let Some(caller_idx) = self._find_caller_function_by_line(file_path, call_line, functions) {
+                                let caller = &functions[caller_idx];
+                                
+                                // 创建简化的调用点
+                                let call_site = SimpleCallSite::new(
+                                    Uuid::new_v4(),
+                                    caller.id,
+                                    call_name.to_string(),
+                                    call_line,
+                                    file_path.clone(),
+                                );
+                                
+                                call_sites.push(call_site);
+                            }
+                        }
+                    }
+                },
+                Err(e) => {
+                    warn!("Failed to parse file {} for call site extraction: {:?}", file_path.display(), e);
+                }
+            }
+        }
+        
+        Ok(call_sites)
     }
 
     /// 分析调用关系 
