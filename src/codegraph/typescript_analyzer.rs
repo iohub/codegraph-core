@@ -198,6 +198,10 @@ impl TypeScriptAnalyzer {
         
         let mut matches = query_cursor.matches(&self.queries.function_definition, *root_node, code.as_bytes());
         while let Some(match_) = matches.next() {
+            // 获取匹配的函数声明节点
+            let function_node = match_.captures[0].node;
+            
+            // 手动提取函数名
             let mut function_name = String::new();
             let mut parameters = Vec::new();
             let mut body_start = Point::new(0, 0);
@@ -206,34 +210,58 @@ impl TypeScriptAnalyzer {
             let mut decorators = Vec::new();
             let mut type_parameters = Vec::new();
 
-            for capture in match_.captures {
-                let node = capture.node;
-                let capture_name = &self.queries.function_definition.capture_names()[capture.index as usize];
-                
-                match *capture_name {
-                    "function.name" => {
-                        function_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
+            // 遍历函数声明节点的子节点来找到函数名
+            let mut cursor = function_node.walk();
+            if cursor.goto_first_child() {
+                loop {
+                    let node = cursor.node();
+                    match node.kind() {
+                        "identifier" => {
+                            // 这是函数名
+                            function_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
+                            break;
+                        }
+                        _ => {}
                     }
-                    "function.params" => {
-                        let params_text = node.utf8_text(code.as_bytes()).unwrap();
-                        parameters = self.parse_typescript_parameters(params_text);
+                    if !cursor.goto_next_sibling() {
+                        break;
                     }
-                    "function.body" => {
-                        body_start = node.start_position();
-                        body_end = node.end_position();
-                    }
-                    _ => {}
                 }
             }
 
-            // 收集装饰器
-            if let Some(parent) = root_node.parent() {
-                if parent.kind() == "decorated_declaration" {
-                    decorators = self.collect_decorators(code, &parent);
-                }
-            }
-
+            // 如果找到了函数名，继续提取其他信息
             if !function_name.is_empty() {
+                // 重新遍历来找到参数和函数体
+                let mut cursor = function_node.walk();
+                if cursor.goto_first_child() {
+                    loop {
+                        let node = cursor.node();
+                        match node.kind() {
+                            "formal_parameters" => {
+                                // 提取参数信息
+                                let params_text = node.utf8_text(code.as_bytes()).unwrap();
+                                parameters = self.parse_typescript_parameters(params_text);
+                            }
+                            "block" => {
+                                // 这是函数体
+                                body_start = node.start_position();
+                                body_end = node.end_position();
+                            }
+                            _ => {}
+                        }
+                        if !cursor.goto_next_sibling() {
+                            break;
+                        }
+                    }
+                }
+
+                // 收集装饰器
+                if let Some(parent) = function_node.parent() {
+                    if parent.kind() == "decorated_declaration" {
+                        decorators = self.collect_decorators(code, &parent);
+                    }
+                }
+
                 let function_id = Uuid::new_v4();
                 
                 let function_scope = FunctionScope {
@@ -255,7 +283,7 @@ impl TypeScriptAnalyzer {
                 let snippet = TypeScriptSnippet {
                     snippet_type: TypeScriptSnippetType::Function,
                     name: function_name.clone(),
-                    content: self.extract_node_text(code, &match_.captures[0].node),
+                    content: self.extract_node_text(code, &function_node),
                     start_line: body_start.row,
                     end_line: body_end.row,
                     start_column: body_start.column,

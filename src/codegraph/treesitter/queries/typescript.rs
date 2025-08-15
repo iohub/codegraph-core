@@ -33,148 +33,82 @@ pub struct TypeScriptQueries {
 
 impl TypeScriptQueries {
     pub fn new(language: &Language) -> Result<Self, tree_sitter::QueryError> {
-        // 函数定义查询
+        // 函数定义查询 - 最基本的模式
         let function_definition = Query::new(
             language,
-            r#"
-            (function_declaration
-              name: (identifier) @function.name
-            ) @function.def
-            "#,
+            "(function_declaration)",
         )?;
 
-        // 函数调用查询
+        // 函数调用查询 - 最基本的模式
         let function_call = Query::new(
             language,
-            r#"
-            (call_expression
-              function: (identifier) @function.called
-            ) @function.call
-            "#,
+            "(call_expression)",
         )?;
 
-        // 类定义查询
+        // 类定义查询 - 最基本的模式
         let class_definition = Query::new(
             language,
-            r#"
-            (class_declaration
-              name: (identifier) @class.name
-            ) @class.def
-            "#,
+            "(class_declaration)",
         )?;
 
-        // 接口定义查询
+        // 接口定义查询 - 最基本的模式
         let interface_definition = Query::new(
             language,
-            r#"
-            (interface_declaration
-              name: (identifier) @interface.name
-            ) @interface.def
-            "#,
+            "(interface_declaration)",
         )?;
 
-        // 类型定义查询
+        // 类型定义查询 - 最基本的模式
         let type_definition = Query::new(
             language,
-            r#"
-            (type_alias_declaration
-              name: (identifier) @type.name
-            ) @type.def
-            "#,
+            "(type_alias_declaration)",
         )?;
 
-        // 导入语句查询
+        // 导入语句查询 - 最基本的模式
         let import_statement = Query::new(
             language,
-            r#"
-            (import_statement
-              (import_clause
-                (named_imports
-                  (import_specifier
-                    name: (identifier) @import.name
-                  )*
-                )
-              )
-            ) @import.stmt
-            "#,
+            "(import_statement)",
         )?;
 
-        // 导出语句查询
+        // 导出语句查询 - 最基本的模式
         let export_statement = Query::new(
             language,
-            r#"
-            (export_statement
-              (export_clause
-                (export_specifier
-                  name: (identifier) @export.name
-                )*
-              )
-            ) @export.stmt
-            "#,
+            "(export_statement)",
         )?;
 
-        // 变量声明查询
+        // 变量声明查询 - 最基本的模式
         let variable_declaration = Query::new(
             language,
-            r#"
-            (variable_declaration
-              (variable_declarator
-                name: (identifier) @variable.name
-              )
-            ) @variable.decl
-            "#,
+            "(variable_declaration)",
         )?;
 
-        // 方法定义查询
+        // 方法定义查询 - 最基本的模式
         let method_definition = Query::new(
             language,
-            r#"
-            (method_definition
-              name: (property_identifier) @method.name
-            ) @method.def
-            "#,
+            "(method_definition)",
         )?;
 
-        // 装饰器查询
+        // 装饰器查询 - 最基本的模式
         let decorator = Query::new(
             language,
-            r#"
-            (decorator
-              (call_expression
-                function: (identifier) @decorator.name
-              )
-            ) @decorator.stmt
-            "#,
+            "(decorator)",
         )?;
 
-        // 泛型查询
+        // 泛型查询 - 最基本的模式
         let generic_type = Query::new(
             language,
-            r#"
-            (generic_type
-              name: (identifier) @generic.name
-            ) @generic.type
-            "#,
+            "(generic_type)",
         )?;
 
-        // 枚举定义查询
+        // 枚举定义查询 - 最基本的模式
         let enum_definition = Query::new(
             language,
-            r#"
-            (enum_declaration
-              name: (identifier) @enum.name
-            ) @enum.def
-            "#,
+            "(enum_declaration)",
         )?;
 
-        // 命名空间查询
+        // 命名空间查询 - 使用identifier作为占位符
         let namespace_definition = Query::new(
             language,
-            r#"
-            (namespace_declaration
-              name: (identifier) @namespace.name
-            ) @namespace.def
-            "#,
+            "(identifier)",
         )?;
 
         Ok(Self {
