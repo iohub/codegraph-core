@@ -1,0 +1,18 @@
+use std::path::PathBuf;
+use crate::codegraph::treesitter::parsers::{ParserError, AstLanguageParser};
+use crate::codegraph::treesitter::ast_instance_structs::AstSymbolInstanceArc;
+
+pub struct TSParser;
+
+impl TSParser {
+    pub fn new() -> Result<Self, ParserError> {
+        Ok(Self)
+    }
+}
+
+impl AstLanguageParser for TSParser {
+    fn parse(&mut self, _code: &str, _path: &PathBuf) -> Vec<AstSymbolInstanceArc> {
+        // TODO: Implement TypeScript parsing
+        Vec::new()
+    }
+} 

@@ -1,0 +1,562 @@
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
+use std::fs;
+use tree_sitter::{Parser, Node, Tree, Query, QueryCursor, Language, Point, StreamingIterator};
+use tracing::{info, warn, error};
+use uuid::Uuid;
+
+use crate::codegraph::types::{FunctionInfo, CallRelation, ParameterInfo};
+use crate::codegraph::treesitter::queries::cpp::{
+    CppQueries, CppSnippet, CppSnippetType, CppFunctionCall, 
+    CppScope, CppAnalysisResult
+};
+
+extern "C" { fn tree_sitter_cpp() -> Language; }
+
+/// C++函数作用域信息
+#[derive(Debug, Clone)]
+struct FunctionScope {
+    pub name: String,
+    pub params: Vec<String>,
+    pub body_start: Point,
+    pub body_end: Point,
+    pub namespace: Option<String>,
+    pub class_name: Option<String>,
+    pub function_id: Uuid,
+}
+
+/// C++函数调用信息
+#[derive(Debug, Clone)]
+struct FunctionCall {
+    pub caller_name: String,
+    pub called_name: String,
+    pub location: Point,
+    pub namespace: Option<String>,
+    pub class_name: Option<String>,
+}
+
+/// C++代码分析器
+pub struct CppAnalyzer {
+    parser: Parser,
+    language: Language,
+    queries: CppQueries,
+    /// 函数名 -> 函数信息映射（用于解析调用关系）
+    function_registry: HashMap<String, FunctionInfo>,
+    /// 文件路径 -> 函数列表映射
+    file_functions: HashMap<PathBuf, Vec<FunctionInfo>>,
+}
+
+impl CppAnalyzer {
+    pub fn new() -> Result<Self, String> {
+        let mut parser = Parser::new();
+        let language = unsafe { tree_sitter_cpp() };
+        
+        parser.set_language(&language)
+            .map_err(|e| format!("Failed to set C++ language: {}", e))?;
+
+        let queries = CppQueries::new(&language)
+            .map_err(|e| format!("Failed to create C++ queries: {}", e))?;
+
+        Ok(Self {
+            parser,
+            language,
+            queries,
+            function_registry: HashMap::new(),
+            file_functions: HashMap::new(),
+        })
+    }
+
+    /// 分析目录下的所有C++文件
+    pub fn analyze_directory(&mut self, dir: &Path) -> Result<(), String> {
+        info!("Starting C++ analysis for directory: {}", dir.display());
+        
+        let files = self.scan_cpp_files(dir);
+        info!("Found {} C++ files to analyze", files.len());
+        
+        for file_path in files {
+            if let Err(e) = self.analyze_file(&file_path) {
+                warn!("Failed to analyze file {}: {}", file_path.display(), e);
+            }
+        }
+        
+        info!("C++ analysis completed");
+        Ok(())
+    }
+
+    /// 分析单个C++文件
+    pub fn analyze_file(&mut self, file_path: &Path) -> Result<(), String> {
+        info!("Analyzing C++ file: {}", file_path.display());
+        
+        let code = fs::read_to_string(file_path)
+            .map_err(|e| format!("Failed to read file {}: {}", file_path.display(), e))?;
+        
+        let tree = self.parser.parse(&code, None)
+            .ok_or_else(|| format!("Failed to parse file {}", file_path.display()))?;
+        
+        let root_node = tree.root_node();
+        let analysis_result = self.analyze_cpp_code(&code, &root_node, file_path)?;
+        
+        // 将分析结果转换为FunctionInfo和CallRelation
+        self.process_analysis_result(analysis_result, file_path);
+        
+        Ok(())
+    }
+
+    /// 扫描目录下的C++文件
+    fn scan_cpp_files(&self, dir: &Path) -> Vec<PathBuf> {
+        let mut files = Vec::new();
+        self._scan_directory_recursive(dir, &mut files);
+        files
+    }
+
+    fn _scan_directory_recursive(&self, dir: &Path, files: &mut Vec<PathBuf>) {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    // 跳过常见的忽略目录
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name.starts_with('.') || name == "target" || name == "node_modules" || name == "__pycache__" {
+                            continue;
+                        }
+                    }
+                    self._scan_directory_recursive(&path, files);
+                } else if self.is_cpp_file(&path) {
+                    files.push(path);
+                }
+            }
+        }
+    }
+
+    /// 判断文件是否为C++文件
+    fn is_cpp_file(&self, path: &Path) -> bool {
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            matches!(ext.to_lowercase().as_str(),
+                "cpp" | "cc" | "cxx" | "c++" | "c" | "h" | "hpp" | "hxx" | "hh" |
+                "inl" | "inc" | "tpp" | "tpl"
+            )
+        } else {
+            false
+        }
+    }
+
+    /// 分析C++代码，提取函数定义、调用关系等
+    fn analyze_cpp_code(&self, code: &str, root_node: &Node, path: &Path) -> Result<CppAnalysisResult, String> {
+        let mut result = CppAnalysisResult {
+            snippets: Vec::new(),
+            function_calls: Vec::new(),
+            scopes: Vec::new(),
+            includes: Vec::new(),
+            namespaces: HashMap::new(),
+            classes: HashMap::new(),
+        };
+
+        // 第一遍：收集函数定义和作用域
+        let function_scopes = self.collect_function_definitions(code, root_node, path, &mut result)?;
+        
+        // 第二遍：收集命名空间和类定义
+        self.collect_namespaces_and_classes(code, root_node, path, &mut result);
+        
+        // 第三遍：收集包含文件
+        self.collect_includes(code, root_node, &mut result);
+        
+        // 第四遍：收集所有函数调用
+        let all_calls = self.collect_function_calls(code, root_node, path);
+        
+        // 第五遍：建立调用关系和作用域归属
+        self.establish_call_relationships(&function_scopes, &all_calls, &mut result);
+
+        Ok(result)
+    }
+
+    /// 收集函数定义和作用域
+    fn collect_function_definitions(
+        &self,
+        code: &str,
+        root_node: &Node,
+        path: &Path,
+        result: &mut CppAnalysisResult,
+    ) -> Result<Vec<FunctionScope>, String> {
+        let mut query_cursor = QueryCursor::new();
+        let mut function_scopes = Vec::new();
+        
+        let mut matches = query_cursor.matches(&self.queries.function_definition, *root_node, code.as_bytes());
+        while let Some(match_) = matches.next() {
+            let mut function_name = String::new();
+            let mut parameters = Vec::new();
+            let mut body_start = Point::new(0, 0);
+            let mut body_end = Point::new(0, 0);
+            let mut return_type = None;
+
+            for capture in match_.captures {
+                let node = capture.node;
+                let capture_name = &self.queries.function_definition.capture_names()[capture.index as usize];
+                
+                match *capture_name {
+                    "function.name" => {
+                        function_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
+                    }
+                    "function.params" => {
+                        let params_text = node.utf8_text(code.as_bytes()).unwrap();
+                        parameters = self.parse_parameters(params_text);
+                    }
+                    "function.body" => {
+                        body_start = node.start_position();
+                        body_end = node.end_position();
+                    }
+                    _ => {}
+                }
+            }
+
+            if !function_name.is_empty() {
+                let function_id = Uuid::new_v4();
+                
+                let function_scope = FunctionScope {
+                    name: function_name.clone(),
+                    params: parameters.clone(),
+                    body_start,
+                    body_end,
+                    namespace: None, // 稍后填充
+                    class_name: None, // 稍后填充
+                    function_id,
+                };
+                
+                function_scopes.push(function_scope);
+
+                let snippet = CppSnippet {
+                    snippet_type: CppSnippetType::Function,
+                    name: function_name.clone(),
+                    content: self.extract_node_text(code, &match_.captures[0].node),
+                    start_line: body_start.row,
+                    end_line: body_end.row,
+                    start_column: body_start.column,
+                    end_column: body_end.column,
+                    file_path: path.to_string_lossy().to_string(),
+                    namespace: None,
+                    class_name: None,
+                    parameters,
+                    return_type,
+                };
+
+                result.snippets.push(snippet);
+
+                // 创建作用域
+                let scope = CppScope {
+                    name: function_name,
+                    scope_type: CppSnippetType::Function,
+                    start_line: body_start.row,
+                    end_line: body_end.row,
+                    start_column: body_start.column,
+                    end_column: body_end.column,
+                    parent_scope: None,
+                    namespace: None,
+                    class_name: None,
+                };
+                result.scopes.push(scope);
+            }
+        }
+        
+        Ok(function_scopes)
+    }
+
+    /// 收集命名空间和类定义
+    fn collect_namespaces_and_classes(
+        &self,
+        code: &str,
+        root_node: &Node,
+        path: &Path,
+        result: &mut CppAnalysisResult,
+    ) {
+        // 收集命名空间
+        let mut query_cursor = QueryCursor::new();
+        let mut matches = query_cursor.matches(&self.queries.namespace, *root_node, code.as_bytes());
+        while let Some(match_) = matches.next() {
+            for capture in match_.captures {
+                let node = capture.node;
+                let capture_name = &self.queries.namespace.capture_names()[capture.index as usize];
+                
+                if *capture_name == "namespace.name" {
+                    let namespace_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
+                    let snippet = CppSnippet {
+                        snippet_type: CppSnippetType::Namespace,
+                        name: namespace_name.clone(),
+                        content: self.extract_node_text(code, &node),
+                        start_line: node.start_position().row,
+                        end_line: node.end_position().row,
+                        start_column: node.start_position().column,
+                        end_column: node.end_position().column,
+                        file_path: path.to_string_lossy().to_string(),
+                        namespace: None,
+                        class_name: None,
+                        parameters: Vec::new(),
+                        return_type: None,
+                    };
+                    result.snippets.push(snippet);
+                }
+            }
+        }
+
+        // 收集类定义
+        let mut matches = query_cursor.matches(&self.queries.class_definition, *root_node, code.as_bytes());
+        while let Some(match_) = matches.next() {
+            for capture in match_.captures {
+                let node = capture.node;
+                let capture_name = &self.queries.class_definition.capture_names()[capture.index as usize];
+                
+                if *capture_name == "class.name" {
+                    let class_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
+                    let snippet = CppSnippet {
+                        snippet_type: CppSnippetType::Class,
+                        name: class_name.clone(),
+                        content: self.extract_node_text(code, &node),
+                        start_line: node.start_position().row,
+                        end_line: node.end_position().row,
+                        start_column: node.start_position().column,
+                        end_column: node.end_position().column,
+                        file_path: path.to_string_lossy().to_string(),
+                        namespace: None,
+                        class_name: None,
+                        parameters: Vec::new(),
+                        return_type: None,
+                    };
+                    result.snippets.push(snippet);
+                }
+            }
+        }
+    }
+
+    /// 收集包含文件
+    fn collect_includes(&self, code: &str, root_node: &Node, result: &mut CppAnalysisResult) {
+        let mut query_cursor = QueryCursor::new();
+        
+        let mut matches = query_cursor.matches(&self.queries.include, *root_node, code.as_bytes());
+        while let Some(match_) = matches.next() {
+            for capture in match_.captures {
+                let node = capture.node;
+                let capture_name = &self.queries.include.capture_names()[capture.index as usize];
+                
+                if *capture_name == "include.path" {
+                    let path = node.utf8_text(code.as_bytes()).unwrap();
+                    let clean_path = path.trim_matches(|c| c == '<' || c == '"').to_string();
+                    result.includes.push(clean_path);
+                }
+            }
+        }
+    }
+
+    /// 收集函数调用
+    fn collect_function_calls(&self, code: &str, root_node: &Node, path: &Path) -> Vec<FunctionCall> {
+        let mut query_cursor = QueryCursor::new();
+        let mut all_calls = Vec::new();
+        
+        let mut matches = query_cursor.matches(&self.queries.function_call, *root_node, code.as_bytes());
+        while let Some(match_) = matches.next() {
+            for capture in match_.captures {
+                let node = capture.node;
+                let capture_name = &self.queries.function_call.capture_names()[capture.index as usize];
+                
+                if *capture_name == "function.called" {
+                    let called_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
+                    let call_location = node.start_position();
+                    
+                    let function_call = FunctionCall {
+                        caller_name: String::new(), // 稍后填充
+                        called_name,
+                        location: call_location,
+                        namespace: None,
+                        class_name: None,
+                    };
+                    
+                    all_calls.push(function_call);
+                }
+            }
+        }
+        
+        all_calls
+    }
+
+    /// 建立调用关系和作用域归属
+    fn establish_call_relationships(
+        &self,
+        function_scopes: &[FunctionScope],
+        all_calls: &[FunctionCall],
+        result: &mut CppAnalysisResult,
+    ) {
+        let mut function_call_map: HashMap<String, Vec<String>> = HashMap::new();
+        let mut global_calls = Vec::new();
+
+        // 为每个函数调用找到其所属的作用域
+        for call in all_calls {
+            let mut is_in_function = false;
+            
+            for scope in function_scopes {
+                // 检查调用是否在此函数体内
+                if call.location.row >= scope.body_start.row &&
+                   call.location.row <= scope.body_end.row &&
+                   call.location.column >= scope.body_start.column &&
+                   call.location.column <= scope.body_end.column {
+                    
+                    function_call_map
+                        .entry(scope.name.clone())
+                        .or_insert_with(Vec::new)
+                        .push(call.called_name.clone());
+                    
+                    is_in_function = true;
+                    break;
+                }
+            }
+            
+            if !is_in_function {
+                global_calls.push(call.called_name.clone());
+            }
+        }
+
+        // 为代码片段设置命名空间和类名
+        for snippet in &mut result.snippets {
+            let snippet_location = (snippet.start_line, snippet.start_column);
+            
+            // 查找包含此片段的命名空间
+            for scope in &result.scopes {
+                if scope.scope_type == CppSnippetType::Namespace &&
+                   snippet_location.0 >= scope.start_line &&
+                   snippet_location.0 <= scope.end_line {
+                    snippet.namespace = Some(scope.name.clone());
+                    break;
+                }
+            }
+            
+            // 查找包含此片段的类
+            for scope in &result.scopes {
+                if scope.scope_type == CppSnippetType::Class &&
+                   snippet_location.0 >= scope.start_line &&
+                   snippet_location.0 <= scope.end_line {
+                    snippet.class_name = Some(scope.name.clone());
+                    break;
+                }
+            }
+        }
+
+        // 创建CppFunctionCall对象
+        for call in all_calls {
+            let mut caller_name = String::new();
+            
+            // 找到包含此调用的函数作用域
+            for scope in function_scopes {
+                if call.location.row >= scope.body_start.row &&
+                   call.location.row <= scope.body_end.row &&
+                   call.location.column >= scope.body_start.column &&
+                   call.location.column <= scope.body_end.column {
+                    caller_name = scope.name.clone();
+                    break;
+                }
+            }
+
+            let function_call = CppFunctionCall {
+                caller_name,
+                called_name: call.called_name.clone(),
+                caller_location: (call.location.row, call.location.column),
+                called_location: (0, 0), // 稍后解析
+                caller_file: String::new(), // 稍后填充
+                called_file: None,
+                is_resolved: false,
+                namespace: call.namespace.clone(),
+                class_name: call.class_name.clone(),
+            };
+            
+            result.function_calls.push(function_call);
+        }
+    }
+
+    /// 处理分析结果，转换为FunctionInfo和CallRelation
+    fn process_analysis_result(&mut self, result: CppAnalysisResult, file_path: &Path) {
+        let mut file_functions = Vec::new();
+        
+        // 转换代码片段为FunctionInfo
+        for snippet in result.snippets {
+            if snippet.snippet_type == CppSnippetType::Function {
+                let function_info = FunctionInfo {
+                    id: Uuid::new_v4(),
+                    name: snippet.name.clone(),
+                    file_path: file_path.to_path_buf(),
+                    line_start: snippet.start_line,
+                    line_end: snippet.end_line,
+                    namespace: snippet.namespace.unwrap_or_default(),
+                    language: "cpp".to_string(),
+                    signature: Some(snippet.content.clone()),
+                    return_type: snippet.return_type,
+                    parameters: snippet.parameters.iter().map(|p| ParameterInfo {
+                        name: p.clone(),
+                        type_name: None,
+                        default_value: None,
+                    }).collect(),
+                };
+                
+                file_functions.push(function_info.clone());
+                self.function_registry.insert(snippet.name, function_info);
+            }
+        }
+        
+        self.file_functions.insert(file_path.to_path_buf(), file_functions);
+    }
+
+    /// 解析函数参数
+    fn parse_parameters(&self, params_text: &str) -> Vec<String> {
+        params_text
+            .trim_matches(|c| c == '(' || c == ')')
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
+    }
+
+    /// 提取节点的文本内容
+    fn extract_node_text(&self, code: &str, node: &Node) -> String {
+        node.utf8_text(code.as_bytes())
+            .unwrap_or("")
+            .to_string()
+    }
+
+    /// 获取所有函数信息
+    pub fn get_all_functions(&self) -> Vec<&FunctionInfo> {
+        self.function_registry.values().collect()
+    }
+
+    /// 根据函数名查找函数
+    pub fn find_functions_by_name(&self, name: &str) -> Vec<&FunctionInfo> {
+        self.function_registry.values()
+            .filter(|f| f.name == name)
+            .collect()
+    }
+
+    /// 获取文件的函数列表
+    pub fn get_file_functions(&self, file_path: &Path) -> Option<&Vec<FunctionInfo>> {
+        self.file_functions.get(file_path)
+    }
+
+    /// 生成分析报告
+    pub fn generate_report(&self) -> String {
+        let mut report = String::new();
+        report.push_str("=== C++ Code Analysis Report ===\n\n");
+        
+        // 统计信息
+        report.push_str(&format!("Total Functions: {}\n", self.function_registry.len()));
+        report.push_str(&format!("Total Files: {}\n", self.file_functions.len()));
+        
+        // 文件分布
+        report.push_str("\nFunctions by File:\n");
+        for (file_path, functions) in &self.file_functions {
+            report.push_str(&format!("  {}: {} functions\n", 
+                file_path.display(), functions.len()));
+        }
+        
+        // 函数列表
+        report.push_str("\nFunction List:\n");
+        for function in self.function_registry.values() {
+            report.push_str(&format!("  {} ({}:{}-{})\n", 
+                function.name, function.file_path.display(), 
+                function.line_start, function.line_end));
+        }
+        
+        report
+    }
+} 
