@@ -8,6 +8,7 @@ pub mod snippet_service;
 pub mod repository_manager;
 pub mod cpp_analyzer;
 pub mod python_analyzer;
+pub mod typescript_analyzer;
 
 
 
@@ -24,3 +25,4 @@ pub use snippet_service::SnippetService;
 pub use repository_manager::{RepositoryManager, RepositoryStats, SearchResult};
 pub use cpp_analyzer::CppAnalyzer;
 pub use python_analyzer::PythonAnalyzer;
+pub use typescript_analyzer::TypeScriptAnalyzer;
