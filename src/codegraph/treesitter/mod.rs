@@ -1,5 +1,4 @@
 pub mod language_id;
-pub mod parsers;
 pub mod structs;
 pub mod ast_instance_structs;
 pub mod skeletonizer;
@@ -7,7 +6,7 @@ pub mod file_ast_markup;
 pub mod queries;
 
 use std::path::PathBuf;
-use crate::codegraph::treesitter::parsers::{get_ast_parser_by_filename, ParserError, CodeAnalyzer};
+use crate::codegraph::analyzers::{get_ast_parser_by_filename, ParserError, CodeAnalyzer};
 
 pub use language_id::LanguageId;
 pub use structs::*;

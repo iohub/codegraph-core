@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use tree_sitter::{Parser, Tree, Node, QueryCursor, Language, StreamingIterator};
 use tracing::{error, debug, info};
 
-use crate::codegraph::treesitter::parsers::{ParserError, AstLanguageParser};
+use crate::codegraph::analyzers::{ParserError, AstLanguageParser};
 use crate::codegraph::treesitter::ast_instance_structs::AstSymbolInstanceArc;
 use crate::codegraph::treesitter::queries::java::{JavaQueries, JavaSnippet, JavaSnippetType};
 

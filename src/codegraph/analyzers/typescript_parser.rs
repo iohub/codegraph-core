@@ -1,18 +1,18 @@
 use std::path::PathBuf;
-use crate::codegraph::treesitter::parsers::{ParserError, AstLanguageParser};
+use crate::codegraph::analyzers::{ParserError, AstLanguageParser};
 use crate::codegraph::treesitter::ast_instance_structs::AstSymbolInstanceArc;
 
-pub struct JSParser;
+pub struct TypeScriptParser;
 
-impl JSParser {
+impl TypeScriptParser {
     pub fn new() -> Result<Self, ParserError> {
         Ok(Self)
     }
 }
 
-impl AstLanguageParser for JSParser {
+impl AstLanguageParser for TypeScriptParser {
     fn parse(&mut self, _code: &str, _path: &PathBuf) -> Vec<AstSymbolInstanceArc> {
-        // TODO: Implement JavaScript parsing
+        // TODO: Implement TypeScript parsing
         Vec::new()
     }
 } 

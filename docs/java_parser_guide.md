@@ -32,7 +32,7 @@
 
 ```rust
 use std::path::PathBuf;
-use codegraph_core::codegraph::treesitter::parsers::java::JavaParser;
+use codegraph_core::codegraph::analyzers::JavaParser;
 
 fn main() {
     let java_code = r#"
