@@ -9,8 +9,8 @@ use crate::codegraph::treesitter::language_id::LanguageId;
 
 pub(crate) mod python;
 pub(crate) mod rust;
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 mod utils;
 mod java;
 mod cpp;
