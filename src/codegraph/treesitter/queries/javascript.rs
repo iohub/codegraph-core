@@ -100,13 +100,13 @@ impl JavaScriptQueries {
         // 函数表达式查询
         let function_expression = Query::new(
             language,
-            "(function)",
+            "(function_expression)",
         )?;
 
         // 对象方法查询
         let object_method = Query::new(
             language,
-            "(pair key: (property_identifier) value: (function))",
+            "(pair key: (property_identifier) value: (function_expression))",
         )?;
 
         // 类方法查询

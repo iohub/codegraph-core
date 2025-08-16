@@ -124,36 +124,40 @@ impl JavaScriptAnalyzer {
 
     /// 分析函数定义
     fn analyze_functions(&mut self, node: &Node, content: &str, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let mut cursor = node.walk();
+        // 检查当前节点
+        let node_kind = node.kind();
         
-        loop {
-            let node = cursor.node();
-            
-            // 函数声明
-            if node.kind() == "function_declaration" {
-                if let Some(name_node) = node.child_by_field_name("name") {
-                    let name = name_node.utf8_text(content.as_bytes())?.to_string();
-                    let snippet = self.create_function_snippet(&node, content, file_path, &name, JavaScriptSnippetType::Function)?;
-                    self.snippets.push(snippet);
+        // 函数声明
+        if node_kind == "function_declaration" {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                let name = name_node.utf8_text(content.as_bytes())?.to_string();
+                let snippet = self.create_function_snippet(node, content, file_path, &name, JavaScriptSnippetType::Function)?;
+                self.snippets.push(snippet);
+            }
+        }
+        
+        // 箭头函数
+        if node_kind == "arrow_function" {
+            let name = self.extract_arrow_function_name(node, content)?;
+            let snippet = self.create_function_snippet(node, content, file_path, &name, JavaScriptSnippetType::ArrowFunction)?;
+            self.snippets.push(snippet);
+        }
+        
+        // 函数表达式
+        if node_kind == "function_expression" {
+            let name = self.extract_function_expression_name(node, content)?;
+            let snippet = self.create_function_snippet(node, content, file_path, &name, JavaScriptSnippetType::FunctionExpression)?;
+            self.snippets.push(snippet);
+        }
+        
+        // 递归遍历子节点
+        let mut cursor = node.walk();
+        if cursor.goto_first_child() {
+            loop {
+                self.analyze_functions(&cursor.node(), content, file_path)?;
+                if !cursor.goto_next_sibling() {
+                    break;
                 }
-            }
-            
-            // 箭头函数
-            if node.kind() == "arrow_function" {
-                let name = self.extract_arrow_function_name(&node, content)?;
-                let snippet = self.create_function_snippet(&node, content, file_path, &name, JavaScriptSnippetType::ArrowFunction)?;
-                self.snippets.push(snippet);
-            }
-            
-            // 函数表达式
-            if node.kind() == "function" {
-                let name = self.extract_function_expression_name(&node, content)?;
-                let snippet = self.create_function_snippet(&node, content, file_path, &name, JavaScriptSnippetType::FunctionExpression)?;
-                self.snippets.push(snippet);
-            }
-            
-            if !cursor.goto_next_sibling() {
-                break;
             }
         }
         
@@ -162,24 +166,28 @@ impl JavaScriptAnalyzer {
 
     /// 分析类定义
     fn analyze_classes(&mut self, node: &Node, content: &str, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let mut cursor = node.walk();
+        // 检查当前节点
+        let node_kind = node.kind();
         
-        loop {
-            let node = cursor.node();
-            
-            if node.kind() == "class_declaration" {
-                if let Some(name_node) = node.child_by_field_name("name") {
-                    let name = name_node.utf8_text(content.as_bytes())?.to_string();
-                    let snippet = self.create_class_snippet(&node, content, file_path, &name)?;
-                    self.snippets.push(snippet);
-                    
-                    // 分析类方法
-                    self.analyze_class_methods(&node, content, file_path, &name)?;
-                }
+        if node_kind == "class_declaration" {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                let name = name_node.utf8_text(content.as_bytes())?.to_string();
+                let snippet = self.create_class_snippet(node, content, file_path, &name)?;
+                self.snippets.push(snippet);
+                
+                // 分析类方法
+                self.analyze_class_methods(node, content, file_path, &name)?;
             }
-            
-            if !cursor.goto_next_sibling() {
-                break;
+        }
+        
+        // 递归遍历子节点
+        let mut cursor = node.walk();
+        if cursor.goto_first_child() {
+            loop {
+                self.analyze_classes(&cursor.node(), content, file_path)?;
+                if !cursor.goto_next_sibling() {
+                    break;
+                }
             }
         }
         
@@ -188,22 +196,26 @@ impl JavaScriptAnalyzer {
 
     /// 分析对象定义
     fn analyze_objects(&mut self, node: &Node, content: &str, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let mut cursor = node.walk();
+        // 检查当前节点
+        let node_kind = node.kind();
         
-        loop {
-            let node = cursor.node();
+        if node_kind == "object" {
+            let name = self.extract_object_name(node, content)?;
+            let snippet = self.create_object_snippet(node, content, file_path, &name)?;
+            self.snippets.push(snippet);
             
-            if node.kind() == "object" {
-                let name = self.extract_object_name(&node, content)?;
-                let snippet = self.create_object_snippet(&node, content, file_path, &name)?;
-                self.snippets.push(snippet);
-                
-                // 分析对象方法
-                self.analyze_object_methods(&node, content, file_path, &name)?;
-            }
-            
-            if !cursor.goto_next_sibling() {
-                break;
+            // 分析对象方法
+            self.analyze_object_methods(node, content, file_path, &name)?;
+        }
+        
+        // 递归遍历子节点
+        let mut cursor = node.walk();
+        if cursor.goto_first_child() {
+            loop {
+                self.analyze_objects(&cursor.node(), content, file_path)?;
+                if !cursor.goto_next_sibling() {
+                    break;
+                }
             }
         }
         
@@ -212,23 +224,27 @@ impl JavaScriptAnalyzer {
 
     /// 分析导入导出
     fn analyze_imports_exports(&mut self, node: &Node, content: &str, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let mut cursor = node.walk();
+        // 检查当前节点
+        let node_kind = node.kind();
         
-        loop {
-            let node = cursor.node();
-            
-            if node.kind() == "import_statement" {
-                let import_info = self.extract_import_info(&node, content)?;
-                self.imports.push(import_info);
-            }
-            
-            if node.kind() == "export_statement" {
-                let export_info = self.extract_export_info(&node, content)?;
-                self.exports.push(export_info);
-            }
-            
-            if !cursor.goto_next_sibling() {
-                break;
+        if node_kind == "import_statement" {
+            let import_info = self.extract_import_info(node, content)?;
+            self.imports.push(import_info);
+        }
+        
+        if node_kind == "export_statement" {
+            let export_info = self.extract_export_info(node, content)?;
+            self.exports.push(export_info);
+        }
+        
+        // 递归遍历子节点
+        let mut cursor = node.walk();
+        if cursor.goto_first_child() {
+            loop {
+                self.analyze_imports_exports(&cursor.node(), content, file_path)?;
+                if !cursor.goto_next_sibling() {
+                    break;
+                }
             }
         }
         
@@ -237,18 +253,22 @@ impl JavaScriptAnalyzer {
 
     /// 分析函数调用
     fn analyze_function_calls(&mut self, node: &Node, content: &str, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let mut cursor = node.walk();
+        // 检查当前节点
+        let node_kind = node.kind();
         
-        loop {
-            let node = cursor.node();
-            
-            if node.kind() == "call_expression" {
-                let function_call = self.extract_function_call(&node, content, file_path)?;
-                self.function_calls.push(function_call);
-            }
-            
-            if !cursor.goto_next_sibling() {
-                break;
+        if node_kind == "call_expression" {
+            let function_call = self.extract_function_call(node, content, file_path)?;
+            self.function_calls.push(function_call);
+        }
+        
+        // 递归遍历子节点
+        let mut cursor = node.walk();
+        if cursor.goto_first_child() {
+            loop {
+                self.analyze_function_calls(&cursor.node(), content, file_path)?;
+                if !cursor.goto_next_sibling() {
+                    break;
+                }
             }
         }
         
@@ -257,18 +277,22 @@ impl JavaScriptAnalyzer {
 
     /// 分析作用域
     fn analyze_scopes(&mut self, node: &Node, content: &str, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let mut cursor = node.walk();
+        // 检查当前节点
+        let node_kind = node.kind();
         
-        loop {
-            let node = cursor.node();
-            
-            if node.kind() == "program" {
-                let scope = self.create_scope(&node, content, file_path, "global", JavaScriptSnippetType::Module)?;
-                self.scopes.push(scope);
-            }
-            
-            if !cursor.goto_next_sibling() {
-                break;
+        if node_kind == "program" {
+            let scope = self.create_scope(node, content, file_path, "global", JavaScriptSnippetType::Module)?;
+            self.scopes.push(scope);
+        }
+        
+        // 递归遍历子节点
+        let mut cursor = node.walk();
+        if cursor.goto_first_child() {
+            loop {
+                self.analyze_scopes(&cursor.node(), content, file_path)?;
+                if !cursor.goto_next_sibling() {
+                    break;
+                }
             }
         }
         
@@ -570,21 +594,25 @@ impl JavaScriptAnalyzer {
 
     /// 分析类方法
     fn analyze_class_methods(&mut self, class_node: &Node, content: &str, file_path: &str, class_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let mut cursor = class_node.walk();
+        // 检查当前节点
+        let node_kind = class_node.kind();
         
-        loop {
-            let node = cursor.node();
-            
-            if node.kind() == "method_definition" {
-                if let Some(name_node) = node.child_by_field_name("name") {
-                    let name = name_node.utf8_text(content.as_bytes())?.to_string();
-                    let snippet = self.create_method_snippet(&node, content, file_path, &name, class_name, JavaScriptSnippetType::ClassMethod)?;
-                    self.snippets.push(snippet);
-                }
+        if node_kind == "method_definition" {
+            if let Some(name_node) = class_node.child_by_field_name("name") {
+                let name = name_node.utf8_text(content.as_bytes())?.to_string();
+                let snippet = self.create_method_snippet(class_node, content, file_path, &name, class_name, JavaScriptSnippetType::ClassMethod)?;
+                self.snippets.push(snippet);
             }
-            
-            if !cursor.goto_next_sibling() {
-                break;
+        }
+        
+        // 递归遍历子节点
+        let mut cursor = class_node.walk();
+        if cursor.goto_first_child() {
+            loop {
+                self.analyze_class_methods(&cursor.node(), content, file_path, class_name)?;
+                if !cursor.goto_next_sibling() {
+                    break;
+                }
             }
         }
         
