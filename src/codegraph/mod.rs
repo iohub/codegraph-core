@@ -10,6 +10,7 @@ pub mod cpp_analyzer;
 pub mod python_analyzer;
 pub mod typescript_analyzer;
 pub mod java_analyzer;
+pub mod javascript_analyzer;
 
 
 
@@ -28,3 +29,4 @@ pub use cpp_analyzer::CppAnalyzer;
 pub use python_analyzer::PythonAnalyzer;
 pub use typescript_analyzer::TypeScriptAnalyzer;
 pub use java_analyzer::JavaAnalyzer;
+pub use javascript_analyzer::JavaScriptAnalyzer;
