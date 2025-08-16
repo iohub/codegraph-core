@@ -4,7 +4,6 @@ use uuid::Uuid;
 
 use crate::codegraph::treesitter::ast_instance_structs::SymbolInformation;
 use crate::codegraph::treesitter::language_id::LanguageId;
-use crate::codegraph::treesitter::parsers::python::PythonSkeletonFormatter;
 use crate::codegraph::treesitter::structs::SymbolType;
 
 struct BaseSkeletonFormatter;
@@ -154,8 +153,6 @@ pub trait SkeletonFormatter {
 impl SkeletonFormatter for BaseSkeletonFormatter {}
 
 pub fn make_formatter(language_id: &LanguageId) -> Box<dyn SkeletonFormatter> {
-    match language_id {
-        LanguageId::Python => Box::new(PythonSkeletonFormatter {}),
-        _ => Box::new(BaseSkeletonFormatter {})
-    }
+    // 暂时所有语言都使用BaseSkeletonFormatter
+    Box::new(BaseSkeletonFormatter {})
 }
