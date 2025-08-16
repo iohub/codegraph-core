@@ -1,11 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::fs;
-use tree_sitter::{Parser, Node, Tree, Query, QueryCursor, Language, Point, StreamingIterator};
-use tracing::{info, warn, error};
+use tree_sitter::{Parser, Node, QueryCursor, Language, Point, StreamingIterator};
+use tracing::{info, warn};
 use uuid::Uuid;
 
-use crate::codegraph::types::{FunctionInfo, CallRelation, ParameterInfo};
+use crate::codegraph::types::{FunctionInfo, ParameterInfo};
 use crate::codegraph::treesitter::queries::java::{
     JavaQueries, JavaSnippet, JavaSnippetType, JavaMethodCall, JavaScope, JavaAnalysisResult
 };
@@ -155,6 +155,11 @@ impl JavaAnalyzer {
             packages: HashMap::new(),
             classes: HashMap::new(),
             interfaces: HashMap::new(),
+            records: HashMap::new(),
+            modules: HashMap::new(),
+            enums: HashMap::new(),
+            annotations: HashMap::new(),
+            generics: HashMap::new(),
         };
 
         // 第一遍：收集包和导入信息
@@ -351,6 +356,14 @@ impl JavaAnalyzer {
                     parameters,
                     return_type,
                     modifiers: modifiers.clone(),
+                    type_parameters: Some(type_parameters.clone()),
+                    superclass: None,
+                    interfaces: None,
+                    generic_arguments: None,
+                    bounds: None,
+                    exception_types: None,
+                    loop_type: None,
+                    condition_type: None,
                 };
 
                 result.snippets.push(snippet);
@@ -367,6 +380,12 @@ impl JavaAnalyzer {
                     package_name,
                     class_name,
                     modifiers,
+                    type_parameters: Some(type_parameters),
+                    superclass: None,
+                    interfaces: None,
+                    is_open: None,
+                    is_sealed: None,
+                    permits: None,
                 };
                 result.scopes.push(scope);
             } else {
@@ -415,6 +434,14 @@ impl JavaAnalyzer {
                         parameters: Vec::new(),
                         return_type: None,
                         modifiers: Vec::new(),
+                        type_parameters: None,
+                        superclass: None,
+                        interfaces: None,
+                        generic_arguments: None,
+                        bounds: None,
+                        exception_types: None,
+                        loop_type: None,
+                        condition_type: None,
                     };
                     result.snippets.push(snippet);
                     result.classes.insert(class_name, vec![path.to_string_lossy().to_string()]);
@@ -447,6 +474,14 @@ impl JavaAnalyzer {
                         parameters: Vec::new(),
                         return_type: None,
                         modifiers: Vec::new(),
+                        type_parameters: None,
+                        superclass: None,
+                        interfaces: None,
+                        generic_arguments: None,
+                        bounds: None,
+                        exception_types: None,
+                        loop_type: None,
+                        condition_type: None,
                     };
                     result.snippets.push(snippet);
                     result.interfaces.insert(interface_name, vec![path.to_string_lossy().to_string()]);
@@ -479,6 +514,14 @@ impl JavaAnalyzer {
                         parameters: Vec::new(),
                         return_type: None,
                         modifiers: Vec::new(),
+                        type_parameters: None,
+                        superclass: None,
+                        interfaces: None,
+                        generic_arguments: None,
+                        bounds: None,
+                        exception_types: None,
+                        loop_type: None,
+                        condition_type: None,
                     };
                     result.snippets.push(snippet);
                 }
@@ -511,6 +554,14 @@ impl JavaAnalyzer {
                         parameters: Vec::new(),
                         return_type: None,
                         modifiers: Vec::new(),
+                        type_parameters: None,
+                        superclass: None,
+                        interfaces: None,
+                        generic_arguments: None,
+                        bounds: None,
+                        exception_types: None,
+                        loop_type: None,
+                        condition_type: None,
                     };
                     result.snippets.push(snippet);
                 }
@@ -519,7 +570,7 @@ impl JavaAnalyzer {
     }
 
     /// 收集方法调用
-    fn collect_method_calls(&self, code: &str, root_node: &Node, path: &Path) -> Vec<MethodCall> {
+    fn collect_method_calls(&self, code: &str, root_node: &Node, _path: &Path) -> Vec<MethodCall> {
         let mut query_cursor = QueryCursor::new();
         let mut all_calls = Vec::new();
         
@@ -527,7 +578,7 @@ impl JavaAnalyzer {
         while let Some(match_) = matches.next() {
             let mut called_name = String::new();
             let mut arguments = Vec::new();
-            let mut type_arguments = Vec::new();
+            let type_arguments = Vec::new();
             let mut call_location = Point::new(0, 0);
             
             for capture in match_.captures {
@@ -652,6 +703,9 @@ impl JavaAnalyzer {
                 package_name: call.package_name.clone(),
                 class_name: call.class_name.clone(),
                 method_signature: None,
+                object_expression: None,
+                arguments: Some(call.arguments.clone()),
+                type_arguments: Some(call.type_arguments.clone()),
             };
             
             result.method_calls.push(method_call);
@@ -718,7 +772,7 @@ impl JavaAnalyzer {
     }
 
     /// 查找父类
-    fn find_parent_class(&self, root: &Node, line: usize, column: usize) -> Option<String> {
+    fn find_parent_class(&self, _root: &Node, _line: usize, _column: usize) -> Option<String> {
         // 简单的父类查找逻辑
         // 这里可以实现更复杂的查找算法
         None

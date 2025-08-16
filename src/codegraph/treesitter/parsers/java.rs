@@ -13,11 +13,9 @@ pub struct JavaParser {
 }
 
 impl JavaParser {
-    pub fn new() -> Result<Self, ParserError> {
+    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let language = unsafe { tree_sitter_java() };
-        let queries = JavaQueries::new(&language)
-            .map_err(|e| ParserError { message: format!("Failed to create Java queries: {}", e) })?;
-        
+        let queries = JavaQueries::new(&language)?;
         Ok(Self { queries })
     }
 
@@ -117,21 +115,17 @@ impl JavaParser {
             }
             
             if !name.is_empty() {
-                let snippet = JavaSnippet {
-                    snippet_type: JavaSnippetType::Method,
+                let snippet = self.create_java_snippet(
+                    JavaSnippetType::Method,
                     name,
-                    content: code[0..code.len()].to_string(), // 简化处理
-                    start_line: 0,
-                    end_line: 0,
-                    start_column: 0,
-                    end_column: 0,
-                    file_path: path.to_string(),
-                    package_name: package_name.clone(),
+                    code[0..code.len()].to_string(), // 简化处理
+                    path,
+                    package_name,
                     class_name,
-                    parameters: params,
+                    params,
                     return_type,
                     modifiers,
-                };
+                );
                 snippets.push(snippet);
             }
         }
@@ -143,7 +137,7 @@ impl JavaParser {
         
         while let Some(m) = matches.next() {
             let mut name = String::new();
-            let mut modifiers = Vec::new();
+            let mut modifiers: Vec<String> = Vec::new();
             
             for capture in m.captures {
                 let node = capture.node;
@@ -161,21 +155,17 @@ impl JavaParser {
             }
             
             if !name.is_empty() {
-                let snippet = JavaSnippet {
-                    snippet_type: JavaSnippetType::Class,
+                let snippet = self.create_java_snippet(
+                    JavaSnippetType::Class,
                     name,
-                    content: code[0..code.len()].to_string(), // 简化处理
-                    start_line: 0,
-                    end_line: 0,
-                    start_column: 0,
-                    end_column: 0,
-                    file_path: path.to_string(),
-                    package_name: package_name.clone(),
-                    class_name: None,
-                    parameters: Vec::new(),
-                    return_type: None,
-                    modifiers,
-                };
+                    code[0..code.len()].to_string(), // 简化处理
+                    path,
+                    package_name,
+                    None,
+                    Vec::new(),
+                    None,
+                    Vec::new(),
+                );
                 snippets.push(snippet);
             }
         }
@@ -201,21 +191,17 @@ impl JavaParser {
             }
             
             if !name.is_empty() {
-                let snippet = JavaSnippet {
-                    snippet_type: JavaSnippetType::Interface,
+                let snippet = self.create_java_snippet(
+                    JavaSnippetType::Interface,
                     name,
-                    content: code[0..code.len()].to_string(), // 简化处理
-                    start_line: 0,
-                    end_line: 0,
-                    start_column: 0,
-                    end_column: 0,
-                    file_path: path.to_string(),
-                    package_name: package_name.clone(),
-                    class_name: None,
-                    parameters: Vec::new(),
-                    return_type: None,
-                    modifiers: Vec::new(),
-                };
+                    code[0..code.len()].to_string(), // 简化处理
+                    path,
+                    package_name,
+                    None,
+                    Vec::new(),
+                    None,
+                    Vec::new(),
+                );
                 snippets.push(snippet);
             }
         }
@@ -249,21 +235,17 @@ impl JavaParser {
             }
             
             if !name.is_empty() {
-                let snippet = JavaSnippet {
-                    snippet_type: JavaSnippetType::Constructor,
+                let snippet = self.create_java_snippet(
+                    JavaSnippetType::Constructor,
                     name,
-                    content: code[0..code.len()].to_string(), // 简化处理
-                    start_line: 0,
-                    end_line: 0,
-                    start_column: 0,
-                    end_column: 0,
-                    file_path: path.to_string(),
-                    package_name: package_name.clone(),
+                    code[0..code.len()].to_string(), // 简化处理
+                    path,
+                    package_name,
                     class_name,
-                    parameters: params,
-                    return_type: None,
-                    modifiers: Vec::new(),
-                };
+                    params,
+                    None,
+                    Vec::new(),
+                );
                 snippets.push(snippet);
             }
         }
@@ -292,21 +274,17 @@ impl JavaParser {
             }
             
             if !var_name.is_empty() {
-                let snippet = JavaSnippet {
-                    snippet_type: JavaSnippetType::Variable,
-                    name: var_name,
-                    content: code[0..code.len()].to_string(), // 简化处理
-                    start_line: 0,
-                    end_line: 0,
-                    start_column: 0,
-                    end_column: 0,
-                    file_path: path.to_string(),
-                    package_name: package_name.clone(),
+                let snippet = self.create_java_snippet(
+                    JavaSnippetType::Variable,
+                    var_name,
+                    code[0..code.len()].to_string(), // 简化处理
+                    path,
+                    package_name,
                     class_name,
-                    parameters: Vec::new(),
-                    return_type: None,
-                    modifiers: Vec::new(),
-                };
+                    Vec::<String>::new(),
+                    None,
+                    Vec::new(),
+                );
                 snippets.push(snippet);
             }
         }
@@ -329,21 +307,17 @@ impl JavaParser {
             }
             
             if !enum_name.is_empty() {
-                let snippet = JavaSnippet {
-                    snippet_type: JavaSnippetType::Enum,
-                    name: enum_name.clone(),
-                    content: code[0..code.len()].to_string(), // 简化处理
-                    start_line: 0,
-                    end_line: 0,
-                    start_column: 0,
-                    end_column: 0,
-                    file_path: path.to_string(),
-                    package_name: package_name.clone(),
-                    class_name: Some(enum_name),
-                    parameters: Vec::new(),
-                    return_type: None,
-                    modifiers: Vec::new(),
-                };
+                let snippet = self.create_java_snippet(
+                    JavaSnippetType::Enum,
+                    enum_name.clone(),
+                    code[0..code.len()].to_string(), // 简化处理
+                    path,
+                    package_name,
+                    Some(enum_name),
+                    Vec::<String>::new(),
+                    None,
+                    Vec::new(),
+                );
                 snippets.push(snippet);
             }
         }
@@ -366,21 +340,17 @@ impl JavaParser {
             }
             
             if !annotation_name.is_empty() {
-                let snippet = JavaSnippet {
-                    snippet_type: JavaSnippetType::Annotation,
-                    name: annotation_name,
-                    content: code[0..code.len()].to_string(), // 简化处理
-                    start_line: 0,
-                    end_line: 0,
-                    start_column: 0,
-                    end_column: 0,
-                    file_path: path.to_string(),
-                    package_name: package_name.clone(),
-                    class_name: None,
-                    parameters: Vec::new(),
-                    return_type: None,
-                    modifiers: Vec::new(),
-                };
+                let snippet = self.create_java_snippet(
+                    JavaSnippetType::Annotation,
+                    annotation_name,
+                    code[0..code.len()].to_string(), // 简化处理
+                    path,
+                    package_name,
+                    None,
+                    Vec::<String>::new(),
+                    None,
+                    Vec::new(),
+                );
                 snippets.push(snippet);
             }
         }
@@ -412,6 +382,44 @@ impl JavaParser {
         }
         
         params
+    }
+
+    /// 创建带有默认值的JavaSnippet实例
+    fn create_java_snippet(
+        &self,
+        snippet_type: JavaSnippetType,
+        name: String,
+        content: String,
+        path: &str,
+        package_name: &Option<String>,
+        class_name: Option<String>,
+        parameters: Vec<String>,
+        return_type: Option<String>,
+        modifiers: Vec<String>,
+    ) -> JavaSnippet {
+        JavaSnippet {
+            snippet_type,
+            name,
+            content,
+            start_line: 0,
+            end_line: 0,
+            start_column: 0,
+            end_column: 0,
+            file_path: path.to_string(),
+            package_name: package_name.clone(),
+            class_name,
+            parameters,
+            return_type,
+            modifiers,
+            type_parameters: None,
+            superclass: None,
+            interfaces: None,
+            generic_arguments: None,
+            bounds: None,
+            exception_types: None,
+            loop_type: None,
+            condition_type: None,
+        }
     }
 
     fn convert_to_ast_symbols(&self, _snippets: Vec<JavaSnippet>, _path: &PathBuf) -> Vec<AstSymbolInstanceArc> {

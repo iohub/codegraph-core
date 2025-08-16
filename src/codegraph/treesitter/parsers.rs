@@ -23,6 +23,14 @@ pub struct ParserError {
     pub message: String,
 }
 
+impl From<Box<dyn std::error::Error>> for ParserError {
+    fn from(err: Box<dyn std::error::Error>) -> Self {
+        ParserError {
+            message: err.to_string(),
+        }
+    }
+}
+
 pub trait AstLanguageParser: Send {
     fn parse(&mut self, code: &str, path: &PathBuf) -> Vec<AstSymbolInstanceArc>;
 }
