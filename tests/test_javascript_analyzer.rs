@@ -226,8 +226,8 @@ fn test_javascript_analyzer_generate_report() {
     // 检查报告内容
     assert!(report.contains("JavaScript Code Analysis Report"));
     assert!(report.contains("Total Snippets:"));
-    assert!(report.contains("Functions:"));
-    assert!(report.contains("Classes:"));
+    assert!(report.contains("=== Functions ==="));
+    assert!(report.contains("=== Classes ==="));
     
     temp_dir.close().unwrap();
 }
