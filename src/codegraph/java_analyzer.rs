@@ -6,79 +6,78 @@ use tracing::{info, warn, error};
 use uuid::Uuid;
 
 use crate::codegraph::types::{FunctionInfo, CallRelation, ParameterInfo};
-use crate::codegraph::treesitter::queries::typescript::{
-    TypeScriptQueries, TypeScriptSnippet, TypeScriptSnippetType, TypeScriptFunctionCall, 
-    TypeScriptScope, TypeScriptAnalysisResult
+use crate::codegraph::treesitter::queries::java::{
+    JavaQueries, JavaSnippet, JavaSnippetType, JavaMethodCall, JavaScope, JavaAnalysisResult
 };
 
-extern "C" { fn tree_sitter_typescript() -> Language; }
+extern "C" { fn tree_sitter_java() -> Language; }
 
-/// TypeScript函数作用域信息
+/// Java方法作用域信息
 #[derive(Debug, Clone)]
-struct FunctionScope {
+struct MethodScope {
     pub name: String,
     pub params: Vec<String>,
     pub body_start: Point,
     pub body_end: Point,
-    pub module_name: Option<String>,
+    pub package_name: Option<String>,
     pub class_name: Option<String>,
     pub interface_name: Option<String>,
-    pub function_id: Uuid,
-    pub decorators: Vec<String>,
+    pub method_id: Uuid,
+    pub modifiers: Vec<String>,
     pub type_parameters: Vec<String>,
     pub return_type: Option<String>,
 }
 
-/// TypeScript函数调用信息
+/// Java方法调用信息
 #[derive(Debug, Clone)]
-struct FunctionCall {
+struct MethodCall {
     pub caller_name: String,
     pub called_name: String,
     pub location: Point,
-    pub module_name: Option<String>,
+    pub package_name: Option<String>,
     pub class_name: Option<String>,
     pub interface_name: Option<String>,
     pub arguments: Vec<String>,
     pub type_arguments: Vec<String>,
 }
 
-/// TypeScript代码分析器
-pub struct TypeScriptAnalyzer {
+/// Java代码分析器
+pub struct JavaAnalyzer {
     parser: Parser,
     language: Language,
-    queries: TypeScriptQueries,
-    /// 函数名 -> 函数信息映射（用于解析调用关系）
-    function_registry: HashMap<String, FunctionInfo>,
-    /// 文件路径 -> 函数列表映射
-    file_functions: HashMap<PathBuf, Vec<FunctionInfo>>,
+    queries: JavaQueries,
+    /// 方法名 -> 方法信息映射（用于解析调用关系）
+    method_registry: HashMap<String, FunctionInfo>,
+    /// 文件路径 -> 方法列表映射
+    file_methods: HashMap<PathBuf, Vec<FunctionInfo>>,
 }
 
-impl TypeScriptAnalyzer {
+impl JavaAnalyzer {
     pub fn new() -> Result<Self, String> {
         let mut parser = Parser::new();
-        let language = unsafe { tree_sitter_typescript() };
+        let language = unsafe { tree_sitter_java() };
         
         parser.set_language(&language)
-            .map_err(|e| format!("Failed to set TypeScript language: {}", e))?;
+            .map_err(|e| format!("Failed to set Java language: {}", e))?;
 
-        let queries = TypeScriptQueries::new(&language)
-            .map_err(|e| format!("Failed to create TypeScript queries: {}", e))?;
+        let queries = JavaQueries::new(&language)
+            .map_err(|e| format!("Failed to create Java queries: {}", e))?;
 
         Ok(Self {
             parser,
             language,
             queries,
-            function_registry: HashMap::new(),
-            file_functions: HashMap::new(),
+            method_registry: HashMap::new(),
+            file_methods: HashMap::new(),
         })
     }
 
-    /// 分析目录下的所有TypeScript文件
+    /// 分析目录下的所有Java文件
     pub fn analyze_directory(&mut self, dir: &Path) -> Result<(), String> {
-        info!("Starting TypeScript analysis for directory: {}", dir.display());
+        info!("Starting Java analysis for directory: {}", dir.display());
         
-        let files = self.scan_typescript_files(dir);
-        info!("Found {} TypeScript files to analyze", files.len());
+        let files = self.scan_java_files(dir);
+        info!("Found {} Java files to analyze", files.len());
         
         for file_path in files {
             if let Err(e) = self.analyze_file(&file_path) {
@@ -86,13 +85,13 @@ impl TypeScriptAnalyzer {
             }
         }
         
-        info!("TypeScript analysis completed");
+        info!("Java analysis completed");
         Ok(())
     }
 
-    /// 分析单个TypeScript文件
+    /// 分析单个Java文件
     pub fn analyze_file(&mut self, file_path: &Path) -> Result<(), String> {
-        info!("Analyzing TypeScript file: {}", file_path.display());
+        info!("Analyzing Java file: {}", file_path.display());
         
         let code = fs::read_to_string(file_path)
             .map_err(|e| format!("Failed to read file {}: {}", file_path.display(), e))?;
@@ -101,7 +100,7 @@ impl TypeScriptAnalyzer {
             .ok_or_else(|| format!("Failed to parse file {}", file_path.display()))?;
         
         let root_node = tree.root_node();
-        let analysis_result = self.analyze_typescript_code(&code, &root_node, file_path)?;
+        let analysis_result = self.analyze_java_code(&code, &root_node, file_path)?;
         
         // 将分析结果转换为FunctionInfo和CallRelation
         self.process_analysis_result(analysis_result, file_path);
@@ -109,8 +108,8 @@ impl TypeScriptAnalyzer {
         Ok(())
     }
 
-    /// 扫描目录下的TypeScript文件
-    fn scan_typescript_files(&self, dir: &Path) -> Vec<PathBuf> {
+    /// 扫描目录下的Java文件
+    fn scan_java_files(&self, dir: &Path) -> Vec<PathBuf> {
         let mut files = Vec::new();
         self._scan_directory_recursive(dir, &mut files);
         files
@@ -130,125 +129,156 @@ impl TypeScriptAnalyzer {
                         }
                     }
                     self._scan_directory_recursive(&path, files);
-                } else if self.is_typescript_file(&path) {
+                } else if self.is_java_file(&path) {
                     files.push(path);
                 }
             }
         }
     }
 
-    /// 判断文件是否为TypeScript文件
-    fn is_typescript_file(&self, path: &Path) -> bool {
+    /// 判断文件是否为Java文件
+    fn is_java_file(&self, path: &Path) -> bool {
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-            matches!(ext.to_lowercase().as_str(),
-                "ts" | "tsx" | "js" | "jsx" | "mts" | "cts" | "mjs" | "cjs"
-            )
+            matches!(ext.to_lowercase().as_str(), "java")
         } else {
-            // 检查文件名是否为常见的配置文件
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                name == "tsconfig.json" || name == "package.json" || name == "webpack.config.js" ||
-                name == "rollup.config.js" || name == "vite.config.ts" || name == "next.config.js"
-            } else {
-                false
-            }
+            false
         }
     }
 
-    /// 分析TypeScript代码，提取函数定义、调用关系等
-    fn analyze_typescript_code(&self, code: &str, root_node: &Node, path: &Path) -> Result<TypeScriptAnalysisResult, String> {
-        let mut result = TypeScriptAnalysisResult {
+    /// 分析Java代码，提取方法定义、调用关系等
+    fn analyze_java_code(&self, code: &str, root_node: &Node, path: &Path) -> Result<JavaAnalysisResult, String> {
+        let mut result = JavaAnalysisResult {
             snippets: Vec::new(),
-            function_calls: Vec::new(),
+            method_calls: Vec::new(),
             scopes: Vec::new(),
             imports: Vec::new(),
-            exports: Vec::new(),
-            modules: HashMap::new(),
+            packages: HashMap::new(),
             classes: HashMap::new(),
             interfaces: HashMap::new(),
         };
 
-        // 第一遍：收集函数定义和作用域
-        let function_scopes = self.collect_function_definitions(code, root_node, path, &mut result)?;
+        // 第一遍：收集包和导入信息
+        self.collect_package_and_import_info(code, root_node, path, &mut result);
         
-        // 第二遍：收集类、接口和类型定义
+        // 第二遍：收集方法定义和作用域
+        let method_scopes = self.collect_method_definitions(code, root_node, path, &mut result)?;
+        
+        // 第三遍：收集类、接口和类型定义
         self.collect_class_interface_type_definitions(code, root_node, path, &mut result);
         
-        // 第三遍：收集导入和导出语句
-        self.collect_imports_and_exports(code, root_node, &mut result);
-        
-        // 第四遍：收集所有函数调用
-        let all_calls = self.collect_function_calls(code, root_node, path);
+        // 第四遍：收集所有方法调用
+        let all_calls = self.collect_method_calls(code, root_node, path);
         
         // 第五遍：建立调用关系和作用域归属
-        self.establish_call_relationships(&function_scopes, &all_calls, &mut result);
+        self.establish_call_relationships(&method_scopes, &all_calls, &mut result);
 
         Ok(result)
     }
 
-    /// 收集函数定义和作用域
-    fn collect_function_definitions(
+    /// 收集包和导入信息
+    fn collect_package_and_import_info(&self, code: &str, root_node: &Node, path: &Path, result: &mut JavaAnalysisResult) {
+        let mut query_cursor = QueryCursor::new();
+        
+        // 收集包声明
+        let mut matches = query_cursor.matches(&self.queries.package_declaration, *root_node, code.as_bytes());
+        while let Some(match_) = matches.next() {
+            for capture in match_.captures {
+                let node = capture.node;
+                let capture_name = &self.queries.package_declaration.capture_names()[capture.index as usize];
+                
+                if *capture_name == "package.name" {
+                    let package_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
+                    result.packages.insert(package_name.clone(), vec![path.to_string_lossy().to_string()]);
+                }
+            }
+        }
+
+        // 收集导入语句
+        let mut matches = query_cursor.matches(&self.queries.import_declaration, *root_node, code.as_bytes());
+        while let Some(match_) = matches.next() {
+            for capture in match_.captures {
+                let node = capture.node;
+                let capture_name = &self.queries.import_declaration.capture_names()[capture.index as usize];
+                
+                if *capture_name == "import.name" {
+                    let import_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
+                    result.imports.push(import_name);
+                }
+            }
+        }
+    }
+
+    /// 收集方法定义和作用域
+    fn collect_method_definitions(
         &self,
         code: &str,
         root_node: &Node,
         path: &Path,
-        result: &mut TypeScriptAnalysisResult,
-    ) -> Result<Vec<FunctionScope>, String> {
+        result: &mut JavaAnalysisResult,
+    ) -> Result<Vec<MethodScope>, String> {
         let mut query_cursor = QueryCursor::new();
-        let mut function_scopes = Vec::new();
+        let mut method_scopes = Vec::new();
         
-        info!("Starting function definition collection...");
-        let mut matches = query_cursor.matches(&self.queries.function_definition, *root_node, code.as_bytes());
+        info!("Starting method definition collection...");
+        let mut matches = query_cursor.matches(&self.queries.method_definition, *root_node, code.as_bytes());
         let mut match_count = 0;
         
         while let Some(match_) = matches.next() {
             match_count += 1;
-            info!("Found function declaration match #{}", match_count);
+            info!("Found method declaration match #{}", match_count);
             
-            // 获取匹配的函数声明节点
-            // 由于我们的查询没有捕获组，我们需要使用不同的方法
-            let function_node = if !match_.captures.is_empty() {
+            let method_node = if !match_.captures.is_empty() {
                 match_.captures[0].node
             } else {
-                // 如果没有捕获组，我们需要找到实际的函数声明节点
-                // 遍历所有匹配的节点来找到function_declaration类型的节点
-                let mut function_node = None;
+                // 如果没有捕获组，找到实际的method_declaration节点
+                let mut method_node = None;
                 for capture in match_.captures.iter() {
-                    if capture.node.kind() == "function_declaration" {
-                        function_node = Some(capture.node);
+                    if capture.node.kind() == "method_declaration" {
+                        method_node = Some(capture.node);
                         break;
                     }
                 }
-                function_node.unwrap_or(*root_node)
+                method_node.unwrap_or(*root_node)
             };
             
-            info!("Function node type: {}", function_node.kind());
+            info!("Method node type: {}", method_node.kind());
             
-            // 如果这个节点不是函数声明，跳过
-            if function_node.kind() != "function_declaration" {
-                info!("Skipping non-function_declaration node: {}", function_node.kind());
+            if method_node.kind() != "method_declaration" {
+                info!("Skipping non-method_declaration node: {}", method_node.kind());
                 continue;
             }
             
-            // 手动提取函数名
-            let mut function_name = String::new();
+            let mut method_name = String::new();
             let mut parameters = Vec::new();
             let mut body_start = Point::new(0, 0);
             let mut body_end = Point::new(0, 0);
             let mut return_type = None;
-            let mut decorators = Vec::new();
+            let mut modifiers = Vec::new();
             let mut type_parameters = Vec::new();
+            let mut package_name = None;
+            let mut class_name = None;
 
-            // 遍历函数声明节点的子节点来找到函数名
-            let mut cursor = function_node.walk();
+            // 获取包名
+            if let Some(pkg) = result.packages.keys().next() {
+                package_name = Some(pkg.clone());
+            }
+
+            // 查找父类名
+            if let Some(parent) = self.find_parent_class(root_node, method_node.start_position().row, method_node.start_position().column) {
+                class_name = Some(parent);
+            }
+
+            // 遍历方法声明节点的子节点来找到方法名
+            let mut cursor = method_node.walk();
             if cursor.goto_first_child() {
                 loop {
                     let node = cursor.node();
                     info!("Child node: {} - '{}'", node.kind(), node.utf8_text(code.as_bytes()).unwrap_or(""));
                     match node.kind() {
                         "identifier" => {
-                            // 这是函数名
-                            function_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
-                            info!("Found function name: {}", function_name);
+                            // 这是方法名
+                            method_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
+                            info!("Found method name: {}", method_name);
                             break;
                         }
                         _ => {}
@@ -259,12 +289,12 @@ impl TypeScriptAnalyzer {
                 }
             }
 
-            // 如果找到了函数名，继续提取其他信息
-            if !function_name.is_empty() {
-                info!("Processing function: {}", function_name);
+            // 如果找到了方法名，继续提取其他信息
+            if !method_name.is_empty() {
+                info!("Processing method: {}", method_name);
                 
-                // 重新遍历来找到参数和函数体
-                let mut cursor = function_node.walk();
+                // 重新遍历来找到参数和方法体
+                let mut cursor = method_node.walk();
                 if cursor.goto_first_child() {
                     loop {
                         let node = cursor.node();
@@ -272,14 +302,14 @@ impl TypeScriptAnalyzer {
                             "formal_parameters" => {
                                 // 提取参数信息
                                 let params_text = node.utf8_text(code.as_bytes()).unwrap();
-                                parameters = self.parse_typescript_parameters(params_text);
+                                parameters = self.parse_java_parameters(params_text);
                                 info!("Found parameters: {:?}", parameters);
                             }
                             "block" => {
-                                // 这是函数体
+                                // 这是方法体
                                 body_start = node.start_position();
                                 body_end = node.end_position();
-                                info!("Found function body at lines {}-{}", body_start.row, body_end.row);
+                                info!("Found method body at lines {}-{}", body_start.row, body_end.row);
                             }
                             _ => {}
                         }
@@ -289,76 +319,65 @@ impl TypeScriptAnalyzer {
                     }
                 }
 
-                // 收集装饰器
-                if let Some(parent) = function_node.parent() {
-                    if parent.kind() == "decorated_declaration" {
-                        decorators = self.collect_decorators(code, &parent);
-                    }
-                }
-
-                let function_id = Uuid::new_v4();
+                let method_id = Uuid::new_v4();
                 
-                let function_scope = FunctionScope {
-                    name: function_name.clone(),
+                let method_scope = MethodScope {
+                    name: method_name.clone(),
                     params: parameters.clone(),
                     body_start,
                     body_end,
-                    module_name: None, // 稍后填充
-                    class_name: None, // 稍后填充
+                    package_name: package_name.clone(),
+                    class_name: class_name.clone(),
                     interface_name: None,
-                    function_id,
-                    decorators: decorators.clone(),
+                    method_id,
+                    modifiers: modifiers.clone(),
                     type_parameters: type_parameters.clone(),
                     return_type: return_type.clone(),
                 };
                 
-                function_scopes.push(function_scope);
+                method_scopes.push(method_scope);
 
-                let snippet = TypeScriptSnippet {
-                    snippet_type: TypeScriptSnippetType::Function,
-                    name: function_name.clone(),
-                    content: self.extract_node_text(code, &function_node),
+                let snippet = JavaSnippet {
+                    snippet_type: JavaSnippetType::Method,
+                    name: method_name.clone(),
+                    content: self.extract_node_text(code, &method_node),
                     start_line: body_start.row,
                     end_line: body_end.row,
                     start_column: body_start.column,
                     end_column: body_end.column,
                     file_path: path.to_string_lossy().to_string(),
-                    module_name: None,
-                    class_name: None,
-                    interface_name: None,
+                    package_name: package_name.clone(),
+                    class_name: class_name.clone(),
                     parameters,
                     return_type,
-                    decorators: decorators.clone(),
-                    type_parameters,
-                    extends: Vec::new(),
-                    implements: Vec::new(),
+                    modifiers: modifiers.clone(),
                 };
 
                 result.snippets.push(snippet);
 
                 // 创建作用域
-                let scope = TypeScriptScope {
-                    name: function_name,
-                    scope_type: TypeScriptSnippetType::Function,
+                let scope = JavaScope {
+                    name: method_name,
+                    scope_type: JavaSnippetType::Method,
                     start_line: body_start.row,
                     end_line: body_end.row,
                     start_column: body_start.column,
                     end_column: body_end.column,
                     parent_scope: None,
-                    module_name: None,
-                    class_name: None,
-                    interface_name: None,
+                    package_name,
+                    class_name,
+                    modifiers,
                 };
                 result.scopes.push(scope);
             } else {
-                info!("No function name found in this match");
+                info!("No method name found in this match");
             }
         }
         
-        info!("Total function matches found: {}", match_count);
-        info!("Total functions processed: {}", function_scopes.len());
+        info!("Total method matches found: {}", match_count);
+        info!("Total methods processed: {}", method_scopes.len());
         
-        Ok(function_scopes)
+        Ok(method_scopes)
     }
 
     /// 收集类、接口和类型定义
@@ -367,7 +386,7 @@ impl TypeScriptAnalyzer {
         code: &str,
         root_node: &Node,
         path: &Path,
-        result: &mut TypeScriptAnalysisResult,
+        result: &mut JavaAnalysisResult,
     ) {
         let mut query_cursor = QueryCursor::new();
         
@@ -380,8 +399,10 @@ impl TypeScriptAnalyzer {
                 
                 if *capture_name == "class.name" {
                     let class_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
-                    let snippet = TypeScriptSnippet {
-                        snippet_type: TypeScriptSnippetType::Class,
+                    let package_name = result.packages.keys().next().cloned();
+                    
+                    let snippet = JavaSnippet {
+                        snippet_type: JavaSnippetType::Class,
                         name: class_name.clone(),
                         content: self.extract_node_text(code, &node),
                         start_line: node.start_position().row,
@@ -389,17 +410,14 @@ impl TypeScriptAnalyzer {
                         start_column: node.start_position().column,
                         end_column: node.end_position().column,
                         file_path: path.to_string_lossy().to_string(),
-                        module_name: None,
-                        class_name: None,
-                        interface_name: None,
+                        package_name,
+                        class_name: Some(class_name.clone()),
                         parameters: Vec::new(),
                         return_type: None,
-                        decorators: Vec::new(),
-                        type_parameters: Vec::new(),
-                        extends: Vec::new(),
-                        implements: Vec::new(),
+                        modifiers: Vec::new(),
                     };
                     result.snippets.push(snippet);
+                    result.classes.insert(class_name, vec![path.to_string_lossy().to_string()]);
                 }
             }
         }
@@ -413,8 +431,10 @@ impl TypeScriptAnalyzer {
                 
                 if *capture_name == "interface.name" {
                     let interface_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
-                    let snippet = TypeScriptSnippet {
-                        snippet_type: TypeScriptSnippetType::Interface,
+                    let package_name = result.packages.keys().next().cloned();
+                    
+                    let snippet = JavaSnippet {
+                        snippet_type: JavaSnippetType::Interface,
                         name: interface_name.clone(),
                         content: self.extract_node_text(code, &node),
                         start_line: node.start_position().row,
@@ -422,48 +442,75 @@ impl TypeScriptAnalyzer {
                         start_column: node.start_position().column,
                         end_column: node.end_position().column,
                         file_path: path.to_string_lossy().to_string(),
-                        module_name: None,
-                        class_name: None,
-                        interface_name: None,
+                        package_name,
+                        class_name: Some(interface_name.clone()),
                         parameters: Vec::new(),
                         return_type: None,
-                        decorators: Vec::new(),
-                        type_parameters: Vec::new(),
-                        extends: Vec::new(),
-                        implements: Vec::new(),
+                        modifiers: Vec::new(),
                     };
                     result.snippets.push(snippet);
+                    result.interfaces.insert(interface_name, vec![path.to_string_lossy().to_string()]);
                 }
             }
         }
 
-        // 收集类型定义
-        let mut matches = query_cursor.matches(&self.queries.type_definition, *root_node, code.as_bytes());
+        // 收集枚举定义
+        let mut matches = query_cursor.matches(&self.queries.enum_definition, *root_node, code.as_bytes());
         while let Some(match_) = matches.next() {
             for capture in match_.captures {
                 let node = capture.node;
-                let capture_name = &self.queries.type_definition.capture_names()[capture.index as usize];
+                let capture_name = &self.queries.enum_definition.capture_names()[capture.index as usize];
                 
-                if *capture_name == "type.name" {
-                    let type_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
-                    let snippet = TypeScriptSnippet {
-                        snippet_type: TypeScriptSnippetType::Type,
-                        name: type_name.clone(),
+                if *capture_name == "enum.name" {
+                    let enum_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
+                    let package_name = result.packages.keys().next().cloned();
+                    
+                    let snippet = JavaSnippet {
+                        snippet_type: JavaSnippetType::Enum,
+                        name: enum_name.clone(),
                         content: self.extract_node_text(code, &node),
                         start_line: node.start_position().row,
                         end_line: node.end_position().row,
                         start_column: node.start_position().column,
                         end_column: node.end_position().column,
                         file_path: path.to_string_lossy().to_string(),
-                        module_name: None,
-                        class_name: None,
-                        interface_name: None,
+                        package_name,
+                        class_name: Some(enum_name),
                         parameters: Vec::new(),
                         return_type: None,
-                        decorators: Vec::new(),
-                        type_parameters: Vec::new(),
-                        extends: Vec::new(),
-                        implements: Vec::new(),
+                        modifiers: Vec::new(),
+                    };
+                    result.snippets.push(snippet);
+                }
+            }
+        }
+
+        // 收集构造函数定义
+        let mut matches = query_cursor.matches(&self.queries.constructor_definition, *root_node, code.as_bytes());
+        while let Some(match_) = matches.next() {
+            for capture in match_.captures {
+                let node = capture.node;
+                let capture_name = &self.queries.constructor_definition.capture_names()[capture.index as usize];
+                
+                if *capture_name == "constructor.name" {
+                    let constructor_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
+                    let package_name = result.packages.keys().next().cloned();
+                    let class_name = self.find_parent_class(root_node, node.start_position().row, node.start_position().column);
+                    
+                    let snippet = JavaSnippet {
+                        snippet_type: JavaSnippetType::Constructor,
+                        name: constructor_name.clone(),
+                        content: self.extract_node_text(code, &node),
+                        start_line: node.start_position().row,
+                        end_line: node.end_position().row,
+                        start_column: node.start_position().column,
+                        end_column: node.end_position().column,
+                        file_path: path.to_string_lossy().to_string(),
+                        package_name,
+                        class_name,
+                        parameters: Vec::new(),
+                        return_type: None,
+                        modifiers: Vec::new(),
                     };
                     result.snippets.push(snippet);
                 }
@@ -471,45 +518,12 @@ impl TypeScriptAnalyzer {
         }
     }
 
-    /// 收集导入和导出语句
-    fn collect_imports_and_exports(&self, code: &str, root_node: &Node, result: &mut TypeScriptAnalysisResult) {
-        let mut query_cursor = QueryCursor::new();
-        
-        // 收集导入语句
-        let mut matches = query_cursor.matches(&self.queries.import_statement, *root_node, code.as_bytes());
-        while let Some(match_) = matches.next() {
-            for capture in match_.captures {
-                let node = capture.node;
-                let capture_name = &self.queries.import_statement.capture_names()[capture.index as usize];
-                
-                if *capture_name == "import.name" || *capture_name == "import.default" || *capture_name == "import.namespace" {
-                    let import_name = node.utf8_text(code.as_bytes()).unwrap();
-                    result.imports.push(import_name.to_string());
-                }
-            }
-        }
-
-        // 收集导出语句
-        let mut matches = query_cursor.matches(&self.queries.export_statement, *root_node, code.as_bytes());
-        while let Some(match_) = matches.next() {
-            for capture in match_.captures {
-                let node = capture.node;
-                let capture_name = &self.queries.export_statement.capture_names()[capture.index as usize];
-                
-                if *capture_name == "export.name" || *capture_name == "export.default" || *capture_name == "export.function" {
-                    let export_name = node.utf8_text(code.as_bytes()).unwrap();
-                    result.exports.push(export_name.to_string());
-                }
-            }
-        }
-    }
-
-    /// 收集函数调用
-    fn collect_function_calls(&self, code: &str, root_node: &Node, path: &Path) -> Vec<FunctionCall> {
+    /// 收集方法调用
+    fn collect_method_calls(&self, code: &str, root_node: &Node, path: &Path) -> Vec<MethodCall> {
         let mut query_cursor = QueryCursor::new();
         let mut all_calls = Vec::new();
         
-        let mut matches = query_cursor.matches(&self.queries.function_call, *root_node, code.as_bytes());
+        let mut matches = query_cursor.matches(&self.queries.method_call, *root_node, code.as_bytes());
         while let Some(match_) = matches.next() {
             let mut called_name = String::new();
             let mut arguments = Vec::new();
@@ -518,36 +532,33 @@ impl TypeScriptAnalyzer {
             
             for capture in match_.captures {
                 let node = capture.node;
-                let capture_name = &self.queries.function_call.capture_names()[capture.index as usize];
+                let capture_name = &self.queries.method_call.capture_names()[capture.index as usize];
                 
                 match *capture_name {
-                    "function.called" | "method.name" => {
+                    "method.called" => {
                         called_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
                         call_location = node.start_position();
                     }
-                    "function.args" | "method.args" => {
+                    "method.args" => {
                         arguments = self.parse_function_arguments(code, &node);
-                    }
-                    "function.type_args" => {
-                        type_arguments = self.parse_type_arguments(code, &node);
                     }
                     _ => {}
                 }
             }
 
             if !called_name.is_empty() {
-                let function_call = FunctionCall {
+                let method_call = MethodCall {
                     caller_name: String::new(), // 稍后填充
                     called_name,
                     location: call_location,
-                    module_name: None,
+                    package_name: None,
                     class_name: None,
                     interface_name: None,
                     arguments,
                     type_arguments,
                 };
                 
-                all_calls.push(function_call);
+                all_calls.push(method_call);
             }
         }
         
@@ -557,46 +568,46 @@ impl TypeScriptAnalyzer {
     /// 建立调用关系和作用域归属
     fn establish_call_relationships(
         &self,
-        function_scopes: &[FunctionScope],
-        all_calls: &[FunctionCall],
-        result: &mut TypeScriptAnalysisResult,
+        method_scopes: &[MethodScope],
+        all_calls: &[MethodCall],
+        result: &mut JavaAnalysisResult,
     ) {
-        let mut function_call_map: HashMap<String, Vec<String>> = HashMap::new();
+        let mut method_call_map: HashMap<String, Vec<String>> = HashMap::new();
         let mut global_calls = Vec::new();
 
-        // 为每个函数调用找到其所属的作用域
+        // 为每个方法调用找到其所属的作用域
         for call in all_calls {
-            let mut is_in_function = false;
+            let mut is_in_method = false;
             
-            for scope in function_scopes {
-                // 检查调用是否在此函数体内
+            for scope in method_scopes {
+                // 检查调用是否在此方法体内
                 if call.location.row >= scope.body_start.row &&
                    call.location.row <= scope.body_end.row &&
                    call.location.column >= scope.body_start.column &&
                    call.location.column <= scope.body_end.column {
                     
-                    function_call_map
+                    method_call_map
                         .entry(scope.name.clone())
                         .or_insert_with(Vec::new)
                         .push(call.called_name.clone());
                     
-                    is_in_function = true;
+                    is_in_method = true;
                     break;
                 }
             }
             
-            if !is_in_function {
+            if !is_in_method {
                 global_calls.push(call.called_name.clone());
             }
         }
 
-        // 为代码片段设置模块名、类名和接口名
+        // 为代码片段设置包名、类名和接口名
         for snippet in &mut result.snippets {
             let snippet_location = (snippet.start_line, snippet.start_column);
             
             // 查找包含此片段的类
             for scope in &result.scopes {
-                if scope.scope_type == TypeScriptSnippetType::Class &&
+                if scope.scope_type == JavaSnippetType::Class &&
                    snippet_location.0 >= scope.start_line &&
                    snippet_location.0 <= scope.end_line {
                     snippet.class_name = Some(scope.name.clone());
@@ -606,21 +617,21 @@ impl TypeScriptAnalyzer {
             
             // 查找包含此片段的接口
             for scope in &result.scopes {
-                if scope.scope_type == TypeScriptSnippetType::Interface &&
+                if scope.scope_type == JavaSnippetType::Interface &&
                    snippet_location.0 >= scope.start_line &&
                    snippet_location.0 <= scope.end_line {
-                    snippet.interface_name = Some(scope.name.clone());
+                    snippet.class_name = Some(scope.name.clone());
                     break;
                 }
             }
         }
 
-        // 创建TypeScriptFunctionCall对象
+        // 创建JavaMethodCall对象
         for call in all_calls {
             let mut caller_name = String::new();
             
-            // 找到包含此调用的函数作用域
-            for scope in function_scopes {
+            // 找到包含此调用的方法作用域
+            for scope in method_scopes {
                 if call.location.row >= scope.body_start.row &&
                    call.location.row <= scope.body_end.row &&
                    call.location.column >= scope.body_start.column &&
@@ -630,7 +641,7 @@ impl TypeScriptAnalyzer {
                 }
             }
 
-            let function_call = TypeScriptFunctionCall {
+            let method_call = JavaMethodCall {
                 caller_name,
                 called_name: call.called_name.clone(),
                 caller_location: (call.location.row, call.location.column),
@@ -638,32 +649,30 @@ impl TypeScriptAnalyzer {
                 caller_file: String::new(), // 稍后填充
                 called_file: None,
                 is_resolved: false,
-                module_name: call.module_name.clone(),
+                package_name: call.package_name.clone(),
                 class_name: call.class_name.clone(),
-                interface_name: call.interface_name.clone(),
-                arguments: call.arguments.clone(),
-                type_arguments: call.type_arguments.clone(),
+                method_signature: None,
             };
             
-            result.function_calls.push(function_call);
+            result.method_calls.push(method_call);
         }
     }
 
     /// 处理分析结果，转换为FunctionInfo和CallRelation
-    fn process_analysis_result(&mut self, result: TypeScriptAnalysisResult, file_path: &Path) {
-        let mut file_functions = Vec::new();
+    fn process_analysis_result(&mut self, result: JavaAnalysisResult, file_path: &Path) {
+        let mut file_methods = Vec::new();
         
         // 转换代码片段为FunctionInfo
         for snippet in result.snippets {
-            if snippet.snippet_type == TypeScriptSnippetType::Function {
+            if snippet.snippet_type == JavaSnippetType::Method {
                 let function_info = FunctionInfo {
                     id: Uuid::new_v4(),
                     name: snippet.name.clone(),
                     file_path: file_path.to_path_buf(),
                     line_start: snippet.start_line,
                     line_end: snippet.end_line,
-                    namespace: snippet.module_name.unwrap_or_default(),
-                    language: "typescript".to_string(),
+                    namespace: snippet.package_name.unwrap_or_default(),
+                    language: "java".to_string(),
                     signature: Some(snippet.content.clone()),
                     return_type: snippet.return_type,
                     parameters: snippet.parameters.iter().map(|p| ParameterInfo {
@@ -673,16 +682,16 @@ impl TypeScriptAnalyzer {
                     }).collect(),
                 };
                 
-                file_functions.push(function_info.clone());
-                self.function_registry.insert(snippet.name, function_info);
+                file_methods.push(function_info.clone());
+                self.method_registry.insert(snippet.name, function_info);
             }
         }
         
-        self.file_functions.insert(file_path.to_path_buf(), file_functions);
+        self.file_methods.insert(file_path.to_path_buf(), file_methods);
     }
 
-    /// 解析TypeScript函数参数
-    fn parse_typescript_parameters(&self, params_text: &str) -> Vec<String> {
+    /// 解析Java方法参数
+    fn parse_java_parameters(&self, params_text: &str) -> Vec<String> {
         params_text
             .trim_matches(|c| c == '(' || c == ')')
             .split(',')
@@ -708,38 +717,11 @@ impl TypeScriptAnalyzer {
         arguments
     }
 
-    /// 解析类型参数
-    fn parse_type_arguments(&self, code: &str, type_args_node: &Node) -> Vec<String> {
-        let mut type_args = Vec::new();
-        let mut cursor = type_args_node.walk();
-        
-        for child in type_args_node.children(&mut cursor) {
-            if child.kind() == "identifier" {
-                let type_arg_text = child.utf8_text(code.as_bytes()).unwrap_or("").to_string();
-                if !type_arg_text.is_empty() {
-                    type_args.push(type_arg_text);
-                }
-            }
-        }
-        
-        type_args
-    }
-
-    /// 收集装饰器
-    fn collect_decorators(&self, code: &str, decorated_node: &Node) -> Vec<String> {
-        let mut decorators = Vec::new();
-        let mut cursor = decorated_node.walk();
-        
-        for child in decorated_node.children(&mut cursor) {
-            if child.kind() == "decorator" {
-                let decorator_text = child.utf8_text(code.as_bytes()).unwrap_or("").to_string();
-                if !decorator_text.is_empty() {
-                    decorators.push(decorator_text);
-                }
-            }
-        }
-        
-        decorators
+    /// 查找父类
+    fn find_parent_class(&self, root: &Node, line: usize, column: usize) -> Option<String> {
+        // 简单的父类查找逻辑
+        // 这里可以实现更复杂的查找算法
+        None
     }
 
     /// 提取节点的文本内容
@@ -749,45 +731,45 @@ impl TypeScriptAnalyzer {
             .to_string()
     }
 
-    /// 获取所有函数信息
-    pub fn get_all_functions(&self) -> Vec<&FunctionInfo> {
-        self.function_registry.values().collect()
+    /// 获取所有方法信息
+    pub fn get_all_methods(&self) -> Vec<&FunctionInfo> {
+        self.method_registry.values().collect()
     }
 
-    /// 根据函数名查找函数
-    pub fn find_functions_by_name(&self, name: &str) -> Vec<&FunctionInfo> {
-        self.function_registry.values()
+    /// 根据方法名查找方法
+    pub fn find_methods_by_name(&self, name: &str) -> Vec<&FunctionInfo> {
+        self.method_registry.values()
             .filter(|f| f.name == name)
             .collect()
     }
 
-    /// 获取文件的函数列表
-    pub fn get_file_functions(&self, file_path: &Path) -> Option<&Vec<FunctionInfo>> {
-        self.file_functions.get(file_path)
+    /// 获取文件的方法列表
+    pub fn get_file_methods(&self, file_path: &Path) -> Option<&Vec<FunctionInfo>> {
+        self.file_methods.get(file_path)
     }
 
     /// 生成分析报告
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
-        report.push_str("=== TypeScript Code Analysis Report ===\n\n");
+        report.push_str("=== Java Code Analysis Report ===\n\n");
         
         // 统计信息
-        report.push_str(&format!("Total Functions: {}\n", self.function_registry.len()));
-        report.push_str(&format!("Total Files: {}\n", self.file_functions.len()));
+        report.push_str(&format!("Total Methods: {}\n", self.method_registry.len()));
+        report.push_str(&format!("Total Files: {}\n", self.file_methods.len()));
         
         // 文件分布
-        report.push_str("\nFunctions by File:\n");
-        for (file_path, functions) in &self.file_functions {
-            report.push_str(&format!("  {}: {} functions\n", 
-                file_path.display(), functions.len()));
+        report.push_str("\nMethods by File:\n");
+        for (file_path, methods) in &self.file_methods {
+            report.push_str(&format!("  {}: {} methods\n", 
+                file_path.display(), methods.len()));
         }
         
-        // 函数列表
-        report.push_str("\nFunction List:\n");
-        for function in self.function_registry.values() {
+        // 方法列表
+        report.push_str("\nMethod List:\n");
+        for method in self.method_registry.values() {
             report.push_str(&format!("  {} ({}:{}-{})\n", 
-                function.name, function.file_path.display(), 
-                function.line_start, function.line_end));
+                method.name, method.file_path.display(), 
+                method.line_start, method.line_end));
         }
         
         report
