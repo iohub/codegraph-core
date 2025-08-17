@@ -2,4 +2,5 @@ pub mod cpp;
 pub mod python;
 pub mod typescript;
 pub mod java;
-pub mod javascript; 
+pub mod javascript;
+pub mod rust; 

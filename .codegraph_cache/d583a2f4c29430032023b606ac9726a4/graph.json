@@ -1,0 +1,20 @@
+{
+  "graph": {
+    "nodes": [],
+    "node_holes": [],
+    "edge_property": "directed",
+    "edges": []
+  },
+  "function_to_node": {},
+  "node_to_function": {},
+  "function_names": {},
+  "file_functions": {},
+  "stats": {
+    "total_functions": 0,
+    "total_files": 0,
+    "total_languages": 0,
+    "resolved_calls": 0,
+    "unresolved_calls": 0,
+    "languages": {}
+  }
+}

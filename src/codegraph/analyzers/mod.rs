@@ -4,6 +4,7 @@ pub mod python_analyzer;
 pub mod typescript_analyzer;
 pub mod javascript_analyzer;
 pub mod cpp_analyzer;
+pub mod rust_analyzer;
 
 // 语言特定解析器
 pub mod java_parser;
@@ -18,6 +19,7 @@ pub use python_analyzer::PythonAnalyzer;
 pub use typescript_analyzer::TypeScriptAnalyzer;
 pub use javascript_analyzer::JavaScriptAnalyzer;
 pub use cpp_analyzer::CppAnalyzer;
+pub use rust_analyzer::RustAnalyzer;
 
 // 重新导出解析器
 pub use java_parser::JavaParser;
@@ -106,6 +108,16 @@ impl CodeAnalyzer for JavaScriptAnalyzer {
     }
 }
 
+impl CodeAnalyzer for RustAnalyzer {
+    fn analyze_file(&mut self, path: &PathBuf) -> Result<(), String> {
+        RustAnalyzer::analyze_file(self, path.as_path())
+    }
+    
+    fn analyze_directory(&mut self, dir: &PathBuf) -> Result<(), String> {
+        RustAnalyzer::analyze_directory(self, dir.as_path())
+    }
+}
+
 fn internal_error<E: Display>(err: E) -> ParserError {
     let err_msg = err.to_string();
     tracing::error!(err_msg);
@@ -118,10 +130,9 @@ fn internal_error<E: Display>(err: E) -> ParserError {
 pub(crate) fn get_code_analyzer(language_id: crate::codegraph::treesitter::language_id::LanguageId) -> Result<Box<dyn CodeAnalyzer + 'static>, ParserError> {
     match language_id {
         crate::codegraph::treesitter::language_id::LanguageId::Rust => {
-            // 暂时返回错误，因为RustAnalyzer还没有实现
-            Err(ParserError {
-                message: "Rust analyzer not yet implemented".to_string()
-            })
+            let analyzer = RustAnalyzer::new()
+                .map_err(|e| ParserError { message: e })?;
+            Ok(Box::new(analyzer))
         }
         crate::codegraph::treesitter::language_id::LanguageId::Python => {
             let analyzer = PythonAnalyzer::new()
