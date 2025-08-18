@@ -291,6 +291,10 @@ impl CodeParser {
 
     /// 提取代码片段内容
     fn _extract_code_snippet(&self, lines: &[&str], start_line: usize, end_line: usize) -> String {
+        // 确保行号从1开始，并且是有效的
+        let start_line = start_line.max(1);
+        let end_line = end_line.max(start_line);
+        
         let start_idx = (start_line - 1).min(lines.len());
         let end_idx = end_line.min(lines.len());
         
