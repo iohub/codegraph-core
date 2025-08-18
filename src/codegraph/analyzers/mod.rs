@@ -31,6 +31,7 @@ pub use rust_parser::RustParser;
 use std::fmt::Display;
 use std::path::PathBuf;
 use crate::codegraph::treesitter::ast_instance_structs::AstSymbolInstanceArc;
+use crate::codegraph::types::{FunctionInfo, ClassInfo, CallRelation};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParserError {
@@ -49,10 +50,59 @@ pub trait AstLanguageParser: Send {
     fn parse(&mut self, code: &str, path: &PathBuf) -> Vec<AstSymbolInstanceArc>;
 }
 
+/// 分析结果结构
+#[derive(Debug, Clone)]
+pub struct AnalysisResult {
+    pub functions: Vec<FunctionInfo>,
+    pub classes: Vec<ClassInfo>,
+    pub call_relations: Vec<CallRelation>,
+}
+
+impl Default for AnalysisResult {
+    fn default() -> Self {
+        Self {
+            functions: Vec::new(),
+            classes: Vec::new(),
+            call_relations: Vec::new(),
+        }
+    }
+}
+
 // 新的统一接口，使用Analyzer系统
 pub trait CodeAnalyzer: Send {
     fn analyze_file(&mut self, path: &PathBuf) -> Result<(), String>;
     fn analyze_directory(&mut self, dir: &PathBuf) -> Result<(), String>;
+    
+    /// 获取分析结果
+    fn get_analysis_result(&self, path: &PathBuf) -> Result<AnalysisResult, String> {
+        let functions = self.extract_functions(path)?;
+        let classes = self.extract_classes(path)?;
+        let call_relations = self.extract_call_relations(path)?;
+        
+        Ok(AnalysisResult {
+            functions,
+            classes,
+            call_relations,
+        })
+    }
+    
+    /// 提取函数信息
+    fn extract_functions(&self, _path: &PathBuf) -> Result<Vec<FunctionInfo>, String> {
+        // Default implementation returns empty vector
+        Ok(Vec::new())
+    }
+    
+    /// 提取类信息
+    fn extract_classes(&self, _path: &PathBuf) -> Result<Vec<ClassInfo>, String> {
+        // Default implementation returns empty vector
+        Ok(Vec::new())
+    }
+    
+    /// 提取调用关系
+    fn extract_call_relations(&self, _path: &PathBuf) -> Result<Vec<CallRelation>, String> {
+        // Default implementation returns empty vector
+        Ok(Vec::new())
+    }
 }
 
 // 为现有的Analyzer实现CodeAnalyzer trait
@@ -105,16 +155,6 @@ impl CodeAnalyzer for JavaScriptAnalyzer {
     fn analyze_directory(&mut self, dir: &PathBuf) -> Result<(), String> {
         JavaScriptAnalyzer::analyze_directory(self, dir.as_path())
             .map_err(|e| e.to_string())
-    }
-}
-
-impl CodeAnalyzer for RustAnalyzer {
-    fn analyze_file(&mut self, path: &PathBuf) -> Result<(), String> {
-        RustAnalyzer::analyze_file(self, path.as_path())
-    }
-    
-    fn analyze_directory(&mut self, dir: &PathBuf) -> Result<(), String> {
-        RustAnalyzer::analyze_directory(self, dir.as_path())
     }
 }
 

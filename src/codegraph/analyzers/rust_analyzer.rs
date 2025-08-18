@@ -530,4 +530,35 @@ impl RustAnalyzer {
         
         self.file_functions.insert(file_path.to_path_buf(), file_functions);
     }
+}
+
+// 实现CodeAnalyzer trait的新方法
+impl crate::codegraph::analyzers::CodeAnalyzer for RustAnalyzer {
+    fn analyze_file(&mut self, path: &PathBuf) -> Result<(), String> {
+        RustAnalyzer::analyze_file(self, path.as_path())
+    }
+    
+    fn analyze_directory(&mut self, dir: &PathBuf) -> Result<(), String> {
+        RustAnalyzer::analyze_directory(self, dir.as_path())
+    }
+    
+    fn extract_functions(&self, path: &PathBuf) -> Result<Vec<crate::codegraph::types::FunctionInfo>, String> {
+        if let Some(functions) = self.file_functions.get(path) {
+            Ok(functions.clone())
+        } else {
+            Ok(Vec::new())
+        }
+    }
+    
+    fn extract_classes(&self, _path: &PathBuf) -> Result<Vec<crate::codegraph::types::ClassInfo>, String> {
+        // Rust doesn't have traditional classes, but we can extract structs and enums
+        // For now, return empty vector
+        Ok(Vec::new())
+    }
+    
+    fn extract_call_relations(&self, path: &PathBuf) -> Result<Vec<crate::codegraph::types::CallRelation>, String> {
+        // Extract call relations from the analysis result
+        // For now, return empty vector
+        Ok(Vec::new())
+    }
 } 
