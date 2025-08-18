@@ -9,31 +9,28 @@ use crate::codegraph::types::{
     FileIndex, SnippetIndex, ParameterInfo
 };
 use crate::codegraph::graph::CodeGraph;
-use crate::codegraph::analyzers::{CodeAnalyzer, get_ast_parser_by_filename};
+use crate::codegraph::analyzers::{CodeAnalyzer, get_ast_parser_by_filename, AnalysisResult};
 
 /// 代码解析器，负责解析源代码文件并提取函数调用关系
 /// 重构版本：使用analyzers组件进行语言特定的代码分析
 pub struct CodeParser {
-    /// 文件路径 -> 函数列表映射
-    file_functions: HashMap<PathBuf, Vec<FunctionInfo>>,
-    /// 函数名 -> 函数信息映射（用于解析调用关系）
-    function_registry: HashMap<String, FunctionInfo>,
     /// 文件索引
     file_index: FileIndex,
     /// 代码片段索引
     snippet_index: SnippetIndex,
     /// 语言特定的分析器缓存
     analyzers: HashMap<String, Box<dyn CodeAnalyzer>>,
+    /// 分析结果缓存：文件路径 -> 分析结果
+    analysis_cache: HashMap<PathBuf, AnalysisResult>,
 }
 
 impl CodeParser {
     pub fn new() -> Self {
         Self {
-            file_functions: HashMap::new(),
-            function_registry: HashMap::new(),
             file_index: FileIndex::default(),
             snippet_index: SnippetIndex::default(),
             analyzers: HashMap::new(),
+            analysis_cache: HashMap::new(),
         }
     }
 
@@ -118,6 +115,40 @@ impl CodeParser {
         }
     }
 
+    /// 分析单个文件并缓存结果
+    fn analyze_file_with_cache(&mut self, file_path: &PathBuf) -> Result<&AnalysisResult, String> {
+        // 检查缓存
+        if !self.analysis_cache.contains_key(file_path) {
+            // 获取分析器并分析文件
+            let analyzer = self.get_analyzer(file_path)?;
+            analyzer.analyze_file(file_path)?;
+            
+            // 获取分析结果并缓存
+            let result = analyzer.get_analysis_result(file_path)?;
+            self.analysis_cache.insert(file_path.clone(), result);
+        }
+        
+        Ok(self.analysis_cache.get(file_path).unwrap())
+    }
+
+    /// 分析单个文件并缓存结果（避免借用冲突）
+    fn analyze_file_with_cache_owned(&mut self, file_path: &PathBuf) -> Result<AnalysisResult, String> {
+        // 检查缓存
+        if let Some(cached_result) = self.analysis_cache.get(file_path) {
+            return Ok(cached_result.clone());
+        }
+        
+        // 获取分析器并分析文件
+        let analyzer = self.get_analyzer(file_path)?;
+        analyzer.analyze_file(file_path)?;
+        
+        // 获取分析结果并缓存
+        let result = analyzer.get_analysis_result(file_path)?;
+        self.analysis_cache.insert(file_path.clone(), result.clone());
+        
+        Ok(result)
+    }
+
     /// 增量更新单个文件
     pub fn refresh_file(
         &mut self,
@@ -134,30 +165,30 @@ impl CodeParser {
             return Ok(());
         }
 
-        // 使用语言特定的分析器解析文件
-        let analyzer = self.get_analyzer(file_path)?;
-        analyzer.analyze_file(file_path)?;
-
-        // 从分析器中提取函数和类信息
-        let (classes, functions) = self._extract_entities_from_analyzer(file_path)?;
+        // 分析文件并获取结果
+        let analysis_result = self.analyze_file_with_cache_owned(file_path)?;
 
         // 移除旧的实体和函数
         self._remove_file_entities(file_path, entity_graph, call_graph);
 
         // 添加到图中
-        let class_ids: Vec<Uuid> = classes.iter().map(|c| c.id).collect();
-        let function_ids: Vec<Uuid> = functions.iter().map(|f| f.id).collect();
+        let class_ids: Vec<Uuid> = analysis_result.classes.iter().map(|c| c.id).collect();
+        let function_ids: Vec<Uuid> = analysis_result.functions.iter().map(|f| f.id).collect();
 
-        for class in classes {
-            entity_graph.add_class(class);
+        for class in &analysis_result.classes {
+            entity_graph.add_class(class.clone());
         }
 
-        for function in functions {
-            call_graph.add_function(function);
+        for function in &analysis_result.functions {
+            call_graph.add_function(function.clone());
         }
 
-        // 分析调用关系
-        self._analyze_file_calls_with_analyzer(file_path, &function_ids, call_graph)?;
+        // 添加调用关系
+        for relation in &analysis_result.call_relations {
+            if let Err(e) = call_graph.add_call_relation(relation.clone()) {
+                warn!("Failed to add call relation: {}", e);
+            }
+        }
 
         // 更新索引
         self.file_index.rebuild_for_file(file_path, class_ids.clone(), function_ids.clone());
@@ -165,52 +196,9 @@ impl CodeParser {
         // 更新代码片段索引
         self._update_snippet_index(file_path, &class_ids, &function_ids, entity_graph)?;
 
-        info!("Successfully refreshed file: {}", file_path.display());
-        Ok(())
-    }
-
-    /// 从分析器提取实体信息
-    fn _extract_entities_from_analyzer(
-        &self,
-        file_path: &PathBuf,
-    ) -> Result<(Vec<ClassInfo>, Vec<FunctionInfo>), String> {
-        // 获取语言特定的分析器
-        let language_key = self._detect_language_key(file_path);
-        
-        if let Some(analyzer) = self.analyzers.get(&language_key) {
-            // 使用分析器提取函数和类信息
-            let functions = analyzer.extract_functions(file_path)?;
-            let classes = analyzer.extract_classes(file_path)?;
-            
-            Ok((classes, functions))
-        } else {
-            // 如果没有找到分析器，返回空结果
-            Ok((Vec::new(), Vec::new()))
-        }
-    }
-
-    /// 使用分析器分析文件调用关系
-    fn _analyze_file_calls_with_analyzer(
-        &self,
-        file_path: &PathBuf,
-        function_ids: &[Uuid],
-        call_graph: &mut PetCodeGraph,
-    ) -> Result<(), String> {
-        // 获取语言特定的分析器
-        let language_key = self._detect_language_key(file_path);
-        
-        if let Some(analyzer) = self.analyzers.get(&language_key) {
-            // 使用分析器提取调用关系
-            let call_relations = analyzer.extract_call_relations(file_path)?;
-            
-            // 将调用关系添加到代码图
-            for relation in call_relations {
-                if let Err(e) = call_graph.add_call_relation(relation) {
-                    warn!("Failed to add call relation: {}", e);
-                }
-            }
-        }
-        
+        info!("Successfully refreshed file: {} ({} functions, {} classes, {} call relations)", 
+              file_path.display(), analysis_result.functions.len(), 
+              analysis_result.classes.len(), analysis_result.call_relations.len());
         Ok(())
     }
 
@@ -224,7 +212,6 @@ impl CodeParser {
         // 获取文件的所有实体ID
         let entity_ids = self.file_index.get_all_entity_ids(file_path);
         let function_ids = self.file_index.get_all_function_ids(file_path);
-        let _class_ids = self.file_index.get_all_class_ids(file_path);
 
         // 从图中移除
         for entity_id in entity_ids {
@@ -239,9 +226,10 @@ impl CodeParser {
             }
         }
 
-        // 清理索引
+        // 清理索引和缓存
         self.file_index.remove_file(file_path);
         self.snippet_index.clear_file_cache(file_path);
+        self.analysis_cache.remove(file_path);
     }
 
     /// 更新代码片段索引
@@ -291,8 +279,8 @@ impl CodeParser {
 
     /// 根据ID获取函数信息
     fn _get_function_by_id(&self, function_id: &Uuid) -> Option<&FunctionInfo> {
-        for (_file_path, functions) in &self.file_functions {
-            for function in functions {
+        for analysis_result in self.analysis_cache.values() {
+            for function in &analysis_result.functions {
                 if function.id == *function_id {
                     return Some(function);
                 }
@@ -322,30 +310,19 @@ impl CodeParser {
             return Err(format!("File does not exist: {}", file_path.display()));
         }
 
-        // 使用语言特定的分析器解析文件
-        let analyzer = self.get_analyzer(file_path)?;
-        analyzer.analyze_file(file_path)?;
+        // 分析文件并缓存结果
+        let analysis_result = self.analyze_file_with_cache_owned(file_path)?;
 
         // 读取文件内容用于代码片段提取
         let file_content = fs::read_to_string(file_path)
             .map_err(|e| format!("Failed to read file {}: {}", file_path.display(), e))?;
 
-        // 从分析器中提取函数和类信息
-        let (classes, functions) = self._extract_entities_from_analyzer(file_path)?;
-
-        // 注册函数到全局注册表
-        for function in &functions {
-            self.function_registry.insert(function.name.clone(), function.clone());
-        }
-        
-        // 保存文件函数映射
-        self.file_functions.insert(file_path.clone(), functions.clone());
-
         // 更新代码片段索引
-        self._update_snippet_index_with_content(file_path, &functions, &classes, &file_content)?;
+        self._update_snippet_index_with_content(file_path, &analysis_result.functions, &analysis_result.classes, &file_content)?;
 
-        info!("Successfully parsed file: {} ({} functions, {} classes)", 
-              file_path.display(), functions.len(), classes.len());
+        info!("Successfully parsed file: {} ({} functions, {} classes, {} call relations)", 
+              file_path.display(), analysis_result.functions.len(), 
+              analysis_result.classes.len(), analysis_result.call_relations.len());
         
         Ok(())
     }
@@ -413,15 +390,19 @@ impl CodeParser {
         // 2. 构建代码图
         let mut code_graph = CodeGraph::new();
         
-        // 3. 提取函数信息并直接添加到代码图
-        for (_file_path, functions) in &self.file_functions {
-            for function in functions {
+        // 3. 从缓存的分析结果中提取函数信息并添加到代码图
+        for analysis_result in self.analysis_cache.values() {
+            for function in &analysis_result.functions {
                 code_graph.add_function(function.clone());
             }
         }
         
-        // 4. 分析调用关系 
-        self._analyze_call_relations(&mut code_graph);
+        // 4. 添加调用关系
+        for analysis_result in self.analysis_cache.values() {
+            for relation in &analysis_result.call_relations {
+                code_graph.add_call_relation(relation.clone());
+            }
+        }
         
         // 5. 更新统计信息
         code_graph.update_stats();
@@ -437,15 +418,21 @@ impl CodeParser {
         // 2. 构建petgraph代码图
         let mut code_graph = PetCodeGraph::new();
         
-        // 3. 提取函数信息并直接添加到代码图
-        for (_file_path, functions) in &self.file_functions {
-            for function in functions {
+        // 3. 从缓存的分析结果中提取函数信息并添加到代码图
+        for analysis_result in self.analysis_cache.values() {
+            for function in &analysis_result.functions {
                 code_graph.add_function(function.clone());
             }
         }
         
-        // 4. 分析调用关系 
-        self._analyze_petgraph_call_relations(&mut code_graph);
+        // 4. 添加调用关系
+        for analysis_result in self.analysis_cache.values() {
+            for relation in &analysis_result.call_relations {
+                if let Err(e) = code_graph.add_call_relation(relation.clone()) {
+                    warn!("Failed to add call relation: {}", e);
+                }
+            }
+        }
         
         // 5. 更新统计信息
         code_graph.update_stats();
@@ -453,44 +440,19 @@ impl CodeParser {
         Ok(code_graph)
     }
 
-    /// 分析调用关系 
-    fn _analyze_call_relations(&self, code_graph: &mut CodeGraph) {
-        // 使用分析器分析每个文件的调用关系
-        for (file_path, functions) in &self.file_functions {
-            // 获取语言特定的分析器
-            let language_key = self._detect_language_key(file_path);
-            
-            if let Some(analyzer) = self.analyzers.get(&language_key) {
-                // 使用分析器提取调用关系
-                if let Ok(call_relations) = analyzer.extract_call_relations(file_path) {
-                    for relation in call_relations {
-                        code_graph.add_call_relation(relation);
-                    }
-                }
-            }
-        }
+    /// 获取指定文件的分析结果
+    pub fn get_file_analysis(&self, file_path: &PathBuf) -> Option<&AnalysisResult> {
+        self.analysis_cache.get(file_path)
     }
 
-    /// 分析petgraph调用关系
-    fn _analyze_petgraph_call_relations(&self, code_graph: &mut PetCodeGraph) {
-        info!("Starting petgraph call relation analysis for {} files", self.file_functions.len());
-        
-        // 使用分析器分析每个文件的调用关系
-        for (file_path, functions) in &self.file_functions {
-            // 获取语言特定的分析器
-            let language_key = self._detect_language_key(file_path);
-            
-            if let Some(analyzer) = self.analyzers.get(&language_key) {
-                // 使用分析器提取调用关系
-                if let Ok(call_relations) = analyzer.extract_call_relations(file_path) {
-                    for relation in call_relations {
-                        if let Err(e) = code_graph.add_call_relation(relation) {
-                            warn!("Failed to add call relation: {}", e);
-                        }
-                    }
-                }
-            }
-        }
+    /// 获取所有分析结果
+    pub fn get_all_analysis_results(&self) -> &HashMap<PathBuf, AnalysisResult> {
+        &self.analysis_cache
+    }
+
+    /// 清理缓存
+    pub fn clear_cache(&mut self) {
+        self.analysis_cache.clear();
     }
 }
 
@@ -676,7 +638,7 @@ if __name__ == "__main__":
         
         // Test that analyzers are cached
         let rust_analyzer2 = parser._create_analyzer(&rust_file);
-        assert!(rust_analyzer2.is_ok(), "Should reuse cached Rust analyzer");
+        assert!(rust_analyzer2.is_ok(), "Should create Rust analyzer");
         
         // Test building code graph (this will use the analyzers)
         let result = parser.build_petgraph_code_graph(temp_dir.path());
