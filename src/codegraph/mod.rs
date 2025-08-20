@@ -18,6 +18,5 @@ pub use treesitter::TreeSitterParser;
 pub use snippet_service::SnippetService;
 pub use repository_manager::{RepositoryManager, RepositoryStats, SearchResult};
 pub use analyzers::{
-    CppAnalyzer, PythonAnalyzer, TypeScriptAnalyzer, JavaAnalyzer, JavaScriptAnalyzer,
-    JavaParser, TypeScriptParser, JavaScriptParser, RustParser
+    CppAnalyzer, PythonAnalyzer, TypeScriptAnalyzer, JavaAnalyzer, JavaScriptAnalyzer
 };

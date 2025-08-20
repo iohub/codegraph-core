@@ -6,11 +6,7 @@ pub mod javascript_analyzer;
 pub mod cpp_analyzer;
 pub mod rust_analyzer;
 
-// 语言特定解析器
-pub mod java_parser;
-pub mod typescript_parser;
-pub mod javascript_parser;
-pub mod rust_parser;
+// 语言通用工具
 pub mod utils;
 
 // 语言分析器适配器
@@ -29,12 +25,6 @@ pub use language_adapters::{
     RustLanguageAnalyzer, JavaLanguageAnalyzer, PythonLanguageAnalyzer,
     CppLanguageAnalyzer, TypeScriptLanguageAnalyzer, JavaScriptLanguageAnalyzer,
 };
-
-// 重新导出解析器
-pub use java_parser::JavaParser;
-pub use typescript_parser::TypeScriptParser;
-pub use javascript_parser::JavaScriptParser;
-pub use rust_parser::RustParser;
 
 // 导出通用接口和错误类型
 use std::fmt::Display;
@@ -343,10 +333,6 @@ impl From<Box<dyn std::error::Error>> for ParserError {
             message: err.to_string(),
         }
     }
-}
-
-pub trait AstLanguageParser: Send {
-    fn parse(&mut self, code: &str, path: &PathBuf) -> Vec<AstSymbolInstanceArc>;
 }
 
 /// 分析结果结构
