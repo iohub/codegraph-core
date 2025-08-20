@@ -46,5 +46,9 @@ itertools = "0.14"
 similar = "2.3"
 typetag = "0.2"
 
+# Error handling and utilities
+anyhow = "1.0"
+num_cpus = "1.16"
+
 [dev-dependencies]
 tempfile = "3.8"

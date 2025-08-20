@@ -30,6 +30,37 @@ pub enum Commands {
         format: String,
     },
 
+    /// Analyze codebase using the new orchestrator
+    AnalyzeV2 {
+        /// Root directory to analyze
+        #[clap(short, long, default_value = ".")]
+        root: PathBuf,
+
+        /// Languages to analyze (comma-separated: rust,java,python,cpp,typescript,javascript)
+        #[clap(long)]
+        languages: Option<String>,
+
+        /// Output directory
+        #[clap(long, default_value = "target/codegraph")]
+        output_dir: PathBuf,
+
+        /// Output formats (comma-separated: json,mermaid,dot)
+        #[clap(long, default_value = "json,mermaid,dot")]
+        formats: String,
+
+        /// Maximum number of worker threads
+        #[clap(long)]
+        workers: Option<usize>,
+
+        /// Include test files
+        #[clap(long)]
+        include_tests: bool,
+
+        /// Follow symbolic links
+        #[clap(long)]
+        follow_symlinks: bool,
+    },
+
     /// Repository analysis with incremental updates
     Repo {
         /// 要分析的仓库路径

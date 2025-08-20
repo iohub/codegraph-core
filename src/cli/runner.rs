@@ -24,6 +24,9 @@ impl CodeGraphRunner {
             Commands::Analyze { input, output, format } => {
                 Self::run_analyze(input, output, format)?;
             }
+            Commands::AnalyzeV2 { root, languages, output_dir, formats, workers, include_tests, follow_symlinks } => {
+                Self::run_analyze_v2(root, languages, output_dir, formats, workers, include_tests, follow_symlinks)?;
+            }
             Commands::Repo { path, state_dir, incremental, search, stats } => {
                 Self::run_repo_analysis(path, state_dir, incremental, search, stats)?;
             }
@@ -70,6 +73,87 @@ impl CodeGraphRunner {
         info!("  Total languages: {}", stats.total_languages);
         info!("  Resolved calls: {}", stats.resolved_calls);
         info!("  Unresolved calls: {}", stats.unresolved_calls);
+
+        Ok(())
+    }
+
+    fn run_analyze_v2(
+        root: PathBuf,
+        languages: Option<String>,
+        output_dir: PathBuf,
+        formats: String,
+        workers: Option<usize>,
+        include_tests: bool,
+        follow_symlinks: bool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::codegraph::analyzers::{AnalyzerOrchestrator, AnalyzeOptions};
+        use crate::codegraph::treesitter::language_id::LanguageId;
+
+        info!("Starting CodeGraph V2 analysis...");
+        info!("Root directory: {}", root.display());
+        info!("Output directory: {}", output_dir.display());
+
+        // Parse languages
+        let languages = if let Some(langs) = languages {
+            let lang_names: Vec<&str> = langs.split(',').collect();
+            let mut parsed_langs = Vec::new();
+            
+            for lang_name in lang_names {
+                match lang_name.trim().to_lowercase().as_str() {
+                    "rust" => parsed_langs.push(LanguageId::Rust),
+                    "java" => parsed_langs.push(LanguageId::Java),
+                    "python" => parsed_langs.push(LanguageId::Python),
+                    "cpp" => parsed_langs.push(LanguageId::Cpp),
+                    "typescript" => parsed_langs.push(LanguageId::TypeScript),
+                    "javascript" => parsed_langs.push(LanguageId::JavaScript),
+                    _ => {
+                        warn!("Unknown language: {}", lang_name);
+                    }
+                }
+            }
+            
+            if parsed_langs.is_empty() {
+                None
+            } else {
+                Some(parsed_langs)
+            }
+        } else {
+            None
+        };
+
+        // Create analysis options
+        let mut options = AnalyzeOptions::default();
+        options.languages = languages;
+        options.max_workers = workers.unwrap_or_else(num_cpus::get);
+        options.include_tests = include_tests;
+        options.follow_symlinks = follow_symlinks;
+        options.output_dir = output_dir;
+
+        info!("Analysis options:");
+        info!("  Languages: {:?}", options.languages);
+        info!("  Max workers: {}", options.max_workers);
+        info!("  Include tests: {}", options.include_tests);
+        info!("  Follow symlinks: {}", options.follow_symlinks);
+
+        // Run analysis
+        let result = AnalyzerOrchestrator::run(&root, options)?;
+
+        // Print results
+        let stats = result.graph.get_stats();
+        info!("Analysis complete!");
+        info!("  Total functions: {}", stats.total_functions);
+        info!("  Total files: {}", stats.total_files);
+        info!("  Total languages: {}", stats.total_languages);
+        info!("  Resolved calls: {}", stats.resolved_calls);
+        info!("  Unresolved calls: {}", stats.unresolved_calls);
+        info!("  Code snippets: {}", result.snippets.len());
+        
+        if !result.errors.is_empty() {
+            warn!("Analysis completed with {} errors:", result.errors.len());
+            for error in &result.errors {
+                warn!("  {}", error);
+            }
+        }
 
         Ok(())
     }

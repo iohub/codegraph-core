@@ -3,7 +3,6 @@ pub mod parser;
 pub mod types;
 pub mod petgraph_storage;
 pub mod treesitter;
-pub mod analyzer;
 pub mod snippet_service;
 pub mod repository_manager;
 pub mod analyzers;
@@ -16,7 +15,6 @@ pub use types::{
 };
 pub use petgraph_storage::{PetGraphStorage, PetGraphStorageManager};
 pub use treesitter::TreeSitterParser;
-pub use analyzer::CodeGraphAnalyzer;
 pub use snippet_service::SnippetService;
 pub use repository_manager::{RepositoryManager, RepositoryStats, SearchResult};
 pub use analyzers::{
