@@ -4,10 +4,9 @@ use uuid::Uuid;
 use anyhow::Result;
 
 use crate::codegraph::treesitter::language_id::LanguageId;
-use crate::codegraph::treesitter::ast_instance_structs::AstSymbolInstanceArc;
-use crate::codegraph::types::{FunctionInfo, CallRelation};
+use crate::codegraph::types::{FunctionInfo, CallRelation, ParameterInfo};
 use crate::codegraph::analyzers::{
-    LanguageAnalyzer, ParsedUnit, Snippet,
+    LanguageAnalyzer, ParsedUnit, Snippet, CodeAnalyzer,
     RustAnalyzer, JavaAnalyzer, PythonAnalyzer, CppAnalyzer, TypeScriptAnalyzer, JavaScriptAnalyzer,
 };
 
@@ -39,13 +38,41 @@ impl LanguageAnalyzer for RustLanguageAnalyzer {
     }
     
     fn extract_functions(&self, unit: &ParsedUnit) -> Vec<FunctionInfo> {
-        // TODO: 实现真正的函数提取
-        Vec::new()
+        // 使用现有的Rust分析器提取函数
+        let mut analyzer = match RustAnalyzer::new() {
+            Ok(analyzer) => analyzer,
+            Err(_) => return Vec::new(),
+        };
+        
+        // 分析文件
+        if let Err(_) = analyzer.analyze_file(&unit.file_path) {
+            return Vec::new();
+        }
+        
+        // 提取函数信息
+        match analyzer.extract_functions(&unit.file_path) {
+            Ok(functions) => functions,
+            Err(_) => Vec::new(),
+        }
     }
     
     fn extract_calls(&self, unit: &ParsedUnit) -> Vec<CallRelation> {
-        // TODO: 实现真正的调用关系提取
-        Vec::new()
+        // 使用现有的Rust分析器提取调用关系
+        let mut analyzer = match RustAnalyzer::new() {
+            Ok(analyzer) => analyzer,
+            Err(_) => return Vec::new(),
+        };
+        
+        // 分析文件
+        if let Err(_) = analyzer.analyze_file(&unit.file_path) {
+            return Vec::new();
+        }
+        
+        // 提取调用关系
+        match analyzer.extract_call_relations(&unit.file_path) {
+            Ok(calls) => calls,
+            Err(_) => Vec::new(),
+        }
     }
     
     fn extract_snippets(&self, unit: &ParsedUnit) -> Vec<Snippet> {
@@ -53,13 +80,28 @@ impl LanguageAnalyzer for RustLanguageAnalyzer {
         let mut snippets = Vec::new();
         
         for function in functions {
+            // 从文件内容中提取代码片段
+            let content = &unit.content;
+            let lines: Vec<&str> = content.lines().collect();
+            
+            let start_line = function.line_start.saturating_sub(1); // 转换为0索引
+            let end_line = function.line_end.saturating_sub(1);
+            
+            let mut snippet_content = String::new();
+            if start_line < lines.len() && end_line < lines.len() {
+                for i in start_line..=end_line {
+                    snippet_content.push_str(lines[i]);
+                    snippet_content.push('\n');
+                }
+            }
+            
             let snippet = Snippet {
                 id: Uuid::new_v4(),
                 file_path: unit.file_path.clone(),
                 language: "rust".to_string(),
-                range: (function.line_start, 0, function.line_end, 0), // 简化处理
+                range: (function.line_start, 0, function.line_end, 0),
                 function_id: Some(function.id),
-                preview: Some(function.name.clone()),
+                preview: Some(snippet_content.trim().to_string()),
             };
             snippets.push(snippet);
         }
@@ -96,13 +138,41 @@ impl LanguageAnalyzer for JavaLanguageAnalyzer {
     }
     
     fn extract_functions(&self, unit: &ParsedUnit) -> Vec<FunctionInfo> {
-        // TODO: 实现真正的函数提取
-        Vec::new()
+        // 使用现有的Java分析器提取函数
+        let mut analyzer = match JavaAnalyzer::new() {
+            Ok(analyzer) => analyzer,
+            Err(_) => return Vec::new(),
+        };
+        
+        // 分析文件
+        if let Err(_) = analyzer.analyze_file(&unit.file_path) {
+            return Vec::new();
+        }
+        
+        // 提取函数信息
+        match analyzer.extract_functions(&unit.file_path) {
+            Ok(functions) => functions,
+            Err(_) => Vec::new(),
+        }
     }
     
     fn extract_calls(&self, unit: &ParsedUnit) -> Vec<CallRelation> {
-        // TODO: 实现真正的调用关系提取
-        Vec::new()
+        // 使用现有的Java分析器提取调用关系
+        let mut analyzer = match JavaAnalyzer::new() {
+            Ok(analyzer) => analyzer,
+            Err(_) => return Vec::new(),
+        };
+        
+        // 分析文件
+        if let Err(_) = analyzer.analyze_file(&unit.file_path) {
+            return Vec::new();
+        }
+        
+        // 提取调用关系
+        match analyzer.extract_call_relations(&unit.file_path) {
+            Ok(calls) => calls,
+            Err(_) => Vec::new(),
+        }
     }
     
     fn extract_snippets(&self, unit: &ParsedUnit) -> Vec<Snippet> {
@@ -110,13 +180,28 @@ impl LanguageAnalyzer for JavaLanguageAnalyzer {
         let mut snippets = Vec::new();
         
         for function in functions {
+            // 从文件内容中提取代码片段
+            let content = &unit.content;
+            let lines: Vec<&str> = content.lines().collect();
+            
+            let start_line = function.line_start.saturating_sub(1); // 转换为0索引
+            let end_line = function.line_end.saturating_sub(1);
+            
+            let mut snippet_content = String::new();
+            if start_line < lines.len() && end_line < lines.len() {
+                for i in start_line..=end_line {
+                    snippet_content.push_str(lines[i]);
+                    snippet_content.push('\n');
+                }
+            }
+            
             let snippet = Snippet {
                 id: Uuid::new_v4(),
                 file_path: unit.file_path.clone(),
                 language: "java".to_string(),
                 range: (function.line_start, 0, function.line_end, 0),
                 function_id: Some(function.id),
-                preview: Some(function.name.clone()),
+                preview: Some(snippet_content.trim().to_string()),
             };
             snippets.push(snippet);
         }
@@ -153,13 +238,41 @@ impl LanguageAnalyzer for PythonLanguageAnalyzer {
     }
     
     fn extract_functions(&self, unit: &ParsedUnit) -> Vec<FunctionInfo> {
-        // TODO: 实现真正的函数提取
-        Vec::new()
+        // 使用现有的Python分析器提取函数
+        let mut analyzer = match PythonAnalyzer::new() {
+            Ok(analyzer) => analyzer,
+            Err(_) => return Vec::new(),
+        };
+        
+        // 分析文件
+        if let Err(_) = analyzer.analyze_file(&unit.file_path) {
+            return Vec::new();
+        }
+        
+        // 提取函数信息
+        match analyzer.extract_functions(&unit.file_path) {
+            Ok(functions) => functions,
+            Err(_) => Vec::new(),
+        }
     }
     
     fn extract_calls(&self, unit: &ParsedUnit) -> Vec<CallRelation> {
-        // TODO: 实现真正的调用关系提取
-        Vec::new()
+        // 使用现有的Python分析器提取调用关系
+        let mut analyzer = match PythonAnalyzer::new() {
+            Ok(analyzer) => analyzer,
+            Err(_) => return Vec::new(),
+        };
+        
+        // 分析文件
+        if let Err(_) = analyzer.analyze_file(&unit.file_path) {
+            return Vec::new();
+        }
+        
+        // 提取调用关系
+        match analyzer.extract_call_relations(&unit.file_path) {
+            Ok(calls) => calls,
+            Err(_) => Vec::new(),
+        }
     }
     
     fn extract_snippets(&self, unit: &ParsedUnit) -> Vec<Snippet> {
@@ -167,13 +280,28 @@ impl LanguageAnalyzer for PythonLanguageAnalyzer {
         let mut snippets = Vec::new();
         
         for function in functions {
+            // 从文件内容中提取代码片段
+            let content = &unit.content;
+            let lines: Vec<&str> = content.lines().collect();
+            
+            let start_line = function.line_start.saturating_sub(1); // 转换为0索引
+            let end_line = function.line_end.saturating_sub(1);
+            
+            let mut snippet_content = String::new();
+            if start_line < lines.len() && end_line < lines.len() {
+                for i in start_line..=end_line {
+                    snippet_content.push_str(lines[i]);
+                    snippet_content.push('\n');
+                }
+            }
+            
             let snippet = Snippet {
                 id: Uuid::new_v4(),
                 file_path: unit.file_path.clone(),
                 language: "python".to_string(),
                 range: (function.line_start, 0, function.line_end, 0),
                 function_id: Some(function.id),
-                preview: Some(function.name.clone()),
+                preview: Some(snippet_content.trim().to_string()),
             };
             snippets.push(snippet);
         }
@@ -210,13 +338,41 @@ impl LanguageAnalyzer for CppLanguageAnalyzer {
     }
     
     fn extract_functions(&self, unit: &ParsedUnit) -> Vec<FunctionInfo> {
-        // TODO: 实现真正的函数提取
-        Vec::new()
+        // 使用现有的C++分析器提取函数
+        let mut analyzer = match CppAnalyzer::new() {
+            Ok(analyzer) => analyzer,
+            Err(_) => return Vec::new(),
+        };
+        
+        // 分析文件
+        if let Err(_) = analyzer.analyze_file(&unit.file_path) {
+            return Vec::new();
+        }
+        
+        // 提取函数信息
+        match analyzer.extract_functions(&unit.file_path) {
+            Ok(functions) => functions,
+            Err(_) => Vec::new(),
+        }
     }
     
     fn extract_calls(&self, unit: &ParsedUnit) -> Vec<CallRelation> {
-        // TODO: 实现真正的调用关系提取
-        Vec::new()
+        // 使用现有的C++分析器提取调用关系
+        let mut analyzer = match CppAnalyzer::new() {
+            Ok(analyzer) => analyzer,
+            Err(_) => return Vec::new(),
+        };
+        
+        // 分析文件
+        if let Err(_) = analyzer.analyze_file(&unit.file_path) {
+            return Vec::new();
+        }
+        
+        // 提取调用关系
+        match analyzer.extract_call_relations(&unit.file_path) {
+            Ok(calls) => calls,
+            Err(_) => Vec::new(),
+        }
     }
     
     fn extract_snippets(&self, unit: &ParsedUnit) -> Vec<Snippet> {
@@ -224,13 +380,28 @@ impl LanguageAnalyzer for CppLanguageAnalyzer {
         let mut snippets = Vec::new();
         
         for function in functions {
+            // 从文件内容中提取代码片段
+            let content = &unit.content;
+            let lines: Vec<&str> = content.lines().collect();
+            
+            let start_line = function.line_start.saturating_sub(1); // 转换为0索引
+            let end_line = function.line_end.saturating_sub(1);
+            
+            let mut snippet_content = String::new();
+            if start_line < lines.len() && end_line < lines.len() {
+                for i in start_line..=end_line {
+                    snippet_content.push_str(lines[i]);
+                    snippet_content.push('\n');
+                }
+            }
+            
             let snippet = Snippet {
                 id: Uuid::new_v4(),
                 file_path: unit.file_path.clone(),
                 language: "cpp".to_string(),
                 range: (function.line_start, 0, function.line_end, 0),
                 function_id: Some(function.id),
-                preview: Some(function.name.clone()),
+                preview: Some(snippet_content.trim().to_string()),
             };
             snippets.push(snippet);
         }
@@ -267,13 +438,41 @@ impl LanguageAnalyzer for TypeScriptLanguageAnalyzer {
     }
     
     fn extract_functions(&self, unit: &ParsedUnit) -> Vec<FunctionInfo> {
-        // TODO: 实现真正的函数提取
-        Vec::new()
+        // 使用现有的TypeScript分析器提取函数
+        let mut analyzer = match TypeScriptAnalyzer::new() {
+            Ok(analyzer) => analyzer,
+            Err(_) => return Vec::new(),
+        };
+        
+        // 分析文件
+        if let Err(_) = analyzer.analyze_file(&unit.file_path) {
+            return Vec::new();
+        }
+        
+        // 提取函数信息
+        match analyzer.extract_functions(&unit.file_path) {
+            Ok(functions) => functions,
+            Err(_) => Vec::new(),
+        }
     }
     
     fn extract_calls(&self, unit: &ParsedUnit) -> Vec<CallRelation> {
-        // TODO: 实现真正的调用关系提取
-        Vec::new()
+        // 使用现有的TypeScript分析器提取调用关系
+        let mut analyzer = match TypeScriptAnalyzer::new() {
+            Ok(analyzer) => analyzer,
+            Err(_) => return Vec::new(),
+        };
+        
+        // 分析文件
+        if let Err(_) = analyzer.analyze_file(&unit.file_path) {
+            return Vec::new();
+        }
+        
+        // 提取调用关系
+        match analyzer.extract_call_relations(&unit.file_path) {
+            Ok(calls) => calls,
+            Err(_) => Vec::new(),
+        }
     }
     
     fn extract_snippets(&self, unit: &ParsedUnit) -> Vec<Snippet> {
@@ -281,13 +480,28 @@ impl LanguageAnalyzer for TypeScriptLanguageAnalyzer {
         let mut snippets = Vec::new();
         
         for function in functions {
+            // 从文件内容中提取代码片段
+            let content = &unit.content;
+            let lines: Vec<&str> = content.lines().collect();
+            
+            let start_line = function.line_start.saturating_sub(1); // 转换为0索引
+            let end_line = function.line_end.saturating_sub(1);
+            
+            let mut snippet_content = String::new();
+            if start_line < lines.len() && end_line < lines.len() {
+                for i in start_line..=end_line {
+                    snippet_content.push_str(lines[i]);
+                    snippet_content.push('\n');
+                }
+            }
+            
             let snippet = Snippet {
                 id: Uuid::new_v4(),
                 file_path: unit.file_path.clone(),
                 language: "typescript".to_string(),
                 range: (function.line_start, 0, function.line_end, 0),
                 function_id: Some(function.id),
-                preview: Some(function.name.clone()),
+                preview: Some(snippet_content.trim().to_string()),
             };
             snippets.push(snippet);
         }
@@ -324,13 +538,41 @@ impl LanguageAnalyzer for JavaScriptLanguageAnalyzer {
     }
     
     fn extract_functions(&self, unit: &ParsedUnit) -> Vec<FunctionInfo> {
-        // TODO: 实现真正的函数提取
-        Vec::new()
+        // 使用现有的JavaScript分析器提取函数
+        let mut analyzer = match JavaScriptAnalyzer::new() {
+            Ok(analyzer) => analyzer,
+            Err(_) => return Vec::new(),
+        };
+        
+        // 分析文件
+        if let Err(_) = analyzer.analyze_file(&unit.file_path) {
+            return Vec::new();
+        }
+        
+        // 提取函数信息
+        match analyzer.extract_functions(&unit.file_path) {
+            Ok(functions) => functions,
+            Err(_) => Vec::new(),
+        }
     }
     
     fn extract_calls(&self, unit: &ParsedUnit) -> Vec<CallRelation> {
-        // TODO: 实现真正的调用关系提取
-        Vec::new()
+        // 使用现有的JavaScript分析器提取调用关系
+        let mut analyzer = match JavaScriptAnalyzer::new() {
+            Ok(analyzer) => analyzer,
+            Err(_) => return Vec::new(),
+        };
+        
+        // 分析文件
+        if let Err(_) = analyzer.analyze_file(&unit.file_path) {
+            return Vec::new();
+        }
+        
+        // 提取调用关系
+        match analyzer.extract_call_relations(&unit.file_path) {
+            Ok(calls) => calls,
+            Err(_) => Vec::new(),
+        }
     }
     
     fn extract_snippets(&self, unit: &ParsedUnit) -> Vec<Snippet> {
@@ -338,13 +580,28 @@ impl LanguageAnalyzer for JavaScriptLanguageAnalyzer {
         let mut snippets = Vec::new();
         
         for function in functions {
+            // 从文件内容中提取代码片段
+            let content = &unit.content;
+            let lines: Vec<&str> = content.lines().collect();
+            
+            let start_line = function.line_start.saturating_sub(1); // 转换为0索引
+            let end_line = function.line_end.saturating_sub(1);
+            
+            let mut snippet_content = String::new();
+            if start_line < lines.len() && end_line < lines.len() {
+                for i in start_line..=end_line {
+                    snippet_content.push_str(lines[i]);
+                    snippet_content.push('\n');
+                }
+            }
+            
             let snippet = Snippet {
                 id: Uuid::new_v4(),
                 file_path: unit.file_path.clone(),
                 language: "javascript".to_string(),
                 range: (function.line_start, 0, function.line_end, 0),
                 function_id: Some(function.id),
-                preview: Some(function.name.clone()),
+                preview: Some(snippet_content.trim().to_string()),
             };
             snippets.push(snippet);
         }
