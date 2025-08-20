@@ -6,8 +6,8 @@ use tracing::{info, warn, debug};
 use crate::codegraph::types::{
     EntityGraph, PetCodeGraph, FileIndex, SnippetIndex, FunctionInfo
 };
-use crate::codegraph::parser::CodeParser;
-use crate::codegraph::snippet_service::SnippetService;
+use crate::codegraph::parsing::CodeParser;
+use crate::codegraph::query::SnippetService;
 use crate::storage::IncrementalManager;
 
 /// 仓库管理器，整合代码分析、增量更新和查询功能

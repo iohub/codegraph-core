@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use tracing::{info, Level, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use crate::codegraph::parser::CodeParser;
+use crate::codegraph::parsing::CodeParser;
 use crate::codegraph::PetGraphStorageManager;
 use super::args::{Cli, Commands};
 
@@ -86,7 +86,7 @@ impl CodeGraphRunner {
         include_tests: bool,
         follow_symlinks: bool,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        use crate::codegraph::analyzers::{AnalyzerOrchestrator, AnalyzeOptions};
+        use crate::codegraph::analysis::{AnalyzerOrchestrator, AnalyzeOptions};
         use crate::codegraph::treesitter::language_id::LanguageId;
 
         info!("Starting CodeGraph V2 analysis...");

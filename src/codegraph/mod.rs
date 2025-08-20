@@ -7,6 +7,15 @@ pub mod snippet_service;
 pub mod repository_manager;
 pub mod analyzers;
 
+// New architecture modules
+pub mod core;
+pub mod languages;
+pub mod parsing;
+pub mod analysis;
+pub mod storage;
+pub mod query;
+pub mod utils;
+
 pub use graph::CodeGraph;
 pub use types::{
     CallRelation, FunctionInfo, GraphNode, GraphRelation, PetCodeGraph,

@@ -1,0 +1,1 @@
+pub use crate::codegraph::analyzers::get_language_id_by_filename as detect_language_by_filename; 
