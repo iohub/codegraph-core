@@ -155,11 +155,6 @@ impl JavaAnalyzer {
             packages: HashMap::new(),
             classes: HashMap::new(),
             interfaces: HashMap::new(),
-            records: HashMap::new(),
-            modules: HashMap::new(),
-            enums: HashMap::new(),
-            annotations: HashMap::new(),
-            generics: HashMap::new(),
         };
 
         // 第一遍：收集包和导入信息
@@ -355,15 +350,6 @@ impl JavaAnalyzer {
                     class_name: class_name.clone(),
                     parameters,
                     return_type,
-                    modifiers: modifiers.clone(),
-                    type_parameters: Some(type_parameters.clone()),
-                    superclass: None,
-                    interfaces: None,
-                    generic_arguments: None,
-                    bounds: None,
-                    exception_types: None,
-                    loop_type: None,
-                    condition_type: None,
                 };
 
                 result.snippets.push(snippet);
@@ -379,13 +365,6 @@ impl JavaAnalyzer {
                     parent_scope: None,
                     package_name,
                     class_name,
-                    modifiers,
-                    type_parameters: Some(type_parameters),
-                    superclass: None,
-                    interfaces: None,
-                    is_open: None,
-                    is_sealed: None,
-                    permits: None,
                 };
                 result.scopes.push(scope);
             } else {
@@ -433,15 +412,6 @@ impl JavaAnalyzer {
                         class_name: Some(class_name.clone()),
                         parameters: Vec::new(),
                         return_type: None,
-                        modifiers: Vec::new(),
-                        type_parameters: None,
-                        superclass: None,
-                        interfaces: None,
-                        generic_arguments: None,
-                        bounds: None,
-                        exception_types: None,
-                        loop_type: None,
-                        condition_type: None,
                     };
                     result.snippets.push(snippet);
                     result.classes.insert(class_name, vec![path.to_string_lossy().to_string()]);
@@ -473,15 +443,6 @@ impl JavaAnalyzer {
                         class_name: Some(interface_name.clone()),
                         parameters: Vec::new(),
                         return_type: None,
-                        modifiers: Vec::new(),
-                        type_parameters: None,
-                        superclass: None,
-                        interfaces: None,
-                        generic_arguments: None,
-                        bounds: None,
-                        exception_types: None,
-                        loop_type: None,
-                        condition_type: None,
                     };
                     result.snippets.push(snippet);
                     result.interfaces.insert(interface_name, vec![path.to_string_lossy().to_string()]);
@@ -489,84 +450,7 @@ impl JavaAnalyzer {
             }
         }
 
-        // 收集枚举定义
-        let mut matches = query_cursor.matches(&self.queries.enum_definition, *root_node, code.as_bytes());
-        while let Some(match_) = matches.next() {
-            for capture in match_.captures {
-                let node = capture.node;
-                let capture_name = &self.queries.enum_definition.capture_names()[capture.index as usize];
-                
-                if *capture_name == "enum.name" {
-                    let enum_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
-                    let package_name = result.packages.keys().next().cloned();
-                    
-                    let snippet = JavaSnippet {
-                        snippet_type: JavaSnippetType::Enum,
-                        name: enum_name.clone(),
-                        content: self.extract_node_text(code, &node),
-                        start_line: node.start_position().row,
-                        end_line: node.end_position().row,
-                        start_column: node.start_position().column,
-                        end_column: node.end_position().column,
-                        file_path: path.to_string_lossy().to_string(),
-                        package_name,
-                        class_name: Some(enum_name),
-                        parameters: Vec::new(),
-                        return_type: None,
-                        modifiers: Vec::new(),
-                        type_parameters: None,
-                        superclass: None,
-                        interfaces: None,
-                        generic_arguments: None,
-                        bounds: None,
-                        exception_types: None,
-                        loop_type: None,
-                        condition_type: None,
-                    };
-                    result.snippets.push(snippet);
-                }
-            }
-        }
 
-        // 收集构造函数定义
-        let mut matches = query_cursor.matches(&self.queries.constructor_definition, *root_node, code.as_bytes());
-        while let Some(match_) = matches.next() {
-            for capture in match_.captures {
-                let node = capture.node;
-                let capture_name = &self.queries.constructor_definition.capture_names()[capture.index as usize];
-                
-                if *capture_name == "constructor.name" {
-                    let constructor_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
-                    let package_name = result.packages.keys().next().cloned();
-                    let class_name = self.find_parent_class(root_node, node.start_position().row, node.start_position().column);
-                    
-                    let snippet = JavaSnippet {
-                        snippet_type: JavaSnippetType::Constructor,
-                        name: constructor_name.clone(),
-                        content: self.extract_node_text(code, &node),
-                        start_line: node.start_position().row,
-                        end_line: node.end_position().row,
-                        start_column: node.start_position().column,
-                        end_column: node.end_position().column,
-                        file_path: path.to_string_lossy().to_string(),
-                        package_name,
-                        class_name,
-                        parameters: Vec::new(),
-                        return_type: None,
-                        modifiers: Vec::new(),
-                        type_parameters: None,
-                        superclass: None,
-                        interfaces: None,
-                        generic_arguments: None,
-                        bounds: None,
-                        exception_types: None,
-                        loop_type: None,
-                        condition_type: None,
-                    };
-                    result.snippets.push(snippet);
-                }
-            }
-        }
     }
 
     /// 收集方法调用
@@ -702,10 +586,6 @@ impl JavaAnalyzer {
                 is_resolved: false,
                 package_name: call.package_name.clone(),
                 class_name: call.class_name.clone(),
-                method_signature: None,
-                object_expression: None,
-                arguments: Some(call.arguments.clone()),
-                type_arguments: Some(call.type_arguments.clone()),
             };
             
             result.method_calls.push(method_call);
