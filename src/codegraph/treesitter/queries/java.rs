@@ -19,13 +19,17 @@ impl JavaQueries {
             r#"
             ; 方法声明
             (method_declaration
-              (_method_header
-                type: (_unannotated_type) @method.return_type
-                (_method_declarator
-                  name: (identifier) @method.name
-                  parameters: (formal_parameters) @method.params
-                )
-              )
+              type: (_unannotated_type) @method.return_type
+              name: (identifier) @method.name
+              parameters: (formal_parameters) @method.params
+              body: (block) @method.body
+            ) @method.def
+
+
+
+            ; 紧凑构造函数声明（用于记录）
+            (compact_constructor_declaration
+              name: (identifier) @method.name
               body: (block) @method.body
             ) @method.def
             "#,
@@ -92,7 +96,7 @@ impl JavaQueries {
             r#"
             ; 包声明
             (package_declaration
-              (_name) @package.name
+              (scoped_identifier) @package.name
             ) @package.decl
             "#,
         )?;
@@ -103,7 +107,7 @@ impl JavaQueries {
             r#"
             ; 导入声明
             (import_declaration
-              (_name) @import.name
+              (scoped_identifier) @import.name
             ) @import.decl
             "#,
         )?;
