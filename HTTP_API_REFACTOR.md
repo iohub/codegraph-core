@@ -13,7 +13,7 @@
 - `GET /v1/analysis/callgraph` - 查询函数调用关系图
 - `GET /v1/symbol/{symbol_name}` - 获取符号的定义和引用位置
 - `GET /v1/analysis/dependencies` - 获取项目的依赖分析
-- `GET /v1/docs` - API文档
+
 
 **保留的旧路由** (向后兼容):
 - `POST /build_graph` - 构建代码图

@@ -822,56 +822,90 @@ pub async fn health_check() -> Json<ApiResponse<&'static str>> {
     })
 }
 
-/// GET /v1/docs - API documentation
+/// GET /v1/docs - API documentation endpoint
 pub async fn api_docs() -> Json<ApiResponse<String>> {
     let docs = r#"
-# 代码知识库查询系统 API 文档
+# CodeGraph API Documentation
 
-## 概述
+## Endpoints
 
-本系统提供一系列基于代码知识库（Codebase）的智能查询接口，旨在帮助开发者快速理解代码结构、函数调用关系、查找代码片段等，从而提升开发与维护效率。
+### Health Check
+- **GET** `/health` - Check if the service is running
 
-## 接口列表
+### API v1
 
-### 1. 通过名称查询代码片段
-- **URL**: `/v1/search/code`
-- **方法**: `GET`
-- **描述**: 在代码库中搜索包含指定关键词的代码片段
+#### Search
+- **GET** `/v1/search/code` - Search for code snippets
+  - Query parameters:
+    - `q` (required): Search query
+    - `project_id` (optional): Project ID to search in
+    - `language` (optional): Filter by programming language
 
-### 2. 查询函数调用关系图
-- **URL**: `/v1/analysis/callgraph`
-- **方法**: `GET`
-- **描述**: 生成以目标函数为中心的调用关系图
+#### Analysis
+- **GET** `/v1/analysis/callgraph` - Get function call graph
+  - Query parameters:
+    - `function_name` (required): Name of the function
+    - `project_id` (optional): Project ID
+    - `max_depth` (optional): Maximum depth for call graph (default: 3)
 
-### 3. 获取符号的定义和引用位置
-- **URL**: `/v1/symbol/{symbol_name}`
-- **方法**: `GET`
-- **描述**: 获取符号的定义信息和所有引用位置
+- **GET** `/v1/analysis/dependencies` - Get project dependencies
+  - Query parameters:
+    - `project_id` (optional): Project ID
+    - `type` (optional): Type of dependencies to analyze
 
-### 4. 获取项目的依赖分析
-- **URL**: `/v1/analysis/dependencies`
-- **方法**: `GET`
-- **描述**: 生成项目的依赖关系图
+#### Symbols
+- **GET** `/v1/symbol/:symbol_name` - Get information about a symbol
+  - Path parameters:
+    - `symbol_name` (required): Name of the symbol to look up
+  - Query parameters:
+    - `project_id` (optional): Project ID
 
-## 错误处理
+### Legacy Endpoints (for backward compatibility)
 
-所有接口在遇到错误时均返回标准化的错误格式：
+#### Graph Building
+- **POST** `/build_graph` - Build code graph for a project
+  - Request body: `BuildGraphRequest`
+    - `project_dir` (required): Path to project directory
+
+#### Querying
+- **POST** `/query_call_graph` - Query call graph
+  - Request body: `QueryCallGraphRequest`
+    - `filepath` (required): File path
+    - `function_name` (optional): Function name
+    - `max_depth` (optional): Maximum depth
+
+- **POST** `/query_code_snippet` - Query code snippets
+  - Request body: `QueryCodeSnippetRequest`
+    - `query` (required): Search query
+    - `project_id` (optional): Project ID
+
+## Response Format
+
+All endpoints return responses in the following format:
 
 ```json
 {
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "A human-readable description of the error."
-  }
+  "success": true,
+  "data": { ... }
 }
 ```
 
-## 状态码
+For errors:
 
-- `200 OK`: 请求成功
-- `400 Bad Request`: 请求参数有误
-- `404 Not Found`: 请求的资源不存在
-- `500 Internal Server Error`: 服务器内部错误
+```json
+{
+  "code": "ERROR_CODE",
+  "message": "Error description"
+}
+```
+
+## Authentication
+
+Currently, no authentication is required for API access.
+
+## Rate Limiting
+
+No rate limiting is currently implemented.
 "#;
 
     Json(ApiResponse {
