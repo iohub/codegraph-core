@@ -1,5 +1,0 @@
-digraph CodeGraph {
-    rankdir=TB;
-    node [shape=box];
-
-}
