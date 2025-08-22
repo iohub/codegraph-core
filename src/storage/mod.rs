@@ -1,10 +1,12 @@
 pub mod cache;
 pub mod persistence;
 pub mod incremental;
+pub mod petgraph_storage;
 
 pub use cache::CacheManager;
 pub use persistence::PersistenceManager;
 pub use incremental::IncrementalManager;
+pub use petgraph_storage::{PetGraphStorage, PetGraphStorageManager};
 
 use std::sync::Arc;
 use parking_lot::RwLock;

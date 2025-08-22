@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use clap::Args;
 use tracing::{info, warn};
 
-use crate::codegraph::repository_manager::RepositoryManager;
+use crate::repository::RepositoryManager;
 
 #[derive(Args)]
 pub struct AnalyzeArgs {

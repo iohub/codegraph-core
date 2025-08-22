@@ -3,7 +3,7 @@ use tracing::{info, Level, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::codegraph::parser::CodeParser;
-use crate::codegraph::PetGraphStorageManager;
+use crate::storage::PetGraphStorageManager;
 use super::args::{Cli, Commands};
 
 pub struct CodeGraphRunner;
@@ -165,7 +165,7 @@ impl CodeGraphRunner {
         search: Option<String>,
         stats: bool,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        use crate::codegraph::repository_manager::RepositoryManager;
+        use crate::repository::RepositoryManager;
 
         info!("Starting repository analysis for: {}", path.display());
 
