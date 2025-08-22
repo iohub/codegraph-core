@@ -1,6 +1,12 @@
+//! Rust分析器使用示例
+//! 
+//! 这个文件展示了如何使用RustAnalyzer来分析Rust代码，
+//! 包括单个文件分析和目录分析。
+
 use std::path::PathBuf;
 use codegraph_cli::codegraph::analyzers::{RustAnalyzer, CodeAnalyzer};
 
+/// 演示Rust分析器的基本用法
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Rust Analyzer Demo ===\n");
     
@@ -117,7 +123,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     analyzer.analyze_directory(&rust_dir)?;
     println!("✓ 目录分析完成\n");
     
-    println!("=== 演示完成 ===");
+    // 提取分析结果
+    let functions = analyzer.extract_functions(&rust_file.to_path_buf())?;
+    println!("在 {} 中找到 {} 个函数:", rust_file.display(), functions.len());
+    
+    for function in functions {
+        println!("  - {} ({}:{}-{})", 
+            function.name, 
+            function.file_path.display(), 
+            function.line_start, 
+            function.line_end);
+    }
+    
+    println!("\n=== 演示完成 ===");
     println!("Rust分析器成功分析了:");
     println!("  - 单个Rust文件");
     println!("  - Rust项目目录");
