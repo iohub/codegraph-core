@@ -1,11 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::fs;
-use tree_sitter::{Parser, Node, Tree, Query, QueryCursor, Language, Point, StreamingIterator};
-use tracing::{info, warn, error};
+use tree_sitter::{Parser, Node, QueryCursor, Language, Point, StreamingIterator};
+use tracing::{info, warn};
 use uuid::Uuid;
 
-use crate::codegraph::types::{FunctionInfo, CallRelation, ParameterInfo};
+use crate::codegraph::types::{FunctionInfo, ParameterInfo};
 use crate::codegraph::treesitter::queries::python::{
     PythonQueries, PythonSnippet, PythonSnippetType, PythonFunctionCall, 
     PythonScope, PythonAnalysisResult
@@ -47,6 +47,10 @@ pub struct PythonAnalyzer {
     function_registry: HashMap<String, FunctionInfo>,
     /// 文件路径 -> 函数列表映射
     file_functions: HashMap<PathBuf, Vec<FunctionInfo>>,
+    /// 所有代码片段
+    all_snippets: Vec<PythonSnippet>,
+    /// 所有类信息
+    all_classes: Vec<PythonSnippet>,
 }
 
 impl PythonAnalyzer {
@@ -66,6 +70,8 @@ impl PythonAnalyzer {
             queries,
             function_registry: HashMap::new(),
             file_functions: HashMap::new(),
+            all_snippets: Vec::new(),
+            all_classes: Vec::new(),
         })
     }
 
@@ -340,7 +346,7 @@ impl PythonAnalyzer {
     }
 
     /// 收集函数调用
-    fn collect_function_calls(&self, code: &str, root_node: &Node, path: &Path) -> Vec<FunctionCall> {
+    fn collect_function_calls(&self, code: &str, root_node: &Node, _path: &Path) -> Vec<FunctionCall> {
         let mut query_cursor = QueryCursor::new();
         let mut all_calls = Vec::new();
         
@@ -478,6 +484,9 @@ impl PythonAnalyzer {
     fn process_analysis_result(&mut self, result: PythonAnalysisResult, file_path: &Path) {
         let mut file_functions = Vec::new();
         
+        // 存储所有代码片段
+        self.all_snippets.extend(result.snippets.clone());
+        
         // 转换代码片段为FunctionInfo
         for snippet in result.snippets {
             if snippet.snippet_type == PythonSnippetType::Function {
@@ -500,6 +509,8 @@ impl PythonAnalyzer {
                 
                 file_functions.push(function_info.clone());
                 self.function_registry.insert(snippet.name, function_info);
+            } else if snippet.snippet_type == PythonSnippetType::Class {
+                self.all_classes.push(snippet);
             }
         }
         
@@ -580,22 +591,31 @@ impl PythonAnalyzer {
         report.push_str("=== Python Code Analysis Report ===\n\n");
         
         // 统计信息
+        report.push_str(&format!("Total Snippets: {}\n", self.all_snippets.len()));
         report.push_str(&format!("Total Functions: {}\n", self.function_registry.len()));
         report.push_str(&format!("Total Files: {}\n", self.file_functions.len()));
+        
+        // 函数列表
+        report.push_str("\n=== Functions ===\n");
+        for function in self.function_registry.values() {
+            report.push_str(&format!("  {} ({}:{}-{})\n", 
+                function.name, function.file_path.display(), 
+                function.line_start, function.line_end));
+        }
+        
+        // 类列表
+        report.push_str("\n=== Classes ===\n");
+        for class in &self.all_classes {
+            report.push_str(&format!("  {} ({}:{}-{})\n", 
+                class.name, class.file_path, 
+                class.start_line, class.end_line));
+        }
         
         // 文件分布
         report.push_str("\nFunctions by File:\n");
         for (file_path, functions) in &self.file_functions {
             report.push_str(&format!("  {}: {} functions\n", 
                 file_path.display(), functions.len()));
-        }
-        
-        // 函数列表
-        report.push_str("\nFunction List:\n");
-        for function in self.function_registry.values() {
-            report.push_str(&format!("  {} ({}:{}-{})\n", 
-                function.name, function.file_path.display(), 
-                function.line_start, function.line_end));
         }
         
         report
