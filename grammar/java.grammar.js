@@ -62,6 +62,7 @@ module.exports = grammar({
     $._type,
     $._simple_type,
     $._unannotated_type,
+    $.comment,
     $.module_directive,
   ],
 
@@ -86,7 +87,6 @@ module.exports = grammar({
     [$.lambda_expression, $.primary_expression],
     [$.inferred_parameters, $.primary_expression],
     [$.argument_list, $.record_pattern_body],
-    [$.yield_statement, $._reserved_identifier],
   ],
 
   word: $ => $.identifier,
@@ -141,7 +141,7 @@ module.exports = grammar({
     decimal_floating_point_literal: _ => token(choice(
       seq(DECIMAL_DIGITS, '.', optional(DECIMAL_DIGITS), optional(seq((/[eE]/), optional(choice('-', '+')), DECIMAL_DIGITS)), optional(/[fFdD]/)),
       seq('.', DECIMAL_DIGITS, optional(seq((/[eE]/), optional(choice('-', '+')), DECIMAL_DIGITS)), optional(/[fFdD]/)),
-      seq(DIGITS, /[eE]/, optional(choice('-', '+')), DECIMAL_DIGITS, optional(/[fFdD]/)),
+      seq(DIGITS, /[eEpP]/, optional(choice('-', '+')), DECIMAL_DIGITS, optional(/[fFdD]/)),
       seq(DIGITS, optional(seq((/[eE]/), optional(choice('-', '+')), DECIMAL_DIGITS)), (/[fFdD]/)),
     )),
 
@@ -152,7 +152,7 @@ module.exports = grammar({
         seq(optional(HEX_DIGITS), '.', HEX_DIGITS),
       ),
       optional(seq(
-        /[pP]/,
+        /[eEpP]/,
         optional(choice('-', '+')),
         DIGITS,
         optional(/[fFdD]/),
@@ -729,7 +729,7 @@ module.exports = grammar({
     ),
 
     element_value_pair: $ => seq(
-      field('key', choice($.identifier, $._reserved_identifier)),
+      field('key', $.identifier),
       '=',
       field('value', $._element_value),
     ),
@@ -1241,7 +1241,6 @@ module.exports = grammar({
       optional($.modifiers),
       $._unannotated_type,
       '...',
-      repeat($._annotation),
       $.variable_declarator,
     ),
 
@@ -1268,19 +1267,17 @@ module.exports = grammar({
       field('body', $.block),
     ),
 
-    _reserved_identifier: $ => choice(
-      prec(-3, alias(
-        choice(
-          'open',
-          'module',
-          'record',
-          'with',
-          'sealed',
-        ),
-        $.identifier,
-      )),
-      alias('yield', $.identifier),
-    ),
+    _reserved_identifier: $ => prec(-3, alias(
+      choice(
+        'open',
+        'module',
+        'record',
+        'with',
+        'yield',
+        'sealed',
+      ),
+      $.identifier,
+    )),
 
     this: _ => 'this',
 
@@ -1289,9 +1286,14 @@ module.exports = grammar({
     // https://docs.oracle.com/javase/specs/jls/se8/html/jls-3.html#jls-IdentifierChars
     identifier: _ => /[\p{XID_Start}_$][\p{XID_Continue}\u00A2_$]*/,
 
+    // http://stackoverflow.com/questions/13014947/regex-to-match-a-c-style-multiline-comment/36328890#36328890
+    comment: $ => choice(
+      $.line_comment,
+      $.block_comment,
+    ),
+
     line_comment: _ => token(prec(PREC.COMMENT, seq('//', /[^\n]*/))),
 
-    // http://stackoverflow.com/questions/13014947/regex-to-match-a-c-style-multiline-comment/36328890#36328890
     block_comment: _ => token(prec(PREC.COMMENT,
       seq(
         '/*',
@@ -1309,7 +1311,8 @@ module.exports = grammar({
  *
  * @param {RuleOrLiteral} separator
  *
- * @returns {SeqRule}
+ * @return {SeqRule}
+ *
  */
 function sep1(rule, separator) {
   return seq(rule, repeat(seq(separator, rule)));
@@ -1320,7 +1323,8 @@ function sep1(rule, separator) {
  *
  * @param {RuleOrLiteral} rule
  *
- * @returns {SeqRule}
+ * @return {SeqRule}
+ *
  */
 function commaSep1(rule) {
   return seq(rule, repeat(seq(',', rule)));
@@ -1331,7 +1335,8 @@ function commaSep1(rule) {
  *
  * @param {RuleOrLiteral} rule
  *
- * @returns {ChoiceRule}
+ * @return {ChoiceRule}
+ *
  */
 function commaSep(rule) {
   return optional(commaSep1(rule));
