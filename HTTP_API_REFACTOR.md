@@ -82,7 +82,7 @@
 - `get_call_graph`: 生成函数调用关系图，支持深度和方向控制
 - `get_symbol_info`: 获取符号定义和引用信息
 - `get_dependencies`: 分析项目依赖关系
-- `api_docs`: 提供API文档访问
+
 
 ## 使用示例
 
@@ -106,29 +106,4 @@ curl "http://localhost:3000/v1/symbol/calculateTotal"
 curl "http://localhost:3000/v1/analysis/dependencies?type=internal"
 ```
 
-## 部署说明
 
-1. **编译**: `cargo build --release`
-2. **运行**: `cargo run --bin codegraph-cli http-server --port 3000`
-3. **访问**: 
-   - 健康检查: `http://localhost:3000/health`
-   - API文档: `http://localhost:3000/v1/docs`
-   - API端点: `http://localhost:3000/v1/*`
-
-## 后续优化建议
-
-1. **认证授权**: 添加JWT token认证机制
-2. **缓存策略**: 实现Redis缓存，提升查询性能
-3. **实时更新**: 支持WebSocket实时推送代码图更新
-4. **批量操作**: 支持批量查询和批量分析
-5. **指标监控**: 添加Prometheus指标收集
-6. **API版本控制**: 实现更完善的API版本管理
-
-## 兼容性说明
-
-- 保留了所有原有的POST接口，确保向后兼容
-- 新的GET接口遵循RESTful设计原则
-- 响应格式标准化，便于前端集成
-- 错误处理更加规范和友好
-
-重构完成！HTTP服务现在完全符合您提供的API文档规范，同时保持了与现有代码的兼容性。 
