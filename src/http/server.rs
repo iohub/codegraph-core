@@ -16,7 +16,6 @@ use super::{
         get_symbol_info,
         get_dependencies,
         health_check,
-        api_docs,
     },
     models::{ApiResponse, ApiError},
 };
@@ -48,9 +47,6 @@ impl CodeGraphServer {
         Router::new()
             // Health check
             .route("/health", get(health_check))
-            
-            // API documentation
-            .route("/v1/docs", get(api_docs))
             
             // API v1 routes
             .route("/v1/search/code", get(search_code))
