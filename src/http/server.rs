@@ -34,7 +34,6 @@ impl CodeGraphServer {
         
         let listener = TcpListener::bind(addr).await?;
         println!("🚀 CodeGraph HTTP server starting on {}", addr);
-        println!("📚 API Documentation: http://{}/v1/docs", addr);
         
         axum::serve(listener, app).await?;
         Ok(())
