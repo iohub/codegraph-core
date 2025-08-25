@@ -5,7 +5,7 @@ use tree_sitter::{Parser, Node, QueryCursor, Language, Point, StreamingIterator}
 use tracing::{info, warn};
 use uuid::Uuid;
 
-use crate::codegraph::types::{FunctionInfo, ParameterInfo};
+use crate::codegraph::types::{FunctionInfo, ParameterInfo, CallRelation};
 use crate::codegraph::treesitter::queries::rust::{
     RustQueries, RustSnippet, RustSnippetType, RustMethodCall, RustAnalysisResult
 };
@@ -50,6 +50,8 @@ pub struct RustAnalyzer {
     function_registry: HashMap<String, FunctionInfo>,
     /// 文件路径 -> 函数列表映射
     file_functions: HashMap<PathBuf, Vec<FunctionInfo>>,
+    /// 文件路径 -> 调用关系列表
+    file_call_relations: HashMap<PathBuf, Vec<CallRelation>>,
 }
 
 impl RustAnalyzer {
@@ -69,6 +71,7 @@ impl RustAnalyzer {
             queries,
             function_registry: HashMap::new(),
             file_functions: HashMap::new(),
+            file_call_relations: HashMap::new(),
         })
     }
 
@@ -528,7 +531,37 @@ impl RustAnalyzer {
             }
         }
         
+        // 解析调用关系：仅当调用者和被调者都能在本项目中解析到时添加关系
+        let mut relations_for_file: Vec<CallRelation> = Vec::new();
+        for method_call in result.method_calls {
+            let caller_name = method_call.caller_name;
+            let callee_name = method_call.called_name;
+
+            let maybe_caller = self.function_registry.get(&caller_name);
+            let maybe_callee = self.function_registry.get(&callee_name);
+
+            if let (Some(caller), Some(callee)) = (maybe_caller, maybe_callee) {
+                let relation = CallRelation {
+                    caller_id: caller.id,
+                    callee_id: callee.id,
+                    caller_name: caller.name.clone(),
+                    callee_name: callee.name.clone(),
+                    caller_file: caller.file_path.clone(),
+                    callee_file: callee.file_path.clone(),
+                    line_number: method_call.location.0.saturating_add(1),
+                    is_resolved: true,
+                };
+                relations_for_file.push(relation);
+            }
+        }
+        
         self.file_functions.insert(file_path.to_path_buf(), file_functions);
+        if !relations_for_file.is_empty() {
+            self.file_call_relations.insert(file_path.to_path_buf(), relations_for_file);
+        } else {
+            // Ensure we at least initialize an entry to avoid None lookups later
+            self.file_call_relations.entry(file_path.to_path_buf()).or_default();
+        }
     }
 }
 
@@ -557,8 +590,6 @@ impl crate::codegraph::analyzers::CodeAnalyzer for RustAnalyzer {
     }
     
     fn extract_call_relations(&self, path: &PathBuf) -> Result<Vec<crate::codegraph::types::CallRelation>, String> {
-        // Extract call relations from the analysis result
-        // For now, return empty vector
-        Ok(Vec::new())
+        Ok(self.file_call_relations.get(path).cloned().unwrap_or_default())
     }
 } 
