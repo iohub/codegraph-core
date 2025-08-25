@@ -197,37 +197,46 @@ impl TypeScriptAnalyzer {
         let mut function_scopes = Vec::new();
         
         info!("Starting function definition collection...");
-        let mut matches = query_cursor.matches(&self.queries.function_definition, *root_node, code.as_bytes());
-        let mut match_count = 0;
         
-        while let Some(match_) = matches.next() {
-            match_count += 1;
-            info!("Found function declaration match #{}", match_count);
+        // 收集不同类型的函数定义
+        let function_types = [
+            ("function_declaration", &self.queries.function_definition),
+            ("arrow_function", &self.queries.arrow_function),
+            ("method_definition", &self.queries.method_definition),
+            ("function_expression", &self.queries.function_expression),
+        ];
+        
+        for (node_type, query) in function_types {
+            info!("Collecting {} nodes...", node_type);
+            let mut matches = query_cursor.matches(query, *root_node, code.as_bytes());
+            let mut match_count = 0;
             
-            // 获取匹配的函数声明节点
-            // 由于我们的查询没有捕获组，我们需要使用不同的方法
-            let function_node = if !match_.captures.is_empty() {
-                match_.captures[0].node
-            } else {
-                // 如果没有捕获组，我们需要找到实际的函数声明节点
-                // 遍历所有匹配的节点来找到function_declaration类型的节点
-                let mut function_node = None;
-                for capture in match_.captures.iter() {
-                    if capture.node.kind() == "function_declaration" {
-                        function_node = Some(capture.node);
-                        break;
+            while let Some(match_) = matches.next() {
+                match_count += 1;
+                info!("Found {} match #{}", node_type, match_count);
+                
+                // 获取匹配的节点
+                let function_node = if !match_.captures.is_empty() {
+                    match_.captures[0].node
+                } else {
+                    // 如果没有捕获组，我们需要找到实际的函数节点
+                    let mut function_node = None;
+                    for capture in match_.captures.iter() {
+                        if capture.node.kind() == node_type {
+                            function_node = Some(capture.node);
+                            break;
+                        }
                     }
+                    function_node.unwrap_or(*root_node)
+                };
+                
+                info!("Function node type: {}", function_node.kind());
+                
+                // 如果这个节点不是我们期望的类型，跳过
+                if function_node.kind() != node_type {
+                    info!("Skipping non-{} node: {}", node_type, function_node.kind());
+                    continue;
                 }
-                function_node.unwrap_or(*root_node)
-            };
-            
-            info!("Function node type: {}", function_node.kind());
-            
-            // 如果这个节点不是函数声明，跳过
-            if function_node.kind() != "function_declaration" {
-                info!("Skipping non-function_declaration node: {}", function_node.kind());
-                continue;
-            }
             
             // 手动提取函数名
             let mut function_name = String::new();
@@ -238,26 +247,29 @@ impl TypeScriptAnalyzer {
             let mut decorators = Vec::new();
             let mut type_parameters = Vec::new();
 
-            // 遍历函数声明节点的子节点来找到函数名
-            let mut cursor = function_node.walk();
-            if cursor.goto_first_child() {
-                loop {
-                    let node = cursor.node();
-                    info!("Child node: {} - '{}'", node.kind(), node.utf8_text(code.as_bytes()).unwrap_or(""));
-                    match node.kind() {
-                        "identifier" => {
-                            // 这是函数名
-                            function_name = node.utf8_text(code.as_bytes()).unwrap().to_string();
-                            info!("Found function name: {}", function_name);
-                            break;
-                        }
-                        _ => {}
-                    }
-                    if !cursor.goto_next_sibling() {
-                        break;
-                    }
+            // 根据节点类型提取函数名
+            function_name = match node_type {
+                "function_declaration" => {
+                    // 函数声明：直接查找identifier子节点
+                    self.extract_function_name_from_declaration(code, &function_node)
                 }
-            }
+                "arrow_function" => {
+                    // 箭头函数：查找父节点的变量名
+                    self.extract_function_name_from_arrow_function(code, &function_node)
+                }
+                "method_definition" => {
+                    // 方法定义：查找property_identifier子节点
+                    self.extract_function_name_from_method(code, &function_node)
+                }
+                "function_expression" => {
+                    // 函数表达式：查找父节点的变量名
+                    self.extract_function_name_from_expression(code, &function_node)
+                }
+                _ => {
+                    // 默认情况：尝试查找identifier
+                    self.extract_function_name_from_declaration(code, &function_node)
+                }
+            };
 
             // 如果找到了函数名，继续提取其他信息
             if !function_name.is_empty() {
@@ -353,9 +365,9 @@ impl TypeScriptAnalyzer {
             } else {
                 info!("No function name found in this match");
             }
-        }
+        } // end while loop
+        } // end for loop
         
-        info!("Total function matches found: {}", match_count);
         info!("Total functions processed: {}", function_scopes.len());
         
         Ok(function_scopes)
@@ -653,8 +665,11 @@ impl TypeScriptAnalyzer {
     fn process_analysis_result(&mut self, result: TypeScriptAnalysisResult, file_path: &Path) {
         let mut file_functions = Vec::new();
         
+        println!("Processing analysis result with {} snippets", result.snippets.len());
+        
         // 转换代码片段为FunctionInfo
         for snippet in result.snippets {
+            println!("Processing snippet: {} (type: {:?})", snippet.name, snippet.snippet_type);
             if snippet.snippet_type == TypeScriptSnippetType::Function {
                 let function_info = FunctionInfo {
                     id: Uuid::new_v4(),
@@ -673,11 +688,13 @@ impl TypeScriptAnalyzer {
                     }).collect(),
                 };
                 
+                println!("Adding function: {} to registry", function_info.name);
                 file_functions.push(function_info.clone());
                 self.function_registry.insert(snippet.name, function_info);
             }
         }
         
+        println!("Total functions in registry: {}", self.function_registry.len());
         self.file_functions.insert(file_path.to_path_buf(), file_functions);
     }
 
@@ -749,6 +766,92 @@ impl TypeScriptAnalyzer {
             .to_string()
     }
 
+    /// 从函数声明中提取函数名
+    fn extract_function_name_from_declaration(&self, code: &str, function_node: &Node) -> String {
+        let mut cursor = function_node.walk();
+        if cursor.goto_first_child() {
+            loop {
+                let node = cursor.node();
+                if node.kind() == "identifier" {
+                    let name = node.utf8_text(code.as_bytes()).unwrap_or("").to_string();
+                    info!("Found function declaration name: {}", name);
+                    return name;
+                }
+                if !cursor.goto_next_sibling() {
+                    break;
+                }
+            }
+        }
+        info!("No function name found in function declaration");
+        String::new()
+    }
+
+    /// 从箭头函数中提取函数名
+    fn extract_function_name_from_arrow_function(&self, code: &str, function_node: &Node) -> String {
+        // 箭头函数通常作为变量声明的一部分
+        if let Some(parent) = function_node.parent() {
+            info!("Arrow function parent: {}", parent.kind());
+            if parent.kind() == "variable_declarator" {
+                let mut cursor = parent.walk();
+                if cursor.goto_first_child() {
+                    loop {
+                        let node = cursor.node();
+                        info!("Arrow function variable declarator child: {}", node.kind());
+                        if node.kind() == "identifier" {
+                            let name = node.utf8_text(code.as_bytes()).unwrap_or("").to_string();
+                            info!("Found arrow function name: {}", name);
+                            return name;
+                        }
+                        if !cursor.goto_next_sibling() {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        info!("No function name found in arrow function");
+        String::new()
+    }
+
+    /// 从方法定义中提取函数名
+    fn extract_function_name_from_method(&self, code: &str, function_node: &Node) -> String {
+        let mut cursor = function_node.walk();
+        if cursor.goto_first_child() {
+            loop {
+                let node = cursor.node();
+                if node.kind() == "property_identifier" || node.kind() == "identifier" {
+                    return node.utf8_text(code.as_bytes()).unwrap_or("").to_string();
+                }
+                if !cursor.goto_next_sibling() {
+                    break;
+                }
+            }
+        }
+        String::new()
+    }
+
+    /// 从函数表达式中提取函数名
+    fn extract_function_name_from_expression(&self, code: &str, function_node: &Node) -> String {
+        // 函数表达式通常作为变量声明的一部分
+        if let Some(parent) = function_node.parent() {
+            if parent.kind() == "variable_declarator" {
+                let mut cursor = parent.walk();
+                if cursor.goto_first_child() {
+                    loop {
+                        let node = cursor.node();
+                        if node.kind() == "identifier" {
+                            return node.utf8_text(code.as_bytes()).unwrap_or("").to_string();
+                        }
+                        if !cursor.goto_next_sibling() {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        String::new()
+    }
+
     /// 获取所有函数信息
     pub fn get_all_functions(&self) -> Vec<&FunctionInfo> {
         self.function_registry.values().collect()
@@ -774,6 +877,7 @@ impl TypeScriptAnalyzer {
         // 统计信息
         report.push_str(&format!("Total Functions: {}\n", self.function_registry.len()));
         report.push_str(&format!("Total Files: {}\n", self.file_functions.len()));
+        report.push_str(&format!("Total Snippets: {}\n", self.function_registry.len()));
         
         // 文件分布
         report.push_str("\nFunctions by File:\n");
@@ -783,12 +887,14 @@ impl TypeScriptAnalyzer {
         }
         
         // 函数列表
-        report.push_str("\nFunction List:\n");
+        report.push_str("\n=== Functions ===\n");
         for function in self.function_registry.values() {
             report.push_str(&format!("  {} ({}:{}-{})\n", 
                 function.name, function.file_path.display(), 
                 function.line_start, function.line_end));
         }
+        
+        report.push_str("\n=== Classes ===\n");
         
         report
     }

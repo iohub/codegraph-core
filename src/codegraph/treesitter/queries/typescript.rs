@@ -29,6 +29,16 @@ pub struct TypeScriptQueries {
     pub enum_definition: Query,
     /// 命名空间查询
     pub namespace_definition: Query,
+    /// 箭头函数查询
+    pub arrow_function: Query,
+    /// 函数表达式查询
+    pub function_expression: Query,
+    /// 对象方法查询
+    pub object_method: Query,
+    /// 类方法查询
+    pub class_method: Query,
+    /// 构造函数查询
+    pub constructor: Query,
 }
 
 impl TypeScriptQueries {
@@ -36,79 +46,109 @@ impl TypeScriptQueries {
         // 函数定义查询 - 最基本的模式
         let function_definition = Query::new(
             language,
-            "(function_declaration)",
+            "(function_declaration) @function",
         )?;
 
         // 函数调用查询 - 最基本的模式
         let function_call = Query::new(
             language,
-            "(call_expression)",
+            "(call_expression) @call",
         )?;
 
         // 类定义查询 - 最基本的模式
         let class_definition = Query::new(
             language,
-            "(class_declaration)",
+            "(class_declaration) @class",
         )?;
 
         // 接口定义查询 - 最基本的模式
         let interface_definition = Query::new(
             language,
-            "(interface_declaration)",
+            "(interface_declaration) @interface",
         )?;
 
         // 类型定义查询 - 最基本的模式
         let type_definition = Query::new(
             language,
-            "(type_alias_declaration)",
+            "(type_alias_declaration) @type",
         )?;
 
         // 导入语句查询 - 最基本的模式
         let import_statement = Query::new(
             language,
-            "(import_statement)",
+            "(import_statement) @import",
         )?;
 
         // 导出语句查询 - 最基本的模式
         let export_statement = Query::new(
             language,
-            "(export_statement)",
+            "(export_statement) @export",
         )?;
 
         // 变量声明查询 - 最基本的模式
         let variable_declaration = Query::new(
             language,
-            "(variable_declaration)",
+            "(variable_declaration) @var",
         )?;
 
         // 方法定义查询 - 最基本的模式
         let method_definition = Query::new(
             language,
-            "(method_definition)",
+            "(method_definition) @method",
         )?;
 
         // 装饰器查询 - 最基本的模式
         let decorator = Query::new(
             language,
-            "(decorator)",
+            "(decorator) @decorator",
         )?;
 
         // 泛型查询 - 最基本的模式
         let generic_type = Query::new(
             language,
-            "(generic_type)",
+            "(generic_type) @generic",
         )?;
 
         // 枚举定义查询 - 最基本的模式
         let enum_definition = Query::new(
             language,
-            "(enum_declaration)",
+            "(enum_declaration) @enum",
         )?;
 
         // 命名空间查询 - 使用identifier作为占位符
         let namespace_definition = Query::new(
             language,
-            "(identifier)",
+            "(identifier) @ns",
+        )?;
+
+        // 箭头函数查询
+        let arrow_function = Query::new(
+            language,
+            "(arrow_function) @arrow_function",
+        )?;
+
+        // 函数表达式查询
+        let function_expression = Query::new(
+            language,
+            "(function_expression) @function_expression",
+        )?;
+
+        // 对象方法查询
+        let object_method = Query::new(
+            language,
+            "(method_definition) @object_method",
+        )?;
+
+        // 类方法查询
+        let class_method = Query::new(
+            language,
+            "(method_definition) @class_method",
+        )?;
+
+        // 构造函数查询
+        let constructor = Query::new(
+            language,
+            "(method_definition) @constructor",
         )?;
 
         Ok(Self {
@@ -125,6 +165,11 @@ impl TypeScriptQueries {
             generic_type,
             enum_definition,
             namespace_definition,
+            arrow_function,
+            function_expression,
+            object_method,
+            class_method,
+            constructor,
         })
     }
 }

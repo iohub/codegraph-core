@@ -60,10 +60,16 @@ fn test_typescript_analyzer_analyze_file() {
     
     // 分析文件
     let result = analyzer.analyze_file(&ts_file);
+    println!("Analysis result: {:?}", result);
     assert!(result.is_ok());
     
     // 检查分析结果
     let functions = analyzer.get_all_functions();
+    println!("Found {} functions:", functions.len());
+    for (i, func) in functions.iter().enumerate() {
+        println!("  {}: {} ({}:{}-{})", i + 1, func.name, func.file_path.display(), func.line_start, func.line_end);
+    }
+    
     assert!(functions.len() >= 3); // 至少应该有3个函数
     
     // 清理
@@ -141,5 +147,39 @@ fn test_typescript_analyzer_generate_report() {
     assert!(report.contains("=== Functions ==="));
     assert!(report.contains("=== Classes ==="));
     
+    temp_dir.close().unwrap();
+} 
+
+#[test]
+fn test_typescript_analyzer_minimal() {
+    let mut analyzer = TypeScriptAnalyzer::new().unwrap();
+    
+    // 创建临时TypeScript文件
+    let temp_dir = TempDir::new().unwrap();
+    let ts_file = temp_dir.path().join("test.ts");
+    
+    let ts_content = r#"
+        function greet(name: string): string {
+            return `Hello, ${name}!`;
+        }
+    "#;
+    
+    fs::write(&ts_file, ts_content).unwrap();
+    
+    // 分析文件
+    let result = analyzer.analyze_file(&ts_file);
+    println!("Analysis result: {:?}", result);
+    assert!(result.is_ok());
+    
+    // 检查分析结果
+    let functions = analyzer.get_all_functions();
+    println!("Found {} functions:", functions.len());
+    for (i, func) in functions.iter().enumerate() {
+        println!("  {}: {} ({}:{}-{})", i + 1, func.name, func.file_path.display(), func.line_start, func.line_end);
+    }
+    
+    assert!(functions.len() >= 1); // 至少应该有1个函数
+    
+    // 清理
     temp_dir.close().unwrap();
 } 
