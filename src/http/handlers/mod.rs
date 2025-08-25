@@ -8,6 +8,8 @@ use crate::storage::StorageManager;
 use super::models::*;
 use md5;
 use uuid;
+use std::path::Path;
+use crate::codegraph::parser::CodeParser;
 
 pub async fn build_graph(
     State(storage): State<Arc<StorageManager>>,
@@ -23,22 +25,67 @@ pub async fn build_graph(
     if !project_dir.exists() || !project_dir.is_dir() {
         return Err(StatusCode::BAD_REQUEST);
     }
-    
-    // Check for existing graph
-    let mut cache_hit_rate = 0.0;
-    let _existing_graph: crate::codegraph::PetCodeGraph = if let Ok(Some(existing_graph)) = storage.get_persistence().load_graph(&project_id) {
-        cache_hit_rate = 0.8; // Assume 80% cache hit for existing graph
-        existing_graph
+
+    let force_rebuild = request.force_rebuild.unwrap_or(false);
+
+    // Load previous file hashes to compute cache hit rate
+    let persistence = storage.get_persistence();
+    let previous_hashes = persistence.load_file_hashes(&project_id).unwrap_or_default();
+
+    let mut parser = CodeParser::new();
+    let files = parser.scan_directory(project_dir);
+
+    // Compute file hash matches
+    let mut matched = 0usize;
+    for file_path in &files {
+        if let Ok(bytes) = std::fs::read(file_path) {
+            let hash_hex = format!("{:x}", md5::compute(bytes));
+            if let Some(prev) = previous_hashes.get(&file_path.display().to_string()) {
+                if prev == &hash_hex {
+                    matched += 1;
+                }
+            }
+            // Persist the latest hash
+            let _ = persistence.save_file_hash(&project_id, &file_path.display().to_string(), &hash_hex);
+        }
+    }
+
+
+    // Try to reuse existing graph when not forcing rebuild and hashes match
+    let mut use_existing = false;
+    let mut graph_opt: Option<crate::codegraph::types::PetCodeGraph> = None;
+    if !force_rebuild {
+        if let Ok(Some(existing_graph)) = persistence.load_graph(&project_id) {
+            use_existing = true;
+            graph_opt = Some(existing_graph);
+        }
+    }
+
+    let graph = if use_existing {
+        graph_opt.unwrap()
     } else {
-        // TODO: Use new AnalyzerOrchestrator instead of CodeGraphAnalyzer
-        // For now, create an empty graph
-        crate::codegraph::types::PetCodeGraph::new()
+        // Build a new PetCodeGraph
+        match parser.build_petgraph_code_graph(Path::new(project_dir)) {
+            Ok(mut built) => {
+                // Save to persistence and in-memory store
+                let _ = persistence.save_graph(&project_id, &built);
+                {
+                    let graphs_arc = storage.get_graphs();
+                    let mut graphs_guard = graphs_arc.write();
+                    graphs_guard.insert(project_id.clone(), built.clone());
+                }
+                built
+            },
+            Err(_e) => {
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        }
     };
     
-    // TODO: Use new AnalyzerOrchestrator to build the actual graph
-    let total_files = 0;
-    let total_functions = 0;
-    
+    let stats = graph.get_stats();
+    let total_files = stats.total_files;
+    let total_functions = stats.total_functions;
+
     let build_time_ms = start_time.elapsed().as_millis() as u64;
     
     let response = BuildGraphResponse {
@@ -46,7 +93,6 @@ pub async fn build_graph(
         total_files,
         total_functions,
         build_time_ms,
-        cache_hit_rate,
     };
     
     Ok(Json(ApiResponse {

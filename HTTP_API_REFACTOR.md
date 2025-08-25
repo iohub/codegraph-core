@@ -46,7 +46,6 @@
 - `type` (可选): 过滤类型 (function, class, struct)
 - `limit` (可选): 结果数量限制，默认10，最大50
 - `offset` (可选): 分页偏移量，默认0
-- `fuzzy` (可选): 是否启用模糊匹配，默认true
 
 **调用图分析** (`/v1/analysis/callgraph`):
 - `function` (必需): 目标函数名
