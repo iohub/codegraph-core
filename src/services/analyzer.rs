@@ -8,12 +8,12 @@ use crate::codegraph::types::{FunctionInfo, CodeGraphStats};
 use crate::codegraph::parser::CodeParser;
 
 /// 代码图分析器，提供高级分析功能
-pub struct CodeGraphAnalyzer {
+pub struct CodeAnalyzer {
     parser: CodeParser,
     code_graph: Option<CodeGraph>,
 }
 
-impl CodeGraphAnalyzer {
+impl CodeAnalyzer {
     pub fn new() -> Self {
         Self {
             parser: CodeParser::new(),
@@ -300,7 +300,7 @@ impl CodeGraphAnalyzer {
     }
 }
 
-impl Default for CodeGraphAnalyzer {
+impl Default for CodeAnalyzer {
     fn default() -> Self {
         Self::new()
     }

@@ -3,7 +3,7 @@ use tracing::{info, Level, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::codegraph::parser::CodeParser;
-use crate::codegraph::PetGraphStorageManager;
+use crate::storage::PetGraphStorageManager;
 use super::args::{Cli, Commands};
 
 pub struct CodeGraphRunner;

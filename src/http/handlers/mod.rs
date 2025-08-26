@@ -5,7 +5,7 @@ use axum::{
 };
 use std::sync::Arc;
 use crate::storage::StorageManager;
-use crate::codegraph::CodeGraphAnalyzer;
+use crate::services::CodeAnalyzer;
 use super::models::*;
 use md5;
 use uuid;
@@ -31,8 +31,8 @@ pub async fn build_graph(
         cache_hit_rate = 0.8; // Assume 80% cache hit for existing graph
         existing_graph
     } else {
-        // Create new graph using CodeGraphAnalyzer
-        let mut analyzer = CodeGraphAnalyzer::new();
+        // Create new graph using CodeAnalyzer
+        let mut analyzer = CodeAnalyzer::new();
         
         // Analyze directory and build code graph
         match analyzer.analyze_directory(project_dir) {
@@ -54,8 +54,8 @@ pub async fn build_graph(
     };
     
     
-    // Use CodeGraphAnalyzer to build the actual graph
-    let mut analyzer = CodeGraphAnalyzer::new();
+    // Use CodeAnalyzer to build the actual graph
+    let mut analyzer = CodeAnalyzer::new();
     let mut total_files = 0;
     let mut total_functions = 0;
     
