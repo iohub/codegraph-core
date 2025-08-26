@@ -14,7 +14,7 @@ mod tests;
 mod utils;
 mod java;
 pub(crate) mod cpp;
-mod ts;
+pub(crate) mod ts;
 mod js;
 
 
