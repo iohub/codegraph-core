@@ -284,10 +284,7 @@ impl CodeAnalyzer {
         }
     }
 
-    /// 导出为Mermaid格式
-    pub fn export_mermaid(&self) -> Option<String> {
-        self.code_graph.as_ref().map(|cg| cg.to_mermaid())
-    }
+
 
     /// 导出为DOT格式
     pub fn export_dot(&self) -> Option<String> {

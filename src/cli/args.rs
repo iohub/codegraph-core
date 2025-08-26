@@ -25,7 +25,7 @@ pub enum Commands {
         #[clap(short, long, value_parser)]
         output: Option<PathBuf>,
 
-        /// Output format (json, mermaid, dot, graphml, gexf)
+        /// Output format (json, dot, graphml, gexf)
         #[clap(short, long, value_parser, default_value = "json")]
         format: String,
     },

@@ -71,8 +71,7 @@ cargo run -- repo --path /path/to/repo --state-dir ./my-codegraph --stats
 # 分析代码并导出为JSON
 cargo run -- analyze --input /path/to/code --output graph.json --format json
 
-# 导出为Mermaid格式
-cargo run -- analyze --input /path/to/code --output graph.md --format mermaid
+
 
 # 导出为DOT格式
 cargo run -- analyze --input /path/to/code --output graph.dot --format dot
@@ -171,7 +170,7 @@ repo_manager.load_state(&state_dir)?;
 - 性能指标记录
 
 ### 3. 调试工具
-- 图结构可视化（Mermaid、DOT）
+- 图结构可视化（DOT）
 - 代码片段预览
 - 关系查询调试
 

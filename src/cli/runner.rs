@@ -158,11 +158,7 @@ impl CodeGraphRunner {
                 PetGraphStorageManager::save_to_file(code_graph, output_path)?;
                 info!("Code graph saved to JSON file: {:?}", output_path);
             }
-            "mermaid" => {
-                let mermaid = code_graph.to_mermaid();
-                std::fs::write(output_path, mermaid)?;
-                info!("Code graph saved to Mermaid file: {:?}", output_path);
-            }
+
             "dot" => {
                 let dot = code_graph.to_dot();
                 std::fs::write(output_path, dot)?;

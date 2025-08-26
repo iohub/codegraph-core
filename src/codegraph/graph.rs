@@ -151,30 +151,7 @@ impl CodeGraph {
         }
     }
 
-    /// 导出为Mermaid格式
-    pub fn to_mermaid(&self) -> String {
-        let mut mermaid = String::from("graph TD\n");
-        
-        // 添加节点
-        for function in self.functions.values() {
-            let node_id = function.name.replace(" ", "_").replace("-", "_");
-            let label = format!("{}\\n{}", function.name, function.file_path.display());
-            mermaid.push_str(&format!("    {}[\"{}\"]\n", node_id, label));
-        }
-        
-        // 添加边
-        for relation in &self.call_relations {
-            let caller_name = relation.caller_name.replace(" ", "_").replace("-", "_");
-            let callee_name = relation.callee_name.replace(" ", "_").replace("-", "_");
-            let style = if relation.is_resolved { "" } else { ":::unresolved" };
-            mermaid.push_str(&format!("    {} --> {}{}\n", caller_name, callee_name, style));
-        }
-        
-        // 添加样式
-        mermaid.push_str("\nclassDef unresolved stroke-dasharray: 5 5\n");
-        
-        mermaid
-    }
+
 
     /// 导出为DOT格式
     pub fn to_dot(&self) -> String {

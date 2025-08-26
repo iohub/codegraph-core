@@ -266,38 +266,7 @@ impl PetCodeGraph {
         }
     }
 
-    /// 导出为Mermaid格式
-    pub fn to_mermaid(&self) -> String {
-        let mut mermaid = String::from("graph TD\n");
-        
-        // 添加节点
-        for node_index in self.graph.node_indices() {
-            if let Some(function) = self.graph.node_weight(node_index) {
-                let node_id = function.id.to_string().replace("-", "_");
-                let label = format!("{}\\n{}", function.name, function.file_path.display());
-                mermaid.push_str(&format!("    {}[\"{}\"]\n", node_id, label));
-            }
-        }
-        
-        // 添加边
-        for edge in self.graph.edge_indices() {
-            if let Some((source, target)) = self.graph.edge_endpoints(edge) {
-                if let (Some(caller), Some(callee)) = (self.graph.node_weight(source), self.graph.node_weight(target)) {
-                    let caller_id = caller.id.to_string().replace("-", "_");
-                    let callee_id = callee.id.to_string().replace("-", "_");
-                    if let Some(relation) = self.graph.edge_weight(edge) {
-                        let style = if relation.is_resolved { "" } else { ":::unresolved" };
-                        mermaid.push_str(&format!("    {} --> {}{}\n", caller_id, callee_id, style));
-                    }
-                }
-            }
-        }
-        
-        // 添加样式
-        mermaid.push_str("\nclassDef unresolved stroke-dasharray: 5 5\n");
-        
-        mermaid
-    }
+
 
     /// 导出为DOT格式
     pub fn to_dot(&self) -> String {

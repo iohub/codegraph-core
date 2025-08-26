@@ -7,7 +7,7 @@
 - **多语言支持**: 解析Rust、Python、JavaScript/TypeScript、Java、C/C++等编程语言
 - **智能解析**: 集成Tree-sitter进行AST解析（开发中）
 - **图分析**: 基于PetGraph的高效图操作和分析
-- **多种导出格式**: JSON、Mermaid、DOT、GraphML、GEXF
+- **多种导出格式**: JSON、DOT、GraphML、GEXF
 - **高级分析**: 循环依赖检测、调用链分析、复杂度分析
 - **命令行工具**: 简单易用的CLI界面
 - **库支持**: 可作为Rust库集成到其他项目中
@@ -17,7 +17,7 @@
 ⚠️ **注意**: 当前版本是开发中的原型，具有以下特点：
 
 - ✅ **完整的基础架构**: 图数据结构、类型系统、CLI框架
-- ✅ **多格式导出**: 支持JSON、Mermaid、DOT、GraphML、GEXF
+- ✅ **多格式导出**: 支持JSON、DOT、GraphML、GEXF
 - ✅ **图分析算法**: 循环检测、拓扑排序、强连通分量
 - 🔄 **代码解析**: 基础框架完成，但函数提取逻辑是简化版本
 - 🔄 **调用关系分析**: 当前使用硬编码示例，需要实现真实解析
@@ -52,8 +52,8 @@ cargo install --path .
 # 基本用法 - 分析目录并输出JSON
 cargo run -- --input /path/to/source/code --output codegraph.json
 
-# 输出Mermaid格式用于可视化
-cargo run -- --input /path/to/source/code --output graph.mmd --format mermaid
+# 输出DOT格式用于可视化
+cargo run -- --input /path/to/source/code --output graph.dot --format dot
 
 # 输出DOT格式用于Graphviz
 cargo run -- --input /path/to/source/code --output graph.dot --format dot
@@ -74,9 +74,9 @@ cargo run -- --input /path/to/source/code --verbose
 # 分析当前项目
 cargo run -- --input ./src --output ./codegraph.json --verbose
 
-# 生成Mermaid图表并在浏览器中查看
-cargo run -- --input ./src --output ./graph.mmd --format mermaid
-# 然后将生成的graph.mmd内容粘贴到 https://mermaid.live
+# 生成DOT图表并在浏览器中查看
+cargo run -- --input ./src --output ./graph.dot --format dot
+# 然后可以使用Graphviz渲染：dot -Tpng graph.dot -o graph.png
 
 # 生成DOT图并转换为PNG
 cargo run -- --input ./src --output ./graph.dot --format dot
@@ -109,8 +109,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     // 导出为不同格式
-    let mermaid = code_graph.to_mermaid();
-    std::fs::write("graph.mmd", mermaid)?;
+    let dot = code_graph.to_dot();
+    std::fs::write("graph.dot", dot)?;
     
     Ok(())
 }
@@ -158,13 +158,7 @@ fn analyze_codebase() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 示例
 
-### 生成Mermaid图
 
-```bash
-cargo run -- --input ./src --output graph.mmd --format mermaid
-```
-
-这将生成一个Mermaid图表，可以在Markdown查看器或在线Mermaid编辑器中渲染。
 
 ### 生成DOT图用于Graphviz
 
@@ -231,15 +225,7 @@ cargo run -- --input /path/to/my/project --output project-graph.json
 ### JSON
 默认的JSON格式包含函数、调用关系和统计信息的详细数据。
 
-### Mermaid
-基于文本的图表格式，可以在Markdown查看器中渲染：
 
-```mermaid
-graph TD
-    function1["function1<br/>src/main.rs"]
-    function2["function2<br/>src/utils.rs"]
-    function1 --> function2
-```
 
 ### DOT
 Graphviz格式，用于生成高质量图表：
@@ -445,7 +431,7 @@ cargo test --test performance_tests --release
 
 - ✅ **基础功能测试**: 图数据结构、函数添加、关系管理
 - ✅ **分析器测试**: 调用链分析、循环检测、统计计算
-- ✅ **导出格式测试**: JSON、Mermaid、DOT格式转换
+- ✅ **导出格式测试**: JSON、DOT格式转换
 - ✅ **存储测试**: 文件保存和加载
 - 🔄 **解析器测试**: 基础功能测试，需要更多真实代码样本
 - 🔄 **集成测试**: 端到端工作流程测试
@@ -512,7 +498,7 @@ codegraph-core/
 - **PetCodeGraph**: 基于PetGraph的图数据结构
 - **FunctionInfo**: 函数信息结构
 - **CallRelation**: 调用关系结构
-- **导出功能**: Mermaid、DOT、JSON格式转换
+- **导出功能**: DOT、JSON格式转换
 
 #### `analyzer.rs` - 分析器
 - **调用链分析**: 查找函数调用关系
@@ -629,7 +615,7 @@ MIT License
 
 - [PetGraph](https://github.com/petgraph/petgraph) - Rust图数据结构库
 - [Tree-sitter](https://tree-sitter.github.io/tree-sitter/) - 增量解析工具
-- [Mermaid](https://mermaid.js.org/) - 图表生成工具
+
 - [Graphviz](https://graphviz.org/) - 图形可视化工具
 - [Gephi](https://gephi.org/) - 网络分析和可视化平台
 
@@ -663,7 +649,7 @@ A: 当前使用简化解析逻辑，建议等待Tree-sitter集成完成
 A: 当前使用硬编码示例，需要实现真实的AST分析
 
 **Q: 导出格式不支持**
-A: 检查格式名称是否正确，当前支持：json, mermaid, dot, graphml, gexf
+A: 检查格式名称是否正确，当前支持：json, dot, graphml, gexf
 
 **Q: 内存使用过高**
 A: 对于大型项目，考虑分批处理或使用流式解析
