@@ -81,7 +81,7 @@ impl CodeGraphRunner {
         search: Option<String>,
         stats: bool,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        use crate::codegraph::repository_manager::RepositoryManager;
+        use crate::codegraph::repository::RepositoryManager;
 
         info!("Starting repository analysis for: {}", path.display());
 

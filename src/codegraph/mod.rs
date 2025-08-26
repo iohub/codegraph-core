@@ -2,9 +2,7 @@ pub mod graph;
 pub mod parser;
 pub mod types;
 pub mod treesitter;
-pub mod repository_manager;
-
-
+pub mod repository;
 
 pub use graph::CodeGraph;
 pub use types::{
@@ -13,4 +11,4 @@ pub use types::{
     FileMetadata, FileIndex, SnippetIndex, SnippetInfo
 };
 pub use treesitter::TreeSitterParser;
-pub use repository_manager::{RepositoryManager, RepositoryStats, SearchResult};
+pub use repository::{RepositoryManager, RepositoryStats, SearchResult};
