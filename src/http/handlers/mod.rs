@@ -452,3 +452,81 @@ pub async fn query_code_snippet(
         data: response,
     }))
 } 
+
+pub async fn query_code_skeleton(
+    State(_storage): State<Arc<StorageManager>>,
+    Json(request): Json<QueryCodeSkeletonRequest>,
+) -> Result<Json<ApiResponse<CodeSkeletonResponse>>, StatusCode> {
+    // Read file contents
+    let path = std::path::PathBuf::from(&request.filepath);
+    let code = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => return Err(StatusCode::NOT_FOUND),
+    };
+
+    // Get parser and language
+    let (mut parser, language_id) = match crate::codegraph::treesitter::parsers::get_ast_parser_by_filename(&path) {
+        Ok(v) => v,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    // Parse and build symbol maps
+    let symbols = parser.parse(&code, &path);
+    let symbols_struct: Vec<crate::codegraph::treesitter::ast_instance_structs::SymbolInformation> =
+        symbols.iter().map(|s| s.read().symbol_info_struct()).collect();
+
+    // Build guid maps similar to tests
+    use uuid::Uuid;
+    use std::collections::HashMap;
+    let guid_to_children: HashMap<Uuid, Vec<Uuid>> = symbols
+        .iter()
+        .map(|s| (s.read().guid().clone(), s.read().childs_guid().clone()))
+        .collect();
+
+    // Build a minimal FileASTMarkup-compatible list
+    let ast_markup = crate::codegraph::treesitter::file_ast_markup::FileASTMarkup {
+        symbols_sorted_by_path_len: symbols_struct.clone(),
+    };
+    let guid_to_info: HashMap<Uuid, &crate::codegraph::treesitter::ast_instance_structs::SymbolInformation> =
+        ast_markup
+            .symbols_sorted_by_path_len
+            .iter()
+            .map(|s| (s.guid.clone(), s))
+            .collect();
+
+    // Make formatter
+    let formatter = crate::codegraph::treesitter::skeletonizer::make_formatter(&language_id);
+
+    // Filter top-level struct/class symbols and build skeleton text
+    use crate::codegraph::treesitter::structs::SymbolType;
+    let class_symbols: Vec<_> = ast_markup
+        .symbols_sorted_by_path_len
+        .iter()
+        .filter(|x| x.symbol_type == SymbolType::StructDeclaration)
+        .collect();
+
+    let mut lines: Vec<String> = Vec::new();
+    for symbol in class_symbols {
+        let skeleton_line = formatter.make_skeleton(&symbol, &code.to_string(), &guid_to_children, &guid_to_info);
+        lines.push(skeleton_line);
+    }
+
+    let skeleton_text = if lines.is_empty() {
+        String::new()
+    } else {
+        lines.join("\n\n")
+    };
+
+    let language = language_id.to_string();
+
+    let response = CodeSkeletonResponse {
+        filepath: path.display().to_string(),
+        language,
+        skeleton_text,
+    };
+
+    Ok(Json(ApiResponse {
+        success: true,
+        data: response,
+    }))
+} 
