@@ -1,0 +1,1042 @@
+{
+  "graph": {
+    "nodes": [
+      {
+        "id": "8b052649-3247-4d1d-8b67-a930a467a049",
+        "name": "factorial",
+        "file_path": "tests/test_repos/simple_python_project/math_utils.py",
+        "line_start": 33,
+        "line_end": 39,
+        "namespace": "global",
+        "language": "python",
+        "signature": "factorial()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "75c4e431-10cd-4265-866e-dda116689156",
+        "name": "process_data",
+        "file_path": "tests/test_repos/simple_python_project/data_processor.py",
+        "line_start": 7,
+        "line_end": 20,
+        "namespace": "global",
+        "language": "python",
+        "signature": "process_data()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "4ca0ea6f-b92e-42ba-b6b6-89fc8654105f",
+        "name": "fibonacci",
+        "file_path": "tests/test_repos/simple_python_project/math_utils.py",
+        "line_start": 41,
+        "line_end": 47,
+        "namespace": "global",
+        "language": "python",
+        "signature": "fibonacci()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "499dfd04-f87a-4be4-95be-f2e3fe38bb07",
+        "name": "format_output",
+        "file_path": "tests/test_repos/simple_python_project/string_utils.py",
+        "line_start": 4,
+        "line_end": 12,
+        "namespace": "global",
+        "language": "python",
+        "signature": "format_output()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "d859d87e-3f32-4ba3-9ba9-a3746f161310",
+        "name": "helper_function",
+        "file_path": "tests/test_repos/simple_python_project/main.py",
+        "line_start": 25,
+        "line_end": 27,
+        "namespace": "global",
+        "language": "python",
+        "signature": "helper_function()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "1fca1e74-b473-40b9-a9ee-8a7f60ad256c",
+        "name": "_add_to_total",
+        "file_path": "tests/test_repos/simple_python_project/math_utils.py",
+        "line_start": 14,
+        "line_end": 16,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_add_to_total()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "value",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "5b951a8d-ff54-48d5-8575-e754d64bd8c8",
+        "name": "_step2_transform",
+        "file_path": "tests/test_repos/simple_python_project/data_processor.py",
+        "line_start": 45,
+        "line_end": 47,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_step2_transform()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "977bbcd0-5ced-4ed4-9fe7-568bcdf2d20a",
+        "name": "_get_default_text",
+        "file_path": "tests/test_repos/simple_python_project/string_utils.py",
+        "line_start": 41,
+        "line_end": 43,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_get_default_text()",
+        "return_type": "unknown",
+        "parameters": []
+      },
+      {
+        "id": "af642de3-d81a-486b-b950-795961cfe039",
+        "name": "count_words",
+        "file_path": "tests/test_repos/simple_python_project/string_utils.py",
+        "line_start": 51,
+        "line_end": 56,
+        "namespace": "global",
+        "language": "python",
+        "signature": "count_words()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "02706510-875b-4980-891e-d1d4fc30d804",
+        "name": "_validate_data",
+        "file_path": "tests/test_repos/simple_python_project/data_processor.py",
+        "line_start": 28,
+        "line_end": 32,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_validate_data()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "b7ff163e-fe1a-40da-9136-23e80c1d5831",
+        "name": "__init__",
+        "file_path": "tests/test_repos/simple_python_project/data_processor.py",
+        "line_start": 4,
+        "line_end": 5,
+        "namespace": "global",
+        "language": "python",
+        "signature": "__init__()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "031d42d9-0c20-4523-8a0b-fd5dd0920fcb",
+        "name": "get_cache_stats",
+        "file_path": "tests/test_repos/simple_python_project/data_processor.py",
+        "line_start": 53,
+        "line_end": 58,
+        "namespace": "global",
+        "language": "python",
+        "signature": "get_cache_stats()",
+        "return_type": "unknown",
+        "parameters": []
+      },
+      {
+        "id": "c91c7c4e-ea4e-441a-8481-2beac88670e5",
+        "name": "find_longest_word",
+        "file_path": "tests/test_repos/simple_python_project/string_utils.py",
+        "line_start": 58,
+        "line_end": 71,
+        "namespace": "global",
+        "language": "python",
+        "signature": "find_longest_word()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "6dea8e68-7868-4e1a-a888-3d65439231ae",
+        "name": "_capitalize_first",
+        "file_path": "tests/test_repos/simple_python_project/string_utils.py",
+        "line_start": 25,
+        "line_end": 29,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_capitalize_first()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "ac9c2610-9c2f-4496-81b3-2676173d97a2",
+        "name": "calculate_sum",
+        "file_path": "tests/test_repos/simple_python_project/math_utils.py",
+        "line_start": 4,
+        "line_end": 12,
+        "namespace": "global",
+        "language": "python",
+        "signature": "calculate_sum()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "ebdfc809-cc19-4a40-abcf-930518e6f712",
+        "name": "reverse_string",
+        "file_path": "tests/test_repos/simple_python_project/string_utils.py",
+        "line_start": 45,
+        "line_end": 49,
+        "namespace": "global",
+        "language": "python",
+        "signature": "reverse_string()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "8e2046d5-3eba-4002-9871-3bd3444e3219",
+        "name": "_divide_numbers",
+        "file_path": "tests/test_repos/simple_python_project/math_utils.py",
+        "line_start": 27,
+        "line_end": 31,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_divide_numbers()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "7860cf02-7477-4edb-b442-4d4f189474b5",
+        "name": "_clean_text",
+        "file_path": "tests/test_repos/simple_python_project/string_utils.py",
+        "line_start": 14,
+        "line_end": 16,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_clean_text()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "c56c81b8-2995-4399-bc77-89349161bf4f",
+        "name": "_step1_transform",
+        "file_path": "tests/test_repos/simple_python_project/data_processor.py",
+        "line_start": 41,
+        "line_end": 43,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_step1_transform()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "ca6f7b5b-e3e5-4fbf-a7d4-b134b969771d",
+        "name": "_add_prefix",
+        "file_path": "tests/test_repos/simple_python_project/string_utils.py",
+        "line_start": 37,
+        "line_end": 39,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_add_prefix()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "value",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "4697e8c9-dda3-4253-a822-5f043d3d84fc",
+        "name": "calculate_average",
+        "file_path": "tests/test_repos/simple_python_project/math_utils.py",
+        "line_start": 18,
+        "line_end": 25,
+        "namespace": "global",
+        "language": "python",
+        "signature": "calculate_average()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "0429998a-72a8-49a2-a0bf-3505f48a0391",
+        "name": "_add_punctuation",
+        "file_path": "tests/test_repos/simple_python_project/string_utils.py",
+        "line_start": 31,
+        "line_end": 35,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_add_punctuation()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "value",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "0b836adf-c5c9-49f6-8881-31422b06dbe3",
+        "name": "_finalize_result",
+        "file_path": "tests/test_repos/simple_python_project/data_processor.py",
+        "line_start": 49,
+        "line_end": 51,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_finalize_result()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "6b2050dd-0016-442e-b9fe-0089ebf1dc29",
+        "name": "_apply_formatting",
+        "file_path": "tests/test_repos/simple_python_project/string_utils.py",
+        "line_start": 18,
+        "line_end": 23,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_apply_formatting()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "7f7e420e-3b80-483d-a2e2-8b68e8d31fc3",
+        "name": "_multiply_numbers",
+        "file_path": "tests/test_repos/simple_python_project/math_utils.py",
+        "line_start": 61,
+        "line_end": 63,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_multiply_numbers()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "e170b760-c808-41f2-89a7-5fd99cd4138b",
+        "name": "_transform_data",
+        "file_path": "tests/test_repos/simple_python_project/data_processor.py",
+        "line_start": 34,
+        "line_end": 39,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_transform_data()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "bd85d87d-b476-4410-ab7f-ac5ee2786821",
+        "name": "_clean_input",
+        "file_path": "tests/test_repos/simple_python_project/data_processor.py",
+        "line_start": 22,
+        "line_end": 26,
+        "namespace": "global",
+        "language": "python",
+        "signature": "_clean_input()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "f4cf46a3-83b1-496b-9f99-6a12170c8b77",
+        "name": "power",
+        "file_path": "tests/test_repos/simple_python_project/math_utils.py",
+        "line_start": 49,
+        "line_end": 59,
+        "namespace": "global",
+        "language": "python",
+        "signature": "power()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "e7e72f09-b0a4-44a9-a010-fdb0d9c9a70c",
+        "name": "main",
+        "file_path": "tests/test_repos/simple_python_project/main.py",
+        "line_start": 7,
+        "line_end": 23,
+        "namespace": "global",
+        "language": "python",
+        "signature": "main()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      }
+    ],
+    "node_holes": [],
+    "edge_property": "directed",
+    "edges": [
+      [
+        1,
+        26,
+        {
+          "caller_id": "75c4e431-10cd-4265-866e-dda116689156",
+          "callee_id": "bd85d87d-b476-4410-ab7f-ac5ee2786821",
+          "caller_name": "process_data",
+          "callee_name": "_clean_input",
+          "caller_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "callee_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "line_number": 13,
+          "is_resolved": true
+        }
+      ],
+      [
+        1,
+        9,
+        {
+          "caller_id": "75c4e431-10cd-4265-866e-dda116689156",
+          "callee_id": "02706510-875b-4980-891e-d1d4fc30d804",
+          "caller_name": "process_data",
+          "callee_name": "_validate_data",
+          "caller_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "callee_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "line_number": 14,
+          "is_resolved": true
+        }
+      ],
+      [
+        1,
+        25,
+        {
+          "caller_id": "75c4e431-10cd-4265-866e-dda116689156",
+          "callee_id": "e170b760-c808-41f2-89a7-5fd99cd4138b",
+          "caller_name": "process_data",
+          "callee_name": "_transform_data",
+          "caller_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "callee_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "line_number": 15,
+          "is_resolved": true
+        }
+      ],
+      [
+        1,
+        22,
+        {
+          "caller_id": "75c4e431-10cd-4265-866e-dda116689156",
+          "callee_id": "0b836adf-c5c9-49f6-8881-31422b06dbe3",
+          "caller_name": "process_data",
+          "callee_name": "_finalize_result",
+          "caller_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "callee_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "line_number": 16,
+          "is_resolved": true
+        }
+      ],
+      [
+        25,
+        18,
+        {
+          "caller_id": "e170b760-c808-41f2-89a7-5fd99cd4138b",
+          "callee_id": "c56c81b8-2995-4399-bc77-89349161bf4f",
+          "caller_name": "_transform_data",
+          "callee_name": "_step1_transform",
+          "caller_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "callee_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "line_number": 37,
+          "is_resolved": true
+        }
+      ],
+      [
+        25,
+        6,
+        {
+          "caller_id": "e170b760-c808-41f2-89a7-5fd99cd4138b",
+          "callee_id": "5b951a8d-ff54-48d5-8575-e754d64bd8c8",
+          "caller_name": "_transform_data",
+          "callee_name": "_step2_transform",
+          "caller_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "callee_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "line_number": 38,
+          "is_resolved": true
+        }
+      ],
+      [
+        3,
+        19,
+        {
+          "caller_id": "499dfd04-f87a-4be4-95be-f2e3fe38bb07",
+          "callee_id": "ca6f7b5b-e3e5-4fbf-a7d4-b134b969771d",
+          "caller_name": "format_output",
+          "callee_name": "_add_prefix",
+          "caller_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "line_number": 12,
+          "is_resolved": true
+        }
+      ],
+      [
+        3,
+        17,
+        {
+          "caller_id": "499dfd04-f87a-4be4-95be-f2e3fe38bb07",
+          "callee_id": "7860cf02-7477-4edb-b442-4d4f189474b5",
+          "caller_name": "format_output",
+          "callee_name": "_clean_text",
+          "caller_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "line_number": 10,
+          "is_resolved": true
+        }
+      ],
+      [
+        3,
+        23,
+        {
+          "caller_id": "499dfd04-f87a-4be4-95be-f2e3fe38bb07",
+          "callee_id": "6b2050dd-0016-442e-b9fe-0089ebf1dc29",
+          "caller_name": "format_output",
+          "callee_name": "_apply_formatting",
+          "caller_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "line_number": 11,
+          "is_resolved": true
+        }
+      ],
+      [
+        23,
+        13,
+        {
+          "caller_id": "6b2050dd-0016-442e-b9fe-0089ebf1dc29",
+          "callee_id": "6dea8e68-7868-4e1a-a888-3d65439231ae",
+          "caller_name": "_apply_formatting",
+          "callee_name": "_capitalize_first",
+          "caller_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "line_number": 21,
+          "is_resolved": true
+        }
+      ],
+      [
+        23,
+        21,
+        {
+          "caller_id": "6b2050dd-0016-442e-b9fe-0089ebf1dc29",
+          "callee_id": "0429998a-72a8-49a2-a0bf-3505f48a0391",
+          "caller_name": "_apply_formatting",
+          "callee_name": "_add_punctuation",
+          "caller_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "line_number": 22,
+          "is_resolved": true
+        }
+      ],
+      [
+        3,
+        7,
+        {
+          "caller_id": "499dfd04-f87a-4be4-95be-f2e3fe38bb07",
+          "callee_id": "977bbcd0-5ced-4ed4-9fe7-568bcdf2d20a",
+          "caller_name": "format_output",
+          "callee_name": "_get_default_text",
+          "caller_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "line_number": 7,
+          "is_resolved": true
+        }
+      ],
+      [
+        28,
+        1,
+        {
+          "caller_id": "e7e72f09-b0a4-44a9-a010-fdb0d9c9a70c",
+          "callee_id": "75c4e431-10cd-4265-866e-dda116689156",
+          "caller_name": "main",
+          "callee_name": "process_data",
+          "caller_file": "tests/test_repos/simple_python_project/main.py",
+          "callee_file": "tests/test_repos/simple_python_project/data_processor.py",
+          "line_number": 12,
+          "is_resolved": true
+        }
+      ],
+      [
+        28,
+        14,
+        {
+          "caller_id": "e7e72f09-b0a4-44a9-a010-fdb0d9c9a70c",
+          "callee_id": "ac9c2610-9c2f-4496-81b3-2676173d97a2",
+          "caller_name": "main",
+          "callee_name": "calculate_sum",
+          "caller_file": "tests/test_repos/simple_python_project/main.py",
+          "callee_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "line_number": 17,
+          "is_resolved": true
+        }
+      ],
+      [
+        28,
+        3,
+        {
+          "caller_id": "e7e72f09-b0a4-44a9-a010-fdb0d9c9a70c",
+          "callee_id": "499dfd04-f87a-4be4-95be-f2e3fe38bb07",
+          "caller_name": "main",
+          "callee_name": "format_output",
+          "caller_file": "tests/test_repos/simple_python_project/main.py",
+          "callee_file": "tests/test_repos/simple_python_project/string_utils.py",
+          "line_number": 22,
+          "is_resolved": true
+        }
+      ],
+      [
+        20,
+        16,
+        {
+          "caller_id": "4697e8c9-dda3-4253-a822-5f043d3d84fc",
+          "callee_id": "8e2046d5-3eba-4002-9871-3bd3444e3219",
+          "caller_name": "calculate_average",
+          "callee_name": "_divide_numbers",
+          "caller_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "line_number": 25,
+          "is_resolved": true
+        }
+      ],
+      [
+        20,
+        14,
+        {
+          "caller_id": "4697e8c9-dda3-4253-a822-5f043d3d84fc",
+          "callee_id": "ac9c2610-9c2f-4496-81b3-2676173d97a2",
+          "caller_name": "calculate_average",
+          "callee_name": "calculate_sum",
+          "caller_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "line_number": 23,
+          "is_resolved": true
+        }
+      ],
+      [
+        0,
+        0,
+        {
+          "caller_id": "8b052649-3247-4d1d-8b67-a930a467a049",
+          "callee_id": "8b052649-3247-4d1d-8b67-a930a467a049",
+          "caller_name": "factorial",
+          "callee_name": "factorial",
+          "caller_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "line_number": 39,
+          "is_resolved": true
+        }
+      ],
+      [
+        2,
+        2,
+        {
+          "caller_id": "4ca0ea6f-b92e-42ba-b6b6-89fc8654105f",
+          "callee_id": "4ca0ea6f-b92e-42ba-b6b6-89fc8654105f",
+          "caller_name": "fibonacci",
+          "callee_name": "fibonacci",
+          "caller_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "line_number": 47,
+          "is_resolved": true
+        }
+      ],
+      [
+        2,
+        2,
+        {
+          "caller_id": "4ca0ea6f-b92e-42ba-b6b6-89fc8654105f",
+          "callee_id": "4ca0ea6f-b92e-42ba-b6b6-89fc8654105f",
+          "caller_name": "fibonacci",
+          "callee_name": "fibonacci",
+          "caller_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "line_number": 47,
+          "is_resolved": true
+        }
+      ],
+      [
+        14,
+        5,
+        {
+          "caller_id": "ac9c2610-9c2f-4496-81b3-2676173d97a2",
+          "callee_id": "1fca1e74-b473-40b9-a9ee-8a7f60ad256c",
+          "caller_name": "calculate_sum",
+          "callee_name": "_add_to_total",
+          "caller_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "line_number": 11,
+          "is_resolved": true
+        }
+      ],
+      [
+        27,
+        27,
+        {
+          "caller_id": "f4cf46a3-83b1-496b-9f99-6a12170c8b77",
+          "callee_id": "f4cf46a3-83b1-496b-9f99-6a12170c8b77",
+          "caller_name": "power",
+          "callee_name": "power",
+          "caller_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "line_number": 54,
+          "is_resolved": true
+        }
+      ],
+      [
+        27,
+        24,
+        {
+          "caller_id": "f4cf46a3-83b1-496b-9f99-6a12170c8b77",
+          "callee_id": "7f7e420e-3b80-483d-a2e2-8b68e8d31fc3",
+          "caller_name": "power",
+          "callee_name": "_multiply_numbers",
+          "caller_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "callee_file": "tests/test_repos/simple_python_project/math_utils.py",
+          "line_number": 58,
+          "is_resolved": true
+        }
+      ]
+    ]
+  },
+  "function_to_node": {
+    "02706510-875b-4980-891e-d1d4fc30d804": 9,
+    "7f7e420e-3b80-483d-a2e2-8b68e8d31fc3": 24,
+    "e7e72f09-b0a4-44a9-a010-fdb0d9c9a70c": 28,
+    "1fca1e74-b473-40b9-a9ee-8a7f60ad256c": 5,
+    "4697e8c9-dda3-4253-a822-5f043d3d84fc": 20,
+    "d859d87e-3f32-4ba3-9ba9-a3746f161310": 4,
+    "ebdfc809-cc19-4a40-abcf-930518e6f712": 15,
+    "4ca0ea6f-b92e-42ba-b6b6-89fc8654105f": 2,
+    "c91c7c4e-ea4e-441a-8481-2beac88670e5": 12,
+    "031d42d9-0c20-4523-8a0b-fd5dd0920fcb": 11,
+    "e170b760-c808-41f2-89a7-5fd99cd4138b": 25,
+    "8e2046d5-3eba-4002-9871-3bd3444e3219": 16,
+    "0b836adf-c5c9-49f6-8881-31422b06dbe3": 22,
+    "c56c81b8-2995-4399-bc77-89349161bf4f": 18,
+    "75c4e431-10cd-4265-866e-dda116689156": 1,
+    "499dfd04-f87a-4be4-95be-f2e3fe38bb07": 3,
+    "bd85d87d-b476-4410-ab7f-ac5ee2786821": 26,
+    "5b951a8d-ff54-48d5-8575-e754d64bd8c8": 6,
+    "b7ff163e-fe1a-40da-9136-23e80c1d5831": 10,
+    "ca6f7b5b-e3e5-4fbf-a7d4-b134b969771d": 19,
+    "6b2050dd-0016-442e-b9fe-0089ebf1dc29": 23,
+    "6dea8e68-7868-4e1a-a888-3d65439231ae": 13,
+    "f4cf46a3-83b1-496b-9f99-6a12170c8b77": 27,
+    "7860cf02-7477-4edb-b442-4d4f189474b5": 17,
+    "ac9c2610-9c2f-4496-81b3-2676173d97a2": 14,
+    "977bbcd0-5ced-4ed4-9fe7-568bcdf2d20a": 7,
+    "af642de3-d81a-486b-b950-795961cfe039": 8,
+    "0429998a-72a8-49a2-a0bf-3505f48a0391": 21,
+    "8b052649-3247-4d1d-8b67-a930a467a049": 0
+  },
+  "node_to_function": {
+    "5": "1fca1e74-b473-40b9-a9ee-8a7f60ad256c",
+    "4": "d859d87e-3f32-4ba3-9ba9-a3746f161310",
+    "17": "7860cf02-7477-4edb-b442-4d4f189474b5",
+    "24": "7f7e420e-3b80-483d-a2e2-8b68e8d31fc3",
+    "0": "8b052649-3247-4d1d-8b67-a930a467a049",
+    "16": "8e2046d5-3eba-4002-9871-3bd3444e3219",
+    "2": "4ca0ea6f-b92e-42ba-b6b6-89fc8654105f",
+    "3": "499dfd04-f87a-4be4-95be-f2e3fe38bb07",
+    "7": "977bbcd0-5ced-4ed4-9fe7-568bcdf2d20a",
+    "9": "02706510-875b-4980-891e-d1d4fc30d804",
+    "21": "0429998a-72a8-49a2-a0bf-3505f48a0391",
+    "19": "ca6f7b5b-e3e5-4fbf-a7d4-b134b969771d",
+    "8": "af642de3-d81a-486b-b950-795961cfe039",
+    "10": "b7ff163e-fe1a-40da-9136-23e80c1d5831",
+    "11": "031d42d9-0c20-4523-8a0b-fd5dd0920fcb",
+    "18": "c56c81b8-2995-4399-bc77-89349161bf4f",
+    "14": "ac9c2610-9c2f-4496-81b3-2676173d97a2",
+    "20": "4697e8c9-dda3-4253-a822-5f043d3d84fc",
+    "27": "f4cf46a3-83b1-496b-9f99-6a12170c8b77",
+    "26": "bd85d87d-b476-4410-ab7f-ac5ee2786821",
+    "12": "c91c7c4e-ea4e-441a-8481-2beac88670e5",
+    "13": "6dea8e68-7868-4e1a-a888-3d65439231ae",
+    "23": "6b2050dd-0016-442e-b9fe-0089ebf1dc29",
+    "15": "ebdfc809-cc19-4a40-abcf-930518e6f712",
+    "6": "5b951a8d-ff54-48d5-8575-e754d64bd8c8",
+    "1": "75c4e431-10cd-4265-866e-dda116689156",
+    "28": "e7e72f09-b0a4-44a9-a010-fdb0d9c9a70c",
+    "25": "e170b760-c808-41f2-89a7-5fd99cd4138b",
+    "22": "0b836adf-c5c9-49f6-8881-31422b06dbe3"
+  },
+  "function_names": {
+    "_multiply_numbers": [
+      "7f7e420e-3b80-483d-a2e2-8b68e8d31fc3"
+    ],
+    "format_output": [
+      "499dfd04-f87a-4be4-95be-f2e3fe38bb07"
+    ],
+    "_step2_transform": [
+      "5b951a8d-ff54-48d5-8575-e754d64bd8c8"
+    ],
+    "_get_default_text": [
+      "977bbcd0-5ced-4ed4-9fe7-568bcdf2d20a"
+    ],
+    "_clean_text": [
+      "7860cf02-7477-4edb-b442-4d4f189474b5"
+    ],
+    "main": [
+      "e7e72f09-b0a4-44a9-a010-fdb0d9c9a70c"
+    ],
+    "calculate_sum": [
+      "ac9c2610-9c2f-4496-81b3-2676173d97a2"
+    ],
+    "factorial": [
+      "8b052649-3247-4d1d-8b67-a930a467a049"
+    ],
+    "calculate_average": [
+      "4697e8c9-dda3-4253-a822-5f043d3d84fc"
+    ],
+    "_add_to_total": [
+      "1fca1e74-b473-40b9-a9ee-8a7f60ad256c"
+    ],
+    "reverse_string": [
+      "ebdfc809-cc19-4a40-abcf-930518e6f712"
+    ],
+    "count_words": [
+      "af642de3-d81a-486b-b950-795961cfe039"
+    ],
+    "helper_function": [
+      "d859d87e-3f32-4ba3-9ba9-a3746f161310"
+    ],
+    "_add_prefix": [
+      "ca6f7b5b-e3e5-4fbf-a7d4-b134b969771d"
+    ],
+    "process_data": [
+      "75c4e431-10cd-4265-866e-dda116689156"
+    ],
+    "find_longest_word": [
+      "c91c7c4e-ea4e-441a-8481-2beac88670e5"
+    ],
+    "_step1_transform": [
+      "c56c81b8-2995-4399-bc77-89349161bf4f"
+    ],
+    "_apply_formatting": [
+      "6b2050dd-0016-442e-b9fe-0089ebf1dc29"
+    ],
+    "_divide_numbers": [
+      "8e2046d5-3eba-4002-9871-3bd3444e3219"
+    ],
+    "_finalize_result": [
+      "0b836adf-c5c9-49f6-8881-31422b06dbe3"
+    ],
+    "_transform_data": [
+      "e170b760-c808-41f2-89a7-5fd99cd4138b"
+    ],
+    "__init__": [
+      "b7ff163e-fe1a-40da-9136-23e80c1d5831"
+    ],
+    "power": [
+      "f4cf46a3-83b1-496b-9f99-6a12170c8b77"
+    ],
+    "_capitalize_first": [
+      "6dea8e68-7868-4e1a-a888-3d65439231ae"
+    ],
+    "_clean_input": [
+      "bd85d87d-b476-4410-ab7f-ac5ee2786821"
+    ],
+    "fibonacci": [
+      "4ca0ea6f-b92e-42ba-b6b6-89fc8654105f"
+    ],
+    "_add_punctuation": [
+      "0429998a-72a8-49a2-a0bf-3505f48a0391"
+    ],
+    "get_cache_stats": [
+      "031d42d9-0c20-4523-8a0b-fd5dd0920fcb"
+    ],
+    "_validate_data": [
+      "02706510-875b-4980-891e-d1d4fc30d804"
+    ]
+  },
+  "file_functions": {
+    "tests/test_repos/simple_python_project/main.py": [
+      "d859d87e-3f32-4ba3-9ba9-a3746f161310",
+      "e7e72f09-b0a4-44a9-a010-fdb0d9c9a70c"
+    ],
+    "tests/test_repos/simple_python_project/string_utils.py": [
+      "499dfd04-f87a-4be4-95be-f2e3fe38bb07",
+      "977bbcd0-5ced-4ed4-9fe7-568bcdf2d20a",
+      "af642de3-d81a-486b-b950-795961cfe039",
+      "c91c7c4e-ea4e-441a-8481-2beac88670e5",
+      "6dea8e68-7868-4e1a-a888-3d65439231ae",
+      "ebdfc809-cc19-4a40-abcf-930518e6f712",
+      "7860cf02-7477-4edb-b442-4d4f189474b5",
+      "ca6f7b5b-e3e5-4fbf-a7d4-b134b969771d",
+      "0429998a-72a8-49a2-a0bf-3505f48a0391",
+      "6b2050dd-0016-442e-b9fe-0089ebf1dc29"
+    ],
+    "tests/test_repos/simple_python_project/math_utils.py": [
+      "8b052649-3247-4d1d-8b67-a930a467a049",
+      "4ca0ea6f-b92e-42ba-b6b6-89fc8654105f",
+      "1fca1e74-b473-40b9-a9ee-8a7f60ad256c",
+      "ac9c2610-9c2f-4496-81b3-2676173d97a2",
+      "8e2046d5-3eba-4002-9871-3bd3444e3219",
+      "4697e8c9-dda3-4253-a822-5f043d3d84fc",
+      "7f7e420e-3b80-483d-a2e2-8b68e8d31fc3",
+      "f4cf46a3-83b1-496b-9f99-6a12170c8b77"
+    ],
+    "tests/test_repos/simple_python_project/data_processor.py": [
+      "75c4e431-10cd-4265-866e-dda116689156",
+      "5b951a8d-ff54-48d5-8575-e754d64bd8c8",
+      "02706510-875b-4980-891e-d1d4fc30d804",
+      "b7ff163e-fe1a-40da-9136-23e80c1d5831",
+      "031d42d9-0c20-4523-8a0b-fd5dd0920fcb",
+      "c56c81b8-2995-4399-bc77-89349161bf4f",
+      "0b836adf-c5c9-49f6-8881-31422b06dbe3",
+      "e170b760-c808-41f2-89a7-5fd99cd4138b",
+      "bd85d87d-b476-4410-ab7f-ac5ee2786821"
+    ]
+  },
+  "stats": {
+    "total_functions": 29,
+    "total_files": 4,
+    "total_languages": 1,
+    "resolved_calls": 23,
+    "unresolved_calls": 0,
+    "languages": {
+      "python": 29
+    }
+  }
+}
