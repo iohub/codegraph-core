@@ -6,6 +6,7 @@ import time
 import signal
 import socket
 import subprocess
+import select
 from pathlib import Path
 
 try:
@@ -84,17 +85,29 @@ def stop_server(proc: subprocess.Popen) -> None:
 
 
 def read_proc_output_nonblocking(proc: subprocess.Popen, limit_lines: int = 200) -> str:
+    """Read process output without blocking, using select for non-blocking I/O"""
     content = []
     if proc.stdout is None:
         return ""
+    
     try:
+        # Use select to check if there's data available (non-blocking)
+        ready, _, _ = select.select([proc.stdout], [], [], 0.1)
+        if not ready:
+            return ""
+        
         for _ in range(limit_lines):
-            line = proc.stdout.readline()
-            if not line:
+            # Check if there's data available before reading
+            if select.select([proc.stdout], [], [], 0.0)[0]:
+                line = proc.stdout.readline()
+                if not line:
+                    break
+                content.append(line.rstrip())
+            else:
                 break
-            content.append(line.rstrip())
     except Exception:
         pass
+    
     return "\n".join(content)
 
 
@@ -124,12 +137,20 @@ def run_tests():
         build_payload = {
             "project_dir": project_dir,
             "force_rebuild": True,
-            "exclude_patterns": [],
+            "exclude_patterns": ['target', '.git', '.venv'],
         }
-        print("POST /build_graph ...")
+        print(f"POST /build_graph {build_payload}")
+        print("Note: This may take several minutes for large projects...")
+        
+        # Make the request with a long timeout
         r = requests.post(f"{BASE_URL}/build_graph", json=build_payload, timeout=600)
+        
+        # Read any available output after the request completes
         output = read_proc_output_nonblocking(proc)
-        print(output)
+        if output:
+            print("Server output during build_graph:")
+            print(output)
+        
         assert_true(r.status_code == 200, f"/build_graph HTTP {r.status_code}: {r.text}")
         j = r.json()
         assert_true(j.get("success") is True, f"/build_graph success=false: {j}")
@@ -146,10 +167,15 @@ def run_tests():
             # Leave function_name None to get all functions in file
             "max_depth": 2,
         }
-        print("POST /query_call_graph ...")
+        print(f"POST /query_call_graph {query_payload}")
         r = requests.post(f"{BASE_URL}/query_call_graph", json=query_payload, timeout=60)
+        
+        # Read any available output
         output = read_proc_output_nonblocking(proc)
-        print(output)
+        if output:
+            print("Server output during query_call_graph:")
+            print(output)
+            
         assert_true(r.status_code == 200, f"/query_call_graph HTTP {r.status_code}: {r.text}")
         j = r.json()
         assert_true(j.get("success") is True, f"/query_call_graph success=false: {j}")
@@ -167,8 +193,13 @@ def run_tests():
         }
         print("POST /query_code_snippet ...")
         r = requests.post(f"{BASE_URL}/query_code_snippet", json=snippet_payload, timeout=60)
+        
+        # Read any available output
         output = read_proc_output_nonblocking(proc)
-        print(output)
+        if output:
+            print("Server output during query_code_snippet:")
+            print(output)
+            
         assert_true(r.status_code == 200, f"/query_code_snippet HTTP {r.status_code}: {r.text}")
         j = r.json()
         assert_true(j.get("success") is True, f"/query_code_snippet success=false: {j}")
@@ -182,8 +213,13 @@ def run_tests():
         }
         print("POST /query_code_skeleton ...")
         r = requests.post(f"{BASE_URL}/query_code_skeleton", json=skeleton_payload, timeout=60)
+        
+        # Read any available output
         output = read_proc_output_nonblocking(proc)
-        print(output)
+        if output:
+            print("Server output during query_code_skeleton:")
+            print(output)
+            
         assert_true(r.status_code == 200, f"/query_code_skeleton HTTP {r.status_code}: {r.text}")
         j = r.json()
         assert_true(j.get("success") is True, f"/query_code_skeleton success=false: {j}")
@@ -196,6 +232,7 @@ def run_tests():
         # Drain remaining output
         tail = read_proc_output_nonblocking(proc, limit_lines=1000)
         if tail:
+            print("Final server output:")
             print(tail)
 
 
