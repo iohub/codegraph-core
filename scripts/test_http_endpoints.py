@@ -159,7 +159,7 @@ def run_tests():
         print("/build_graph OK")
 
         # Choose a Rust file that certainly exists and has functions
-        filepath = str(REPO_ROOT / "src/http/handlers/mod.rs")
+        filepath = str(REPO_ROOT / "src/codegraph/graph.rs")
 
         # 2) query_call_graph
         query_payload = {
@@ -222,6 +222,7 @@ def run_tests():
             
         assert_true(r.status_code == 200, f"/query_code_skeleton HTTP {r.status_code}: {r.text}")
         j = r.json()
+        print(j["data"]["skeleton_text"])
         assert_true(j.get("success") is True, f"/query_code_skeleton success=false: {j}")
         print("/query_code_skeleton OK")
 
