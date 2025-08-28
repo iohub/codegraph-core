@@ -488,7 +488,7 @@ impl EntityGraph {
     /// 添加函数节点
     pub fn add_function(&mut self, function: FunctionInfo) -> NodeIndex {
         let id = function.id;
-        let file_path = function.file_path.clone();
+        let _file_path = function.file_path.clone();
         let language = function.language.clone();
 
         // 添加到petgraph

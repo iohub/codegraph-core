@@ -445,9 +445,9 @@ fn build_hierarchical_tree_from_function(
 /// Helper function to create default tree structure
 fn create_default_tree_structure(
     graph: &crate::codegraph::types::PetCodeGraph,
-    include_file_info: bool,
+    _include_file_info: bool,
 ) -> super::models::HierarchicalNode {
-    let stats = graph.get_stats();
+    let _stats = graph.get_stats();
     
     // Create a root node that contains all functions
     let mut root_node = super::models::HierarchicalNode {

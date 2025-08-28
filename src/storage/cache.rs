@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 #[derive(Debug, Clone)]
 struct CacheEntry<T> {
     data: T,
-    created_at: Instant,
+    _created_at: Instant,
     last_accessed: Instant,
     access_count: u64,
 }
@@ -16,7 +16,7 @@ impl<T> CacheEntry<T> {
         let now = Instant::now();
         Self {
             data,
-            created_at: now,
+            _created_at: now,
             last_accessed: now,
             access_count: 1,
         }

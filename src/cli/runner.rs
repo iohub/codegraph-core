@@ -110,7 +110,7 @@ impl CodeGraphRunner {
 
         // 显示统计信息
         if stats {
-            let stats = repo_manager.get_repository_stats();
+            let _stats = repo_manager.get_repository_stats();
             
         }
 

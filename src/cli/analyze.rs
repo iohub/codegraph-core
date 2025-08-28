@@ -55,7 +55,7 @@ pub fn run_analyze(args: &AnalyzeArgs) -> Result<(), Box<dyn std::error::Error>>
 
     // 显示统计信息
     if args.stats {
-        let stats = repo_manager.get_repository_stats();
+        let _stats = repo_manager.get_repository_stats();
 
     }
 
