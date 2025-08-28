@@ -26,9 +26,7 @@ pub async fn build_graph(
     }
     
     // Check for existing graph
-    let mut cache_hit_rate = 0.0;
     let _existing_graph: crate::codegraph::PetCodeGraph = if let Ok(Some(existing_graph)) = storage.get_persistence().load_graph(&project_id) {
-        cache_hit_rate = 0.8; // Assume 80% cache hit for existing graph
         existing_graph
     } else {
         // Create new graph using CodeAnalyzer
@@ -115,7 +113,6 @@ pub async fn build_graph(
         total_files,
         total_functions,
         build_time_ms,
-        cache_hit_rate,
     };
     
     Ok(Json(ApiResponse {
