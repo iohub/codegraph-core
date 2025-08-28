@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use clap::Args;
 use tracing::{info, warn};
 
-use crate::codegraph::repository_manager::RepositoryManager;
+use crate::codegraph::repository::RepositoryManager;
 
 #[derive(Args)]
 pub struct AnalyzeArgs {
@@ -55,7 +55,7 @@ pub fn run_analyze(args: &AnalyzeArgs) -> Result<(), Box<dyn std::error::Error>>
 
     // 显示统计信息
     if args.stats {
-        let stats = repo_manager.get_repository_stats();
+        let _stats = repo_manager.get_repository_stats();
 
     }
 

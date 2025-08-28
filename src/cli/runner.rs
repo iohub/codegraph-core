@@ -3,7 +3,7 @@ use tracing::{info, Level, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::codegraph::parser::CodeParser;
-use crate::codegraph::PetGraphStorageManager;
+use crate::storage::PetGraphStorageManager;
 use super::args::{Cli, Commands};
 
 pub struct CodeGraphRunner;
@@ -81,7 +81,7 @@ impl CodeGraphRunner {
         search: Option<String>,
         stats: bool,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        use crate::codegraph::repository_manager::RepositoryManager;
+        use crate::codegraph::repository::RepositoryManager;
 
         info!("Starting repository analysis for: {}", path.display());
 
@@ -110,7 +110,7 @@ impl CodeGraphRunner {
 
         // 显示统计信息
         if stats {
-            let stats = repo_manager.get_repository_stats();
+            let _stats = repo_manager.get_repository_stats();
             
         }
 
@@ -158,11 +158,7 @@ impl CodeGraphRunner {
                 PetGraphStorageManager::save_to_file(code_graph, output_path)?;
                 info!("Code graph saved to JSON file: {:?}", output_path);
             }
-            "mermaid" => {
-                let mermaid = code_graph.to_mermaid();
-                std::fs::write(output_path, mermaid)?;
-                info!("Code graph saved to Mermaid file: {:?}", output_path);
-            }
+
             "dot" => {
                 let dot = code_graph.to_dot();
                 std::fs::write(output_path, dot)?;

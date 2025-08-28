@@ -313,7 +313,7 @@ impl IncrementalManager {
         // 获取文件的所有实体ID
         let entity_ids = self.file_index.get_all_entity_ids(file_path);
         let function_ids = self.file_index.get_all_function_ids(file_path);
-        let class_ids = self.file_index.get_all_class_ids(file_path);
+        let _class_ids = self.file_index.get_all_class_ids(file_path);
 
         // 从图中移除
         for entity_id in entity_ids {
@@ -347,7 +347,7 @@ impl IncrementalManager {
         let content = fs::read_to_string(file_path)
             .map_err(|e| format!("Failed to read file for snippet indexing: {}", e))?;
 
-        let lines: Vec<&str> = content.lines().collect();
+        let _lines: Vec<&str> = content.lines().collect();
 
         // 为类添加代码片段
         for &class_id in class_ids {

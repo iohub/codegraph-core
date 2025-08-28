@@ -13,8 +13,8 @@ pub(crate) mod rust;
 mod tests;
 mod utils;
 mod java;
-mod cpp;
-mod ts;
+pub(crate) mod cpp;
+pub(crate) mod ts;
 mod js;
 
 

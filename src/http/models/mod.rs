@@ -1,10 +1,12 @@
 pub mod build;
 pub mod query;
 pub mod snippet;
+pub mod skeleton;
 
 pub use build::*;
 pub use query::*;
 pub use snippet::*;
+pub use skeleton::*;
 
 use serde::{Deserialize, Serialize};
 

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 use tracing::info;
 
-use crate::codegraph::types::{SnippetIndex, SnippetInfo, EntityGraph, PetCodeGraph};
+use crate::codegraph::types::{SnippetIndex, EntityGraph, PetCodeGraph};
 
 /// 代码片段查询服务
 pub struct SnippetService {

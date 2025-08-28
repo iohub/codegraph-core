@@ -13,5 +13,4 @@ pub struct BuildGraphResponse {
     pub total_files: usize,
     pub total_functions: usize,
     pub build_time_ms: u64,
-    pub cache_hit_rate: f64,
 } 
