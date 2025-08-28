@@ -28,4 +28,34 @@ pub struct CallRelation {
 pub struct QueryCallGraphResponse {
     pub filepath: String,
     pub functions: Vec<FunctionInfo>,
+}
+
+// New models for hierarchical tree structure output
+#[derive(Debug, Deserialize)]
+pub struct QueryHierarchicalGraphRequest {
+    pub project_id: Option<String>,
+    pub root_function: Option<String>,
+    pub max_depth: Option<usize>,
+    pub include_file_info: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HierarchicalNode {
+    pub name: String,
+    pub function_id: Option<String>,
+    pub file_path: Option<String>,
+    pub line_start: Option<usize>,
+    pub line_end: Option<usize>,
+    pub children: Vec<HierarchicalNode>,
+    pub call_type: Option<String>, // "direct", "indirect", etc.
+}
+
+#[derive(Debug, Serialize)]
+pub struct QueryHierarchicalGraphResponse {
+    pub project_id: String,
+    pub root_function: Option<String>,
+    pub max_depth: usize,
+    pub tree_structure: HierarchicalNode,
+    pub total_functions: usize,
+    pub total_relations: usize,
 } 

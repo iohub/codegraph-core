@@ -9,7 +9,7 @@ use tower_http::cors::CorsLayer;
 use crate::storage::StorageManager;
 
 use super::{
-    handlers::{build_graph, query_call_graph, query_code_snippet, query_code_skeleton},
+    handlers::{build_graph, query_call_graph, query_code_snippet, query_code_skeleton, query_hierarchical_graph},
     models::ApiResponse,
 };
 
@@ -42,6 +42,7 @@ impl CodeGraphServer {
             .route("/query_call_graph", post(query_call_graph))
             .route("/query_code_snippet", post(query_code_snippet))
             .route("/query_code_skeleton", post(query_code_skeleton))
+            .route("/query_hierarchical_graph", post(query_hierarchical_graph))
             .layer(cors)
             .with_state(self.storage)
     }
