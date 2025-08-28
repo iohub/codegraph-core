@@ -2,463 +2,7 @@
   "graph": {
     "nodes": [
       {
-        "id": "b3f021d7-cbd6-4ef1-8b71-b84ed316fc77",
-        "name": "fetch_data",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 21,
-        "line_end": 24,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "fetch_data()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "2c10c4e5-8cd6-4b99-b6c6-7abbf16d061e",
-        "name": "format_output",
-        "file_path": "tests/test_repos/simple_rust_project/src/utils.rs",
-        "line_start": 14,
-        "line_end": 17,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "format_output()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "fda5715b-653a-4403-9502-fcb877d3ceee",
-        "name": "add_offset",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 43,
-        "line_end": 45,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "add_offset()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "value",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "ce9c6e85-cd8b-48e5-a230-5aec20a4ad0c",
-        "name": "process_list",
-        "file_path": "tests/test_repos/simple_rust_project/src/utils.rs",
-        "line_start": 23,
-        "line_end": 30,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "process_list()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "0351a53c-9334-4e0c-95f4-a089ef8a0fe2",
-        "name": "log_operation",
-        "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
-        "line_start": 29,
-        "line_end": 33,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "log_operation()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "4665bb64-193a-4854-8d0e-9660ad33018e",
-        "name": "validate_result",
-        "file_path": "tests/test_repos/simple_rust_project/src/utils.rs",
-        "line_start": 6,
-        "line_end": 12,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "validate_result()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "2084b44a-e005-4880-ba6c-986eac513c28",
-        "name": "compute_value",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 106,
-        "line_end": 109,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "compute_value()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "cdd78880-cab0-44f6-afd7-ca9f1410627f",
-        "name": "calculate_sum",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 59,
-        "line_end": 65,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "calculate_sum()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "90a7701d-94e1-4181-af64-d02679c5d275",
-        "name": "process_data",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 15,
-        "line_end": 19,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "process_data()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "5fdd4952-9cc9-40b4-9dd9-2718a3670eb2",
-        "name": "process",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 96,
-        "line_end": 104,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "process()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "de5843fe-42c4-44cc-9b96-41ccb0d98202",
-        "name": "process_item",
-        "file_path": "tests/test_repos/simple_rust_project/src/utils.rs",
-        "line_start": 32,
-        "line_end": 38,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "process_item()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "0f4967a4-b07f-48b4-bb41-7bf29bbdb1b8",
-        "name": "parse_raw_data",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 30,
-        "line_end": 32,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "parse_raw_data()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "e66551d9-219b-4baf-8809-535cc54a3bcb",
-        "name": "new",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 90,
-        "line_end": 94,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "new()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "0959e33b-52e2-4512-abdc-6c6e3a877b87",
-        "name": "add_to_sum",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 67,
-        "line_end": 69,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "add_to_sum()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "value",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "32846a12-30ec-4226-a065-f623521bdf77",
-        "name": "get_operator_symbol",
-        "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
-        "line_start": 35,
-        "line_end": 43,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "get_operator_symbol()",
-        "return_type": "unknown",
-        "parameters": []
-      },
-      {
-        "id": "23bd67af-8f56-442f-8571-129ae030a42b",
-        "name": "subtract",
-        "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
-        "line_start": 7,
-        "line_end": 11,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "subtract()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "10b6d432-9798-439d-9bb5-232de76308d8",
-        "name": "apply_multiplier",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 115,
-        "line_end": 117,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "apply_multiplier()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "d7b3d7d7-8b37-4f55-9a00-7cdaf33084b5",
-        "name": "is_even",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 81,
-        "line_end": 83,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "is_even()",
-        "return_type": "bool",
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "ed45dacd-3b4b-424b-b21c-bdab69b96779",
-        "name": "divide",
-        "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
-        "line_start": 19,
-        "line_end": 27,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "divide()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "992a48b9-2191-4ccf-b5b3-c3e1acde1625",
-        "name": "default_value",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 55,
-        "line_end": 57,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "default_value()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "1a7b4698-883c-45f9-9418-6e7c8a189f9f",
-        "name": "complex_calculation",
-        "file_path": "tests/test_repos/simple_rust_project/src/lib.rs",
-        "line_start": 13,
-        "line_end": 17,
-        "namespace": "tests",
-        "language": "rust",
-        "signature": "complex_calculation()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "23591634-32a8-421d-bae8-79e1da66a01f",
-        "name": "transform_data",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 34,
-        "line_end": 37,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "transform_data()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "0549c923-4091-4235-823d-b3f9f3a6822d",
-        "name": "add",
-        "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
-        "line_start": 1,
-        "line_end": 5,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "add()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "value",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "dd773e9c-1d2f-4b6d-8e15-a0d1ecd2bb5d",
-        "name": "double_value",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 39,
-        "line_end": 41,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "double_value()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "ebc08d4b-1b3b-4ca6-83b5-ebe5d2f18bce",
-        "name": "public_function",
-        "file_path": "tests/test_repos/simple_rust_project/src/lib.rs",
-        "line_start": 4,
-        "line_end": 7,
-        "namespace": "tests",
-        "language": "rust",
-        "signature": "public_function()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "01a06da6-f0c2-4ef0-bc0a-1f7a08a422c9",
-        "name": "get_raw_data",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 26,
-        "line_end": 28,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "get_raw_data()",
-        "return_type": "unknown",
-        "parameters": []
-      },
-      {
-        "id": "0ecf5aa9-0854-4dea-8852-5cdb2255cfda",
+        "id": "e7193556-3bd5-4188-9b88-ec5ebdad710a",
         "name": "validate_data",
         "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
         "line_start": 47,
@@ -476,19 +20,25 @@
         ]
       },
       {
-        "id": "c4fe290a-dc46-47db-a9d4-22626bfc7821",
-        "name": "get_base_value",
+        "id": "51a0a037-fb0a-4b94-be7e-24a037f802b5",
+        "name": "parse_raw_data",
         "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 111,
-        "line_end": 113,
+        "line_start": 30,
+        "line_end": 32,
         "namespace": "crate",
         "language": "rust",
-        "signature": "get_base_value()",
-        "return_type": "unknown",
-        "parameters": []
+        "signature": "parse_raw_data()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
       },
       {
-        "id": "ac347294-39cd-4301-aa6c-06c6b7d65bbb",
+        "id": "0b3ac5ab-ac7a-4c28-bd9c-729ee68fb88f",
         "name": "private_helper",
         "file_path": "tests/test_repos/simple_rust_project/src/lib.rs",
         "line_start": 9,
@@ -506,73 +56,7 @@
         ]
       },
       {
-        "id": "095f8ab2-bf38-4617-85d9-3e9049bd75c0",
-        "name": "apply_transform",
-        "file_path": "tests/test_repos/simple_rust_project/src/utils.rs",
-        "line_start": 1,
-        "line_end": 4,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "apply_transform()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "e865ce0d-3b54-41a4-bd78-f6345d6aa974",
-        "name": "main",
-        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
-        "line_start": 3,
-        "line_end": 13,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "main()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "5ee47571-2169-4b00-97ff-56a8b14990a7",
-        "name": "factorial",
-        "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
-        "line_start": 45,
-        "line_end": 51,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "factorial()",
-        "return_type": null,
-        "parameters": [
-          {
-            "name": "input",
-            "type_name": "unknown",
-            "default_value": null
-          }
-        ]
-      },
-      {
-        "id": "3a566a93-fe0f-4b68-b167-4cae3b53d767",
-        "name": "get_prefix",
-        "file_path": "tests/test_repos/simple_rust_project/src/utils.rs",
-        "line_start": 19,
-        "line_end": 21,
-        "namespace": "crate",
-        "language": "rust",
-        "signature": "get_prefix()",
-        "return_type": "unknown",
-        "parameters": []
-      },
-      {
-        "id": "c24a1466-76e9-4b5b-908a-5e9e22fc25c9",
+        "id": "73d33a6f-b06d-4140-b9c0-e90aca62f96b",
         "name": "filter_even_numbers",
         "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
         "line_start": 71,
@@ -590,7 +74,259 @@
         ]
       },
       {
-        "id": "4c23151d-d9a9-4dee-8c54-152edbd6cf3c",
+        "id": "bab5ce72-6c08-45c5-ab84-975ec80335fb",
+        "name": "get_raw_data",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 26,
+        "line_end": 28,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "get_raw_data()",
+        "return_type": "unknown",
+        "parameters": []
+      },
+      {
+        "id": "dc993111-226f-498a-a5b8-7fb3f8c28ef9",
+        "name": "factorial",
+        "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
+        "line_start": 45,
+        "line_end": 51,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "factorial()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "8d7c0cb9-752e-4797-9493-13f128cc0e4a",
+        "name": "apply_multiplier",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 115,
+        "line_end": 117,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "apply_multiplier()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "e08abbbc-4658-42cd-8bf6-625124f5e580",
+        "name": "get_base_value",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 111,
+        "line_end": 113,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "get_base_value()",
+        "return_type": "unknown",
+        "parameters": []
+      },
+      {
+        "id": "93676094-0a69-43c6-9d55-40b70f966376",
+        "name": "default_value",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 55,
+        "line_end": 57,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "default_value()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "e35f2f34-3023-4d79-a2a4-e98e92a2e65b",
+        "name": "add",
+        "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
+        "line_start": 1,
+        "line_end": 5,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "add()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "value",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "84a18f0f-bffb-45ae-b068-aa8e2d08b3d3",
+        "name": "apply_transform",
+        "file_path": "tests/test_repos/simple_rust_project/src/utils.rs",
+        "line_start": 1,
+        "line_end": 4,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "apply_transform()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "30088c38-4555-456a-b71c-f4ed65095422",
+        "name": "new",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 90,
+        "line_end": 94,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "new()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "6ada6693-14cc-4edd-9efd-ccf54c9efd5a",
+        "name": "subtract",
+        "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
+        "line_start": 7,
+        "line_end": 11,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "subtract()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "db45c3c4-29de-4dbe-8a83-e14b2969c280",
+        "name": "get_prefix",
+        "file_path": "tests/test_repos/simple_rust_project/src/utils.rs",
+        "line_start": 19,
+        "line_end": 21,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "get_prefix()",
+        "return_type": "unknown",
+        "parameters": []
+      },
+      {
+        "id": "51b53a63-a234-4242-8854-d9185a609798",
+        "name": "divide",
+        "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
+        "line_start": 19,
+        "line_end": 27,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "divide()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "02e376a9-9472-4ce8-8fcc-e7911c047c1a",
+        "name": "is_even",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 81,
+        "line_end": 83,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "is_even()",
+        "return_type": "bool",
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "97ea08cb-f114-4768-8a87-3c76af330fa8",
+        "name": "process_list",
+        "file_path": "tests/test_repos/simple_rust_project/src/utils.rs",
+        "line_start": 23,
+        "line_end": 30,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "process_list()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "4ab9812d-c91c-4e48-bbe8-bd2be6908567",
+        "name": "public_function",
+        "file_path": "tests/test_repos/simple_rust_project/src/lib.rs",
+        "line_start": 4,
+        "line_end": 7,
+        "namespace": "tests",
+        "language": "rust",
+        "signature": "public_function()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "61d0aa48-aad6-4e4f-b6bb-a5fc3dbb6def",
+        "name": "main",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 3,
+        "line_end": 13,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "main()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "c294eb01-0c51-4ed0-b86d-cf194114cd69",
         "name": "fibonacci",
         "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
         "line_start": 53,
@@ -608,7 +344,217 @@
         ]
       },
       {
-        "id": "a4e08a77-9eb8-445d-b1a1-8ee6884e5854",
+        "id": "84ff3020-3d02-4cfa-a019-601582056919",
+        "name": "process_data",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 15,
+        "line_end": 19,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "process_data()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "20b9659c-a148-4ccf-b2f7-8563fe3ec2c2",
+        "name": "process",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 96,
+        "line_end": 104,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "process()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "0a516605-8acb-4187-b714-9c0907d0fef6",
+        "name": "fetch_data",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 21,
+        "line_end": 24,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "fetch_data()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "f48a9e6a-6ade-4522-aaba-872e28b18211",
+        "name": "process_item",
+        "file_path": "tests/test_repos/simple_rust_project/src/utils.rs",
+        "line_start": 32,
+        "line_end": 38,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "process_item()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "f4276712-c2c6-486a-ad68-04d0379897f7",
+        "name": "validate_result",
+        "file_path": "tests/test_repos/simple_rust_project/src/utils.rs",
+        "line_start": 6,
+        "line_end": 12,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "validate_result()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "36dd172c-657b-425a-a73a-85f5c8d6045d",
+        "name": "log_operation",
+        "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
+        "line_start": 29,
+        "line_end": 33,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "log_operation()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "310aed46-8571-4c2f-ac30-e726bb1d7ce4",
+        "name": "transform_data",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 34,
+        "line_end": 37,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "transform_data()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "2e8d237f-4331-4043-9abc-1d32e83a41af",
+        "name": "double_value",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 39,
+        "line_end": 41,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "double_value()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "2be1786d-564e-4fd0-95c7-9b984746a93a",
+        "name": "get_operator_symbol",
+        "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
+        "line_start": 35,
+        "line_end": 43,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "get_operator_symbol()",
+        "return_type": "unknown",
+        "parameters": []
+      },
+      {
+        "id": "52f43a9d-4588-49d7-b720-cdb1c3421400",
+        "name": "calculate_sum",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 59,
+        "line_end": 65,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "calculate_sum()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "64ceb344-2f24-4fe8-a05a-d0c8814a8427",
+        "name": "add_offset",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 43,
+        "line_end": 45,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "add_offset()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "value",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "eeb5b095-3498-448d-98b0-64f923cb5ad5",
+        "name": "add_to_sum",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 67,
+        "line_end": 69,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "add_to_sum()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "value",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "7c8d0a3a-83a0-4265-8aee-d294f31c775b",
         "name": "multiply",
         "file_path": "tests/test_repos/simple_rust_project/src/math.rs",
         "line_start": 13,
@@ -624,255 +570,71 @@
             "default_value": null
           }
         ]
+      },
+      {
+        "id": "26d0ba24-fe74-463e-a7b8-8c6a383083bf",
+        "name": "format_output",
+        "file_path": "tests/test_repos/simple_rust_project/src/utils.rs",
+        "line_start": 14,
+        "line_end": 17,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "format_output()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "0b8f1b8a-83ef-4763-8bc6-008deefaaa2b",
+        "name": "compute_value",
+        "file_path": "tests/test_repos/simple_rust_project/src/main.rs",
+        "line_start": 106,
+        "line_end": 109,
+        "namespace": "crate",
+        "language": "rust",
+        "signature": "compute_value()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
+      },
+      {
+        "id": "d40b7890-523b-4e59-8559-58913ed251fa",
+        "name": "complex_calculation",
+        "file_path": "tests/test_repos/simple_rust_project/src/lib.rs",
+        "line_start": 13,
+        "line_end": 17,
+        "namespace": "tests",
+        "language": "rust",
+        "signature": "complex_calculation()",
+        "return_type": null,
+        "parameters": [
+          {
+            "name": "input",
+            "type_name": "unknown",
+            "default_value": null
+          }
+        ]
       }
     ],
     "node_holes": [],
     "edge_property": "directed",
     "edges": [
       [
-        30,
-        8,
-        {
-          "caller_id": "e865ce0d-3b54-41a4-bd78-f6345d6aa974",
-          "callee_id": "90a7701d-94e1-4181-af64-d02679c5d275",
-          "caller_name": "main",
-          "callee_name": "process_data",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 4,
-          "is_resolved": true
-        }
-      ],
-      [
-        30,
-        7,
-        {
-          "caller_id": "e865ce0d-3b54-41a4-bd78-f6345d6aa974",
-          "callee_id": "cdd78880-cab0-44f6-afd7-ca9f1410627f",
-          "caller_name": "main",
-          "callee_name": "calculate_sum",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 8,
-          "is_resolved": true
-        }
-      ],
-      [
-        30,
-        33,
-        {
-          "caller_id": "e865ce0d-3b54-41a4-bd78-f6345d6aa974",
-          "callee_id": "c24a1466-76e9-4b5b-908a-5e9e22fc25c9",
-          "caller_name": "main",
-          "callee_name": "filter_even_numbers",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 11,
-          "is_resolved": true
-        }
-      ],
-      [
-        8,
-        0,
-        {
-          "caller_id": "90a7701d-94e1-4181-af64-d02679c5d275",
-          "callee_id": "b3f021d7-cbd6-4ef1-8b71-b84ed316fc77",
-          "caller_name": "process_data",
-          "callee_name": "fetch_data",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 16,
-          "is_resolved": true
-        }
-      ],
-      [
-        8,
-        21,
-        {
-          "caller_id": "90a7701d-94e1-4181-af64-d02679c5d275",
-          "callee_id": "23591634-32a8-421d-bae8-79e1da66a01f",
-          "caller_name": "process_data",
-          "callee_name": "transform_data",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 17,
-          "is_resolved": true
-        }
-      ],
-      [
-        8,
-        26,
-        {
-          "caller_id": "90a7701d-94e1-4181-af64-d02679c5d275",
-          "callee_id": "0ecf5aa9-0854-4dea-8852-5cdb2255cfda",
-          "caller_name": "process_data",
-          "callee_name": "validate_data",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 18,
-          "is_resolved": true
-        }
-      ],
-      [
-        0,
+        9,
         25,
         {
-          "caller_id": "b3f021d7-cbd6-4ef1-8b71-b84ed316fc77",
-          "callee_id": "01a06da6-f0c2-4ef0-bc0a-1f7a08a422c9",
-          "caller_name": "fetch_data",
-          "callee_name": "get_raw_data",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 22,
-          "is_resolved": true
-        }
-      ],
-      [
-        0,
-        11,
-        {
-          "caller_id": "b3f021d7-cbd6-4ef1-8b71-b84ed316fc77",
-          "callee_id": "0f4967a4-b07f-48b4-bb41-7bf29bbdb1b8",
-          "caller_name": "fetch_data",
-          "callee_name": "parse_raw_data",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 23,
-          "is_resolved": true
-        }
-      ],
-      [
-        21,
-        23,
-        {
-          "caller_id": "23591634-32a8-421d-bae8-79e1da66a01f",
-          "callee_id": "dd773e9c-1d2f-4b6d-8e15-a0d1ecd2bb5d",
-          "caller_name": "transform_data",
-          "callee_name": "double_value",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 35,
-          "is_resolved": true
-        }
-      ],
-      [
-        21,
-        2,
-        {
-          "caller_id": "23591634-32a8-421d-bae8-79e1da66a01f",
-          "callee_id": "fda5715b-653a-4403-9502-fcb877d3ceee",
-          "caller_name": "transform_data",
-          "callee_name": "add_offset",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 36,
-          "is_resolved": true
-        }
-      ],
-      [
-        26,
-        19,
-        {
-          "caller_id": "0ecf5aa9-0854-4dea-8852-5cdb2255cfda",
-          "callee_id": "992a48b9-2191-4ccf-b5b3-c3e1acde1625",
-          "caller_name": "validate_data",
-          "callee_name": "default_value",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 51,
-          "is_resolved": true
-        }
-      ],
-      [
-        7,
-        13,
-        {
-          "caller_id": "cdd78880-cab0-44f6-afd7-ca9f1410627f",
-          "callee_id": "0959e33b-52e2-4512-abdc-6c6e3a877b87",
-          "caller_name": "calculate_sum",
-          "callee_name": "add_to_sum",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 62,
-          "is_resolved": true
-        }
-      ],
-      [
-        33,
-        12,
-        {
-          "caller_id": "c24a1466-76e9-4b5b-908a-5e9e22fc25c9",
-          "callee_id": "e66551d9-219b-4baf-8809-535cc54a3bcb",
-          "caller_name": "filter_even_numbers",
-          "callee_name": "new",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 72,
-          "is_resolved": true
-        }
-      ],
-      [
-        33,
-        17,
-        {
-          "caller_id": "c24a1466-76e9-4b5b-908a-5e9e22fc25c9",
-          "callee_id": "d7b3d7d7-8b37-4f55-9a00-7cdaf33084b5",
-          "caller_name": "filter_even_numbers",
-          "callee_name": "is_even",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 74,
-          "is_resolved": true
-        }
-      ],
-      [
-        9,
-        6,
-        {
-          "caller_id": "5fdd4952-9cc9-40b4-9dd9-2718a3670eb2",
-          "callee_id": "2084b44a-e005-4880-ba6c-986eac513c28",
-          "caller_name": "process",
-          "callee_name": "compute_value",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 101,
-          "is_resolved": true
-        }
-      ],
-      [
-        6,
-        27,
-        {
-          "caller_id": "2084b44a-e005-4880-ba6c-986eac513c28",
-          "callee_id": "c4fe290a-dc46-47db-a9d4-22626bfc7821",
-          "caller_name": "compute_value",
-          "callee_name": "get_base_value",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 107,
-          "is_resolved": true
-        }
-      ],
-      [
-        6,
-        16,
-        {
-          "caller_id": "2084b44a-e005-4880-ba6c-986eac513c28",
-          "callee_id": "10b6d432-9798-439d-9bb5-232de76308d8",
-          "caller_name": "compute_value",
-          "callee_name": "apply_multiplier",
-          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
-          "line_number": 108,
-          "is_resolved": true
-        }
-      ],
-      [
-        22,
-        4,
-        {
-          "caller_id": "0549c923-4091-4235-823d-b3f9f3a6822d",
-          "callee_id": "0351a53c-9334-4e0c-95f4-a089ef8a0fe2",
+          "caller_id": "e35f2f34-3023-4d79-a2a4-e98e92a2e65b",
+          "callee_id": "36dd172c-657b-425a-a73a-85f5c8d6045d",
           "caller_name": "add",
           "callee_name": "log_operation",
           "caller_file": "tests/test_repos/simple_rust_project/src/math.rs",
@@ -882,11 +644,11 @@
         }
       ],
       [
-        15,
-        4,
+        12,
+        25,
         {
-          "caller_id": "23bd67af-8f56-442f-8571-129ae030a42b",
-          "callee_id": "0351a53c-9334-4e0c-95f4-a089ef8a0fe2",
+          "caller_id": "6ada6693-14cc-4edd-9efd-ccf54c9efd5a",
+          "callee_id": "36dd172c-657b-425a-a73a-85f5c8d6045d",
           "caller_name": "subtract",
           "callee_name": "log_operation",
           "caller_file": "tests/test_repos/simple_rust_project/src/math.rs",
@@ -896,11 +658,11 @@
         }
       ],
       [
-        35,
-        4,
+        32,
+        25,
         {
-          "caller_id": "a4e08a77-9eb8-445d-b1a1-8ee6884e5854",
-          "callee_id": "0351a53c-9334-4e0c-95f4-a089ef8a0fe2",
+          "caller_id": "7c8d0a3a-83a0-4265-8aee-d294f31c775b",
+          "callee_id": "36dd172c-657b-425a-a73a-85f5c8d6045d",
           "caller_name": "multiply",
           "callee_name": "log_operation",
           "caller_file": "tests/test_repos/simple_rust_project/src/math.rs",
@@ -910,11 +672,11 @@
         }
       ],
       [
-        18,
-        4,
+        14,
+        25,
         {
-          "caller_id": "ed45dacd-3b4b-424b-b21c-bdab69b96779",
-          "callee_id": "0351a53c-9334-4e0c-95f4-a089ef8a0fe2",
+          "caller_id": "51b53a63-a234-4242-8854-d9185a609798",
+          "callee_id": "36dd172c-657b-425a-a73a-85f5c8d6045d",
           "caller_name": "divide",
           "callee_name": "log_operation",
           "caller_file": "tests/test_repos/simple_rust_project/src/math.rs",
@@ -924,11 +686,11 @@
         }
       ],
       [
-        31,
-        31,
+        5,
+        5,
         {
-          "caller_id": "5ee47571-2169-4b00-97ff-56a8b14990a7",
-          "callee_id": "5ee47571-2169-4b00-97ff-56a8b14990a7",
+          "caller_id": "dc993111-226f-498a-a5b8-7fb3f8c28ef9",
+          "callee_id": "dc993111-226f-498a-a5b8-7fb3f8c28ef9",
           "caller_name": "factorial",
           "callee_name": "factorial",
           "caller_file": "tests/test_repos/simple_rust_project/src/math.rs",
@@ -938,11 +700,11 @@
         }
       ],
       [
-        34,
-        34,
+        19,
+        19,
         {
-          "caller_id": "4c23151d-d9a9-4dee-8c54-152edbd6cf3c",
-          "callee_id": "4c23151d-d9a9-4dee-8c54-152edbd6cf3c",
+          "caller_id": "c294eb01-0c51-4ed0-b86d-cf194114cd69",
+          "callee_id": "c294eb01-0c51-4ed0-b86d-cf194114cd69",
           "caller_name": "fibonacci",
           "callee_name": "fibonacci",
           "caller_file": "tests/test_repos/simple_rust_project/src/math.rs",
@@ -952,11 +714,11 @@
         }
       ],
       [
-        34,
-        34,
+        19,
+        19,
         {
-          "caller_id": "4c23151d-d9a9-4dee-8c54-152edbd6cf3c",
-          "callee_id": "4c23151d-d9a9-4dee-8c54-152edbd6cf3c",
+          "caller_id": "c294eb01-0c51-4ed0-b86d-cf194114cd69",
+          "callee_id": "c294eb01-0c51-4ed0-b86d-cf194114cd69",
           "caller_name": "fibonacci",
           "callee_name": "fibonacci",
           "caller_file": "tests/test_repos/simple_rust_project/src/math.rs",
@@ -966,16 +728,44 @@
         }
       ],
       [
-        24,
-        28,
+        18,
+        20,
         {
-          "caller_id": "ebc08d4b-1b3b-4ca6-83b5-ebe5d2f18bce",
-          "callee_id": "ac347294-39cd-4301-aa6c-06c6b7d65bbb",
-          "caller_name": "public_function",
-          "callee_name": "private_helper",
-          "caller_file": "tests/test_repos/simple_rust_project/src/lib.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/lib.rs",
-          "line_number": 5,
+          "caller_id": "61d0aa48-aad6-4e4f-b6bb-a5fc3dbb6def",
+          "callee_id": "84ff3020-3d02-4cfa-a019-601582056919",
+          "caller_name": "main",
+          "callee_name": "process_data",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 4,
+          "is_resolved": true
+        }
+      ],
+      [
+        18,
+        29,
+        {
+          "caller_id": "61d0aa48-aad6-4e4f-b6bb-a5fc3dbb6def",
+          "callee_id": "52f43a9d-4588-49d7-b720-cdb1c3421400",
+          "caller_name": "main",
+          "callee_name": "calculate_sum",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 8,
+          "is_resolved": true
+        }
+      ],
+      [
+        18,
+        3,
+        {
+          "caller_id": "61d0aa48-aad6-4e4f-b6bb-a5fc3dbb6def",
+          "callee_id": "73d33a6f-b06d-4140-b9c0-e90aca62f96b",
+          "caller_name": "main",
+          "callee_name": "filter_even_numbers",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 11,
           "is_resolved": true
         }
       ],
@@ -983,50 +773,204 @@
         20,
         22,
         {
-          "caller_id": "1a7b4698-883c-45f9-9418-6e7c8a189f9f",
-          "callee_id": "0549c923-4091-4235-823d-b3f9f3a6822d",
-          "caller_name": "complex_calculation",
-          "callee_name": "add",
-          "caller_file": "tests/test_repos/simple_rust_project/src/lib.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/math.rs",
-          "line_number": 14,
-          "is_resolved": true
-        }
-      ],
-      [
-        20,
-        35,
-        {
-          "caller_id": "1a7b4698-883c-45f9-9418-6e7c8a189f9f",
-          "callee_id": "a4e08a77-9eb8-445d-b1a1-8ee6884e5854",
-          "caller_name": "complex_calculation",
-          "callee_name": "multiply",
-          "caller_file": "tests/test_repos/simple_rust_project/src/lib.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/math.rs",
-          "line_number": 15,
-          "is_resolved": true
-        }
-      ],
-      [
-        20,
-        29,
-        {
-          "caller_id": "1a7b4698-883c-45f9-9418-6e7c8a189f9f",
-          "callee_id": "095f8ab2-bf38-4617-85d9-3e9049bd75c0",
-          "caller_name": "complex_calculation",
-          "callee_name": "apply_transform",
-          "caller_file": "tests/test_repos/simple_rust_project/src/lib.rs",
-          "callee_file": "tests/test_repos/simple_rust_project/src/utils.rs",
+          "caller_id": "84ff3020-3d02-4cfa-a019-601582056919",
+          "callee_id": "0a516605-8acb-4187-b714-9c0907d0fef6",
+          "caller_name": "process_data",
+          "callee_name": "fetch_data",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
           "line_number": 16,
           "is_resolved": true
         }
       ],
       [
-        29,
-        5,
+        20,
+        26,
         {
-          "caller_id": "095f8ab2-bf38-4617-85d9-3e9049bd75c0",
-          "callee_id": "4665bb64-193a-4854-8d0e-9660ad33018e",
+          "caller_id": "84ff3020-3d02-4cfa-a019-601582056919",
+          "callee_id": "310aed46-8571-4c2f-ac30-e726bb1d7ce4",
+          "caller_name": "process_data",
+          "callee_name": "transform_data",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 17,
+          "is_resolved": true
+        }
+      ],
+      [
+        20,
+        0,
+        {
+          "caller_id": "84ff3020-3d02-4cfa-a019-601582056919",
+          "callee_id": "e7193556-3bd5-4188-9b88-ec5ebdad710a",
+          "caller_name": "process_data",
+          "callee_name": "validate_data",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 18,
+          "is_resolved": true
+        }
+      ],
+      [
+        22,
+        4,
+        {
+          "caller_id": "0a516605-8acb-4187-b714-9c0907d0fef6",
+          "callee_id": "bab5ce72-6c08-45c5-ab84-975ec80335fb",
+          "caller_name": "fetch_data",
+          "callee_name": "get_raw_data",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 22,
+          "is_resolved": true
+        }
+      ],
+      [
+        22,
+        1,
+        {
+          "caller_id": "0a516605-8acb-4187-b714-9c0907d0fef6",
+          "callee_id": "51a0a037-fb0a-4b94-be7e-24a037f802b5",
+          "caller_name": "fetch_data",
+          "callee_name": "parse_raw_data",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 23,
+          "is_resolved": true
+        }
+      ],
+      [
+        26,
+        27,
+        {
+          "caller_id": "310aed46-8571-4c2f-ac30-e726bb1d7ce4",
+          "callee_id": "2e8d237f-4331-4043-9abc-1d32e83a41af",
+          "caller_name": "transform_data",
+          "callee_name": "double_value",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 35,
+          "is_resolved": true
+        }
+      ],
+      [
+        26,
+        30,
+        {
+          "caller_id": "310aed46-8571-4c2f-ac30-e726bb1d7ce4",
+          "callee_id": "64ceb344-2f24-4fe8-a05a-d0c8814a8427",
+          "caller_name": "transform_data",
+          "callee_name": "add_offset",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 36,
+          "is_resolved": true
+        }
+      ],
+      [
+        0,
+        8,
+        {
+          "caller_id": "e7193556-3bd5-4188-9b88-ec5ebdad710a",
+          "callee_id": "93676094-0a69-43c6-9d55-40b70f966376",
+          "caller_name": "validate_data",
+          "callee_name": "default_value",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 51,
+          "is_resolved": true
+        }
+      ],
+      [
+        29,
+        31,
+        {
+          "caller_id": "52f43a9d-4588-49d7-b720-cdb1c3421400",
+          "callee_id": "eeb5b095-3498-448d-98b0-64f923cb5ad5",
+          "caller_name": "calculate_sum",
+          "callee_name": "add_to_sum",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 62,
+          "is_resolved": true
+        }
+      ],
+      [
+        3,
+        11,
+        {
+          "caller_id": "73d33a6f-b06d-4140-b9c0-e90aca62f96b",
+          "callee_id": "30088c38-4555-456a-b71c-f4ed65095422",
+          "caller_name": "filter_even_numbers",
+          "callee_name": "new",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 72,
+          "is_resolved": true
+        }
+      ],
+      [
+        3,
+        15,
+        {
+          "caller_id": "73d33a6f-b06d-4140-b9c0-e90aca62f96b",
+          "callee_id": "02e376a9-9472-4ce8-8fcc-e7911c047c1a",
+          "caller_name": "filter_even_numbers",
+          "callee_name": "is_even",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 74,
+          "is_resolved": true
+        }
+      ],
+      [
+        21,
+        34,
+        {
+          "caller_id": "20b9659c-a148-4ccf-b2f7-8563fe3ec2c2",
+          "callee_id": "0b8f1b8a-83ef-4763-8bc6-008deefaaa2b",
+          "caller_name": "process",
+          "callee_name": "compute_value",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 101,
+          "is_resolved": true
+        }
+      ],
+      [
+        34,
+        7,
+        {
+          "caller_id": "0b8f1b8a-83ef-4763-8bc6-008deefaaa2b",
+          "callee_id": "e08abbbc-4658-42cd-8bf6-625124f5e580",
+          "caller_name": "compute_value",
+          "callee_name": "get_base_value",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 107,
+          "is_resolved": true
+        }
+      ],
+      [
+        34,
+        6,
+        {
+          "caller_id": "0b8f1b8a-83ef-4763-8bc6-008deefaaa2b",
+          "callee_id": "8d7c0cb9-752e-4797-9493-13f128cc0e4a",
+          "caller_name": "compute_value",
+          "callee_name": "apply_multiplier",
+          "caller_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/main.rs",
+          "line_number": 108,
+          "is_resolved": true
+        }
+      ],
+      [
+        10,
+        24,
+        {
+          "caller_id": "84a18f0f-bffb-45ae-b068-aa8e2d08b3d3",
+          "callee_id": "f4276712-c2c6-486a-ad68-04d0379897f7",
           "caller_name": "apply_transform",
           "callee_name": "validate_result",
           "caller_file": "tests/test_repos/simple_rust_project/src/utils.rs",
@@ -1036,11 +980,11 @@
         }
       ],
       [
-        1,
-        32,
+        33,
+        13,
         {
-          "caller_id": "2c10c4e5-8cd6-4b99-b6c6-7abbf16d061e",
-          "callee_id": "3a566a93-fe0f-4b68-b167-4cae3b53d767",
+          "caller_id": "26d0ba24-fe74-463e-a7b8-8c6a383083bf",
+          "callee_id": "db45c3c4-29de-4dbe-8a83-e14b2969c280",
           "caller_name": "format_output",
           "callee_name": "get_prefix",
           "caller_file": "tests/test_repos/simple_rust_project/src/utils.rs",
@@ -1050,11 +994,11 @@
         }
       ],
       [
-        3,
-        12,
+        16,
+        11,
         {
-          "caller_id": "ce9c6e85-cd8b-48e5-a230-5aec20a4ad0c",
-          "callee_id": "e66551d9-219b-4baf-8809-535cc54a3bcb",
+          "caller_id": "97ea08cb-f114-4768-8a87-3c76af330fa8",
+          "callee_id": "30088c38-4555-456a-b71c-f4ed65095422",
           "caller_name": "process_list",
           "callee_name": "new",
           "caller_file": "tests/test_repos/simple_rust_project/src/utils.rs",
@@ -1064,11 +1008,11 @@
         }
       ],
       [
-        3,
-        10,
+        16,
+        23,
         {
-          "caller_id": "ce9c6e85-cd8b-48e5-a230-5aec20a4ad0c",
-          "callee_id": "de5843fe-42c4-44cc-9b96-41ccb0d98202",
+          "caller_id": "97ea08cb-f114-4768-8a87-3c76af330fa8",
+          "callee_id": "f48a9e6a-6ade-4522-aaba-872e28b18211",
           "caller_name": "process_list",
           "callee_name": "process_item",
           "caller_file": "tests/test_repos/simple_rust_project/src/utils.rs",
@@ -1076,239 +1020,295 @@
           "line_number": 26,
           "is_resolved": true
         }
+      ],
+      [
+        17,
+        2,
+        {
+          "caller_id": "4ab9812d-c91c-4e48-bbe8-bd2be6908567",
+          "callee_id": "0b3ac5ab-ac7a-4c28-bd9c-729ee68fb88f",
+          "caller_name": "public_function",
+          "callee_name": "private_helper",
+          "caller_file": "tests/test_repos/simple_rust_project/src/lib.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/lib.rs",
+          "line_number": 5,
+          "is_resolved": true
+        }
+      ],
+      [
+        35,
+        9,
+        {
+          "caller_id": "d40b7890-523b-4e59-8559-58913ed251fa",
+          "callee_id": "e35f2f34-3023-4d79-a2a4-e98e92a2e65b",
+          "caller_name": "complex_calculation",
+          "callee_name": "add",
+          "caller_file": "tests/test_repos/simple_rust_project/src/lib.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/math.rs",
+          "line_number": 14,
+          "is_resolved": true
+        }
+      ],
+      [
+        35,
+        32,
+        {
+          "caller_id": "d40b7890-523b-4e59-8559-58913ed251fa",
+          "callee_id": "7c8d0a3a-83a0-4265-8aee-d294f31c775b",
+          "caller_name": "complex_calculation",
+          "callee_name": "multiply",
+          "caller_file": "tests/test_repos/simple_rust_project/src/lib.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/math.rs",
+          "line_number": 15,
+          "is_resolved": true
+        }
+      ],
+      [
+        35,
+        10,
+        {
+          "caller_id": "d40b7890-523b-4e59-8559-58913ed251fa",
+          "callee_id": "84a18f0f-bffb-45ae-b068-aa8e2d08b3d3",
+          "caller_name": "complex_calculation",
+          "callee_name": "apply_transform",
+          "caller_file": "tests/test_repos/simple_rust_project/src/lib.rs",
+          "callee_file": "tests/test_repos/simple_rust_project/src/utils.rs",
+          "line_number": 16,
+          "is_resolved": true
+        }
       ]
     ]
   },
   "function_to_node": {
-    "5fdd4952-9cc9-40b4-9dd9-2718a3670eb2": 9,
-    "5ee47571-2169-4b00-97ff-56a8b14990a7": 31,
-    "e865ce0d-3b54-41a4-bd78-f6345d6aa974": 30,
-    "fda5715b-653a-4403-9502-fcb877d3ceee": 2,
-    "4c23151d-d9a9-4dee-8c54-152edbd6cf3c": 34,
-    "ed45dacd-3b4b-424b-b21c-bdab69b96779": 18,
-    "992a48b9-2191-4ccf-b5b3-c3e1acde1625": 19,
-    "ce9c6e85-cd8b-48e5-a230-5aec20a4ad0c": 3,
-    "e66551d9-219b-4baf-8809-535cc54a3bcb": 12,
-    "3a566a93-fe0f-4b68-b167-4cae3b53d767": 32,
-    "90a7701d-94e1-4181-af64-d02679c5d275": 8,
-    "0f4967a4-b07f-48b4-bb41-7bf29bbdb1b8": 11,
-    "23bd67af-8f56-442f-8571-129ae030a42b": 15,
-    "ac347294-39cd-4301-aa6c-06c6b7d65bbb": 28,
-    "de5843fe-42c4-44cc-9b96-41ccb0d98202": 10,
-    "cdd78880-cab0-44f6-afd7-ca9f1410627f": 7,
-    "2084b44a-e005-4880-ba6c-986eac513c28": 6,
-    "0ecf5aa9-0854-4dea-8852-5cdb2255cfda": 26,
-    "b3f021d7-cbd6-4ef1-8b71-b84ed316fc77": 0,
-    "0549c923-4091-4235-823d-b3f9f3a6822d": 22,
-    "c24a1466-76e9-4b5b-908a-5e9e22fc25c9": 33,
-    "32846a12-30ec-4226-a065-f623521bdf77": 14,
-    "095f8ab2-bf38-4617-85d9-3e9049bd75c0": 29,
-    "23591634-32a8-421d-bae8-79e1da66a01f": 21,
-    "a4e08a77-9eb8-445d-b1a1-8ee6884e5854": 35,
-    "4665bb64-193a-4854-8d0e-9660ad33018e": 5,
-    "0351a53c-9334-4e0c-95f4-a089ef8a0fe2": 4,
-    "1a7b4698-883c-45f9-9418-6e7c8a189f9f": 20,
-    "0959e33b-52e2-4512-abdc-6c6e3a877b87": 13,
-    "c4fe290a-dc46-47db-a9d4-22626bfc7821": 27,
-    "01a06da6-f0c2-4ef0-bc0a-1f7a08a422c9": 25,
-    "dd773e9c-1d2f-4b6d-8e15-a0d1ecd2bb5d": 23,
-    "ebc08d4b-1b3b-4ca6-83b5-ebe5d2f18bce": 24,
-    "10b6d432-9798-439d-9bb5-232de76308d8": 16,
-    "2c10c4e5-8cd6-4b99-b6c6-7abbf16d061e": 1,
-    "d7b3d7d7-8b37-4f55-9a00-7cdaf33084b5": 17
+    "8d7c0cb9-752e-4797-9493-13f128cc0e4a": 6,
+    "64ceb344-2f24-4fe8-a05a-d0c8814a8427": 30,
+    "e35f2f34-3023-4d79-a2a4-e98e92a2e65b": 9,
+    "2e8d237f-4331-4043-9abc-1d32e83a41af": 27,
+    "db45c3c4-29de-4dbe-8a83-e14b2969c280": 13,
+    "6ada6693-14cc-4edd-9efd-ccf54c9efd5a": 12,
+    "c294eb01-0c51-4ed0-b86d-cf194114cd69": 19,
+    "eeb5b095-3498-448d-98b0-64f923cb5ad5": 31,
+    "e08abbbc-4658-42cd-8bf6-625124f5e580": 7,
+    "4ab9812d-c91c-4e48-bbe8-bd2be6908567": 17,
+    "30088c38-4555-456a-b71c-f4ed65095422": 11,
+    "84ff3020-3d02-4cfa-a019-601582056919": 20,
+    "7c8d0a3a-83a0-4265-8aee-d294f31c775b": 32,
+    "84a18f0f-bffb-45ae-b068-aa8e2d08b3d3": 10,
+    "2be1786d-564e-4fd0-95c7-9b984746a93a": 28,
+    "26d0ba24-fe74-463e-a7b8-8c6a383083bf": 33,
+    "d40b7890-523b-4e59-8559-58913ed251fa": 35,
+    "51a0a037-fb0a-4b94-be7e-24a037f802b5": 1,
+    "20b9659c-a148-4ccf-b2f7-8563fe3ec2c2": 21,
+    "02e376a9-9472-4ce8-8fcc-e7911c047c1a": 15,
+    "bab5ce72-6c08-45c5-ab84-975ec80335fb": 4,
+    "0b3ac5ab-ac7a-4c28-bd9c-729ee68fb88f": 2,
+    "f48a9e6a-6ade-4522-aaba-872e28b18211": 23,
+    "e7193556-3bd5-4188-9b88-ec5ebdad710a": 0,
+    "97ea08cb-f114-4768-8a87-3c76af330fa8": 16,
+    "dc993111-226f-498a-a5b8-7fb3f8c28ef9": 5,
+    "51b53a63-a234-4242-8854-d9185a609798": 14,
+    "0b8f1b8a-83ef-4763-8bc6-008deefaaa2b": 34,
+    "93676094-0a69-43c6-9d55-40b70f966376": 8,
+    "52f43a9d-4588-49d7-b720-cdb1c3421400": 29,
+    "f4276712-c2c6-486a-ad68-04d0379897f7": 24,
+    "61d0aa48-aad6-4e4f-b6bb-a5fc3dbb6def": 18,
+    "310aed46-8571-4c2f-ac30-e726bb1d7ce4": 26,
+    "0a516605-8acb-4187-b714-9c0907d0fef6": 22,
+    "73d33a6f-b06d-4140-b9c0-e90aca62f96b": 3,
+    "36dd172c-657b-425a-a73a-85f5c8d6045d": 25
   },
   "node_to_function": {
-    "28": "ac347294-39cd-4301-aa6c-06c6b7d65bbb",
-    "29": "095f8ab2-bf38-4617-85d9-3e9049bd75c0",
-    "30": "e865ce0d-3b54-41a4-bd78-f6345d6aa974",
-    "26": "0ecf5aa9-0854-4dea-8852-5cdb2255cfda",
-    "21": "23591634-32a8-421d-bae8-79e1da66a01f",
-    "1": "2c10c4e5-8cd6-4b99-b6c6-7abbf16d061e",
-    "22": "0549c923-4091-4235-823d-b3f9f3a6822d",
-    "9": "5fdd4952-9cc9-40b4-9dd9-2718a3670eb2",
-    "11": "0f4967a4-b07f-48b4-bb41-7bf29bbdb1b8",
-    "24": "ebc08d4b-1b3b-4ca6-83b5-ebe5d2f18bce",
-    "13": "0959e33b-52e2-4512-abdc-6c6e3a877b87",
-    "7": "cdd78880-cab0-44f6-afd7-ca9f1410627f",
-    "23": "dd773e9c-1d2f-4b6d-8e15-a0d1ecd2bb5d",
-    "20": "1a7b4698-883c-45f9-9418-6e7c8a189f9f",
-    "3": "ce9c6e85-cd8b-48e5-a230-5aec20a4ad0c",
-    "2": "fda5715b-653a-4403-9502-fcb877d3ceee",
-    "32": "3a566a93-fe0f-4b68-b167-4cae3b53d767",
-    "10": "de5843fe-42c4-44cc-9b96-41ccb0d98202",
-    "25": "01a06da6-f0c2-4ef0-bc0a-1f7a08a422c9",
-    "6": "2084b44a-e005-4880-ba6c-986eac513c28",
-    "31": "5ee47571-2169-4b00-97ff-56a8b14990a7",
-    "4": "0351a53c-9334-4e0c-95f4-a089ef8a0fe2",
-    "15": "23bd67af-8f56-442f-8571-129ae030a42b",
-    "27": "c4fe290a-dc46-47db-a9d4-22626bfc7821",
-    "0": "b3f021d7-cbd6-4ef1-8b71-b84ed316fc77",
-    "5": "4665bb64-193a-4854-8d0e-9660ad33018e",
-    "17": "d7b3d7d7-8b37-4f55-9a00-7cdaf33084b5",
-    "8": "90a7701d-94e1-4181-af64-d02679c5d275",
-    "18": "ed45dacd-3b4b-424b-b21c-bdab69b96779",
-    "19": "992a48b9-2191-4ccf-b5b3-c3e1acde1625",
-    "33": "c24a1466-76e9-4b5b-908a-5e9e22fc25c9",
-    "14": "32846a12-30ec-4226-a065-f623521bdf77",
-    "16": "10b6d432-9798-439d-9bb5-232de76308d8",
-    "34": "4c23151d-d9a9-4dee-8c54-152edbd6cf3c",
-    "35": "a4e08a77-9eb8-445d-b1a1-8ee6884e5854",
-    "12": "e66551d9-219b-4baf-8809-535cc54a3bcb"
+    "1": "51a0a037-fb0a-4b94-be7e-24a037f802b5",
+    "22": "0a516605-8acb-4187-b714-9c0907d0fef6",
+    "23": "f48a9e6a-6ade-4522-aaba-872e28b18211",
+    "17": "4ab9812d-c91c-4e48-bbe8-bd2be6908567",
+    "29": "52f43a9d-4588-49d7-b720-cdb1c3421400",
+    "26": "310aed46-8571-4c2f-ac30-e726bb1d7ce4",
+    "6": "8d7c0cb9-752e-4797-9493-13f128cc0e4a",
+    "34": "0b8f1b8a-83ef-4763-8bc6-008deefaaa2b",
+    "4": "bab5ce72-6c08-45c5-ab84-975ec80335fb",
+    "15": "02e376a9-9472-4ce8-8fcc-e7911c047c1a",
+    "3": "73d33a6f-b06d-4140-b9c0-e90aca62f96b",
+    "7": "e08abbbc-4658-42cd-8bf6-625124f5e580",
+    "30": "64ceb344-2f24-4fe8-a05a-d0c8814a8427",
+    "11": "30088c38-4555-456a-b71c-f4ed65095422",
+    "5": "dc993111-226f-498a-a5b8-7fb3f8c28ef9",
+    "13": "db45c3c4-29de-4dbe-8a83-e14b2969c280",
+    "12": "6ada6693-14cc-4edd-9efd-ccf54c9efd5a",
+    "33": "26d0ba24-fe74-463e-a7b8-8c6a383083bf",
+    "14": "51b53a63-a234-4242-8854-d9185a609798",
+    "35": "d40b7890-523b-4e59-8559-58913ed251fa",
+    "32": "7c8d0a3a-83a0-4265-8aee-d294f31c775b",
+    "18": "61d0aa48-aad6-4e4f-b6bb-a5fc3dbb6def",
+    "19": "c294eb01-0c51-4ed0-b86d-cf194114cd69",
+    "10": "84a18f0f-bffb-45ae-b068-aa8e2d08b3d3",
+    "0": "e7193556-3bd5-4188-9b88-ec5ebdad710a",
+    "16": "97ea08cb-f114-4768-8a87-3c76af330fa8",
+    "21": "20b9659c-a148-4ccf-b2f7-8563fe3ec2c2",
+    "28": "2be1786d-564e-4fd0-95c7-9b984746a93a",
+    "31": "eeb5b095-3498-448d-98b0-64f923cb5ad5",
+    "2": "0b3ac5ab-ac7a-4c28-bd9c-729ee68fb88f",
+    "27": "2e8d237f-4331-4043-9abc-1d32e83a41af",
+    "9": "e35f2f34-3023-4d79-a2a4-e98e92a2e65b",
+    "20": "84ff3020-3d02-4cfa-a019-601582056919",
+    "25": "36dd172c-657b-425a-a73a-85f5c8d6045d",
+    "8": "93676094-0a69-43c6-9d55-40b70f966376",
+    "24": "f4276712-c2c6-486a-ad68-04d0379897f7"
   },
   "function_names": {
-    "log_operation": [
-      "0351a53c-9334-4e0c-95f4-a089ef8a0fe2"
-    ],
-    "fibonacci": [
-      "4c23151d-d9a9-4dee-8c54-152edbd6cf3c"
-    ],
-    "divide": [
-      "ed45dacd-3b4b-424b-b21c-bdab69b96779"
-    ],
     "validate_result": [
-      "4665bb64-193a-4854-8d0e-9660ad33018e"
-    ],
-    "private_helper": [
-      "ac347294-39cd-4301-aa6c-06c6b7d65bbb"
-    ],
-    "get_prefix": [
-      "3a566a93-fe0f-4b68-b167-4cae3b53d767"
-    ],
-    "parse_raw_data": [
-      "0f4967a4-b07f-48b4-bb41-7bf29bbdb1b8"
-    ],
-    "public_function": [
-      "ebc08d4b-1b3b-4ca6-83b5-ebe5d2f18bce"
-    ],
-    "factorial": [
-      "5ee47571-2169-4b00-97ff-56a8b14990a7"
-    ],
-    "process_data": [
-      "90a7701d-94e1-4181-af64-d02679c5d275"
-    ],
-    "main": [
-      "e865ce0d-3b54-41a4-bd78-f6345d6aa974"
-    ],
-    "compute_value": [
-      "2084b44a-e005-4880-ba6c-986eac513c28"
-    ],
-    "validate_data": [
-      "0ecf5aa9-0854-4dea-8852-5cdb2255cfda"
-    ],
-    "get_base_value": [
-      "c4fe290a-dc46-47db-a9d4-22626bfc7821"
-    ],
-    "multiply": [
-      "a4e08a77-9eb8-445d-b1a1-8ee6884e5854"
-    ],
-    "add_to_sum": [
-      "0959e33b-52e2-4512-abdc-6c6e3a877b87"
-    ],
-    "filter_even_numbers": [
-      "c24a1466-76e9-4b5b-908a-5e9e22fc25c9"
-    ],
-    "is_even": [
-      "d7b3d7d7-8b37-4f55-9a00-7cdaf33084b5"
-    ],
-    "transform_data": [
-      "23591634-32a8-421d-bae8-79e1da66a01f"
-    ],
-    "double_value": [
-      "dd773e9c-1d2f-4b6d-8e15-a0d1ecd2bb5d"
-    ],
-    "process_item": [
-      "de5843fe-42c4-44cc-9b96-41ccb0d98202"
-    ],
-    "format_output": [
-      "2c10c4e5-8cd6-4b99-b6c6-7abbf16d061e"
-    ],
-    "fetch_data": [
-      "b3f021d7-cbd6-4ef1-8b71-b84ed316fc77"
-    ],
-    "process": [
-      "5fdd4952-9cc9-40b4-9dd9-2718a3670eb2"
-    ],
-    "get_raw_data": [
-      "01a06da6-f0c2-4ef0-bc0a-1f7a08a422c9"
-    ],
-    "add": [
-      "0549c923-4091-4235-823d-b3f9f3a6822d"
-    ],
-    "subtract": [
-      "23bd67af-8f56-442f-8571-129ae030a42b"
-    ],
-    "complex_calculation": [
-      "1a7b4698-883c-45f9-9418-6e7c8a189f9f"
-    ],
-    "new": [
-      "e66551d9-219b-4baf-8809-535cc54a3bcb"
+      "f4276712-c2c6-486a-ad68-04d0379897f7"
     ],
     "get_operator_symbol": [
-      "32846a12-30ec-4226-a065-f623521bdf77"
+      "2be1786d-564e-4fd0-95c7-9b984746a93a"
     ],
-    "default_value": [
-      "992a48b9-2191-4ccf-b5b3-c3e1acde1625"
-    ],
-    "calculate_sum": [
-      "cdd78880-cab0-44f6-afd7-ca9f1410627f"
-    ],
-    "apply_transform": [
-      "095f8ab2-bf38-4617-85d9-3e9049bd75c0"
-    ],
-    "apply_multiplier": [
-      "10b6d432-9798-439d-9bb5-232de76308d8"
+    "get_prefix": [
+      "db45c3c4-29de-4dbe-8a83-e14b2969c280"
     ],
     "add_offset": [
-      "fda5715b-653a-4403-9502-fcb877d3ceee"
+      "64ceb344-2f24-4fe8-a05a-d0c8814a8427"
+    ],
+    "subtract": [
+      "6ada6693-14cc-4edd-9efd-ccf54c9efd5a"
     ],
     "process_list": [
-      "ce9c6e85-cd8b-48e5-a230-5aec20a4ad0c"
+      "97ea08cb-f114-4768-8a87-3c76af330fa8"
+    ],
+    "fibonacci": [
+      "c294eb01-0c51-4ed0-b86d-cf194114cd69"
+    ],
+    "double_value": [
+      "2e8d237f-4331-4043-9abc-1d32e83a41af"
+    ],
+    "apply_transform": [
+      "84a18f0f-bffb-45ae-b068-aa8e2d08b3d3"
+    ],
+    "default_value": [
+      "93676094-0a69-43c6-9d55-40b70f966376"
+    ],
+    "process_data": [
+      "84ff3020-3d02-4cfa-a019-601582056919"
+    ],
+    "format_output": [
+      "26d0ba24-fe74-463e-a7b8-8c6a383083bf"
+    ],
+    "parse_raw_data": [
+      "51a0a037-fb0a-4b94-be7e-24a037f802b5"
+    ],
+    "validate_data": [
+      "e7193556-3bd5-4188-9b88-ec5ebdad710a"
+    ],
+    "compute_value": [
+      "0b8f1b8a-83ef-4763-8bc6-008deefaaa2b"
+    ],
+    "calculate_sum": [
+      "52f43a9d-4588-49d7-b720-cdb1c3421400"
+    ],
+    "add_to_sum": [
+      "eeb5b095-3498-448d-98b0-64f923cb5ad5"
+    ],
+    "get_base_value": [
+      "e08abbbc-4658-42cd-8bf6-625124f5e580"
+    ],
+    "apply_multiplier": [
+      "8d7c0cb9-752e-4797-9493-13f128cc0e4a"
+    ],
+    "factorial": [
+      "dc993111-226f-498a-a5b8-7fb3f8c28ef9"
+    ],
+    "add": [
+      "e35f2f34-3023-4d79-a2a4-e98e92a2e65b"
+    ],
+    "get_raw_data": [
+      "bab5ce72-6c08-45c5-ab84-975ec80335fb"
+    ],
+    "is_even": [
+      "02e376a9-9472-4ce8-8fcc-e7911c047c1a"
+    ],
+    "filter_even_numbers": [
+      "73d33a6f-b06d-4140-b9c0-e90aca62f96b"
+    ],
+    "fetch_data": [
+      "0a516605-8acb-4187-b714-9c0907d0fef6"
+    ],
+    "complex_calculation": [
+      "d40b7890-523b-4e59-8559-58913ed251fa"
+    ],
+    "private_helper": [
+      "0b3ac5ab-ac7a-4c28-bd9c-729ee68fb88f"
+    ],
+    "log_operation": [
+      "36dd172c-657b-425a-a73a-85f5c8d6045d"
+    ],
+    "process_item": [
+      "f48a9e6a-6ade-4522-aaba-872e28b18211"
+    ],
+    "divide": [
+      "51b53a63-a234-4242-8854-d9185a609798"
+    ],
+    "new": [
+      "30088c38-4555-456a-b71c-f4ed65095422"
+    ],
+    "public_function": [
+      "4ab9812d-c91c-4e48-bbe8-bd2be6908567"
+    ],
+    "main": [
+      "61d0aa48-aad6-4e4f-b6bb-a5fc3dbb6def"
+    ],
+    "process": [
+      "20b9659c-a148-4ccf-b2f7-8563fe3ec2c2"
+    ],
+    "multiply": [
+      "7c8d0a3a-83a0-4265-8aee-d294f31c775b"
+    ],
+    "transform_data": [
+      "310aed46-8571-4c2f-ac30-e726bb1d7ce4"
     ]
   },
   "file_functions": {
     "tests/test_repos/simple_rust_project/src/main.rs": [
-      "b3f021d7-cbd6-4ef1-8b71-b84ed316fc77",
-      "fda5715b-653a-4403-9502-fcb877d3ceee",
-      "2084b44a-e005-4880-ba6c-986eac513c28",
-      "cdd78880-cab0-44f6-afd7-ca9f1410627f",
-      "90a7701d-94e1-4181-af64-d02679c5d275",
-      "5fdd4952-9cc9-40b4-9dd9-2718a3670eb2",
-      "0f4967a4-b07f-48b4-bb41-7bf29bbdb1b8",
-      "e66551d9-219b-4baf-8809-535cc54a3bcb",
-      "0959e33b-52e2-4512-abdc-6c6e3a877b87",
-      "10b6d432-9798-439d-9bb5-232de76308d8",
-      "d7b3d7d7-8b37-4f55-9a00-7cdaf33084b5",
-      "992a48b9-2191-4ccf-b5b3-c3e1acde1625",
-      "23591634-32a8-421d-bae8-79e1da66a01f",
-      "dd773e9c-1d2f-4b6d-8e15-a0d1ecd2bb5d",
-      "01a06da6-f0c2-4ef0-bc0a-1f7a08a422c9",
-      "0ecf5aa9-0854-4dea-8852-5cdb2255cfda",
-      "c4fe290a-dc46-47db-a9d4-22626bfc7821",
-      "e865ce0d-3b54-41a4-bd78-f6345d6aa974",
-      "c24a1466-76e9-4b5b-908a-5e9e22fc25c9"
-    ],
-    "tests/test_repos/simple_rust_project/src/utils.rs": [
-      "2c10c4e5-8cd6-4b99-b6c6-7abbf16d061e",
-      "ce9c6e85-cd8b-48e5-a230-5aec20a4ad0c",
-      "4665bb64-193a-4854-8d0e-9660ad33018e",
-      "de5843fe-42c4-44cc-9b96-41ccb0d98202",
-      "095f8ab2-bf38-4617-85d9-3e9049bd75c0",
-      "3a566a93-fe0f-4b68-b167-4cae3b53d767"
+      "e7193556-3bd5-4188-9b88-ec5ebdad710a",
+      "51a0a037-fb0a-4b94-be7e-24a037f802b5",
+      "73d33a6f-b06d-4140-b9c0-e90aca62f96b",
+      "bab5ce72-6c08-45c5-ab84-975ec80335fb",
+      "8d7c0cb9-752e-4797-9493-13f128cc0e4a",
+      "e08abbbc-4658-42cd-8bf6-625124f5e580",
+      "93676094-0a69-43c6-9d55-40b70f966376",
+      "30088c38-4555-456a-b71c-f4ed65095422",
+      "02e376a9-9472-4ce8-8fcc-e7911c047c1a",
+      "61d0aa48-aad6-4e4f-b6bb-a5fc3dbb6def",
+      "84ff3020-3d02-4cfa-a019-601582056919",
+      "20b9659c-a148-4ccf-b2f7-8563fe3ec2c2",
+      "0a516605-8acb-4187-b714-9c0907d0fef6",
+      "310aed46-8571-4c2f-ac30-e726bb1d7ce4",
+      "2e8d237f-4331-4043-9abc-1d32e83a41af",
+      "52f43a9d-4588-49d7-b720-cdb1c3421400",
+      "64ceb344-2f24-4fe8-a05a-d0c8814a8427",
+      "eeb5b095-3498-448d-98b0-64f923cb5ad5",
+      "0b8f1b8a-83ef-4763-8bc6-008deefaaa2b"
     ],
     "tests/test_repos/simple_rust_project/src/math.rs": [
-      "0351a53c-9334-4e0c-95f4-a089ef8a0fe2",
-      "32846a12-30ec-4226-a065-f623521bdf77",
-      "23bd67af-8f56-442f-8571-129ae030a42b",
-      "ed45dacd-3b4b-424b-b21c-bdab69b96779",
-      "0549c923-4091-4235-823d-b3f9f3a6822d",
-      "5ee47571-2169-4b00-97ff-56a8b14990a7",
-      "4c23151d-d9a9-4dee-8c54-152edbd6cf3c",
-      "a4e08a77-9eb8-445d-b1a1-8ee6884e5854"
+      "dc993111-226f-498a-a5b8-7fb3f8c28ef9",
+      "e35f2f34-3023-4d79-a2a4-e98e92a2e65b",
+      "6ada6693-14cc-4edd-9efd-ccf54c9efd5a",
+      "51b53a63-a234-4242-8854-d9185a609798",
+      "c294eb01-0c51-4ed0-b86d-cf194114cd69",
+      "36dd172c-657b-425a-a73a-85f5c8d6045d",
+      "2be1786d-564e-4fd0-95c7-9b984746a93a",
+      "7c8d0a3a-83a0-4265-8aee-d294f31c775b"
     ],
     "tests/test_repos/simple_rust_project/src/lib.rs": [
-      "1a7b4698-883c-45f9-9418-6e7c8a189f9f",
-      "ebc08d4b-1b3b-4ca6-83b5-ebe5d2f18bce",
-      "ac347294-39cd-4301-aa6c-06c6b7d65bbb"
+      "0b3ac5ab-ac7a-4c28-bd9c-729ee68fb88f",
+      "4ab9812d-c91c-4e48-bbe8-bd2be6908567",
+      "d40b7890-523b-4e59-8559-58913ed251fa"
+    ],
+    "tests/test_repos/simple_rust_project/src/utils.rs": [
+      "84a18f0f-bffb-45ae-b068-aa8e2d08b3d3",
+      "db45c3c4-29de-4dbe-8a83-e14b2969c280",
+      "97ea08cb-f114-4768-8a87-3c76af330fa8",
+      "f48a9e6a-6ade-4522-aaba-872e28b18211",
+      "f4276712-c2c6-486a-ad68-04d0379897f7",
+      "26d0ba24-fe74-463e-a7b8-8c6a383083bf"
     ]
   },
   "stats": {

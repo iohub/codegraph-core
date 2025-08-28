@@ -22,6 +22,9 @@ fn test_build_graph_functionality() {
     
     // 测试JavaScript项目
     test_build_graph_for_project(&storage, "tests/test_repos/simple_js_project");
+    
+    // 测试TypeScript项目
+    test_build_graph_for_project(&storage, "tests/test_repos/simple_ts_project");
 }
 
 fn test_build_graph_for_project(storage: &Arc<StorageManager>, project_path: &str) {
@@ -105,7 +108,10 @@ fn test_query_call_graph_functionality() {
     test_query_call_graph_for_project(&storage, "tests/test_repos/simple_python_project");
     
     // 测试JavaScript项目
-    test_query_call_graph_for_project(&storage, "tests/test_repos/simple_python_project");
+    test_query_call_graph_for_project(&storage, "tests/test_repos/simple_js_project");
+    
+    // 测试TypeScript项目
+    test_query_call_graph_for_project(&storage, "tests/test_repos/simple_ts_project");
 }
 
 fn test_query_call_graph_for_project(storage: &Arc<StorageManager>, project_path: &str) {
@@ -144,6 +150,8 @@ fn test_query_call_graph_for_project(storage: &Arc<StorageManager>, project_path
     test_query_function_by_name(&pet_graph, "main");
     test_query_function_by_name(&pet_graph, "process_data");
     test_query_function_by_name(&pet_graph, "calculate_sum");
+    test_query_function_by_name(&pet_graph, "run");
+    test_query_function_by_name(&pet_graph, "processData");
     
     // 测试查询文件中的所有函数
     test_query_functions_by_file(&pet_graph, project_path);
@@ -209,7 +217,7 @@ fn test_call_chain_expansion(graph: &PetCodeGraph) {
     println!("Testing call chain expansion");
     
     // 查找一些函数来测试调用链
-    let test_functions = ["main", "process_data", "calculate_sum"];
+    let test_functions = ["main", "process_data", "calculate_sum", "run", "processData"];
     
     for func_name in test_functions {
         let functions = graph.find_functions_by_name(func_name);
@@ -277,12 +285,12 @@ fn find_source_files(project_dir: &PathBuf) -> Vec<PathBuf> {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_file() {
-                if let Some(extension) = path.extension() {
-                    let ext_str = extension.to_string_lossy();
-                    if matches!(ext_str.as_ref(), "rs" | "py" | "js" | "ts" | "java" | "cpp" | "c") {
-                        source_files.push(path);
-                    }
-                }
+                    if let Some(extension) = path.extension() {
+        let ext_str = extension.to_string_lossy();
+        if matches!(ext_str.as_ref(), "rs" | "py" | "js" | "ts" | "java" | "cpp" | "c") {
+            source_files.push(path);
+        }
+    }
             }
         }
     }
@@ -364,4 +372,131 @@ fn test_complete_build_and_query_workflow() {
     assert!(process_callees.len() >= 3, "process_data should call multiple functions");
     
     println!("Complete workflow test passed!");
+} 
+
+/// 专门测试TypeScript项目的功能
+#[test]
+fn test_typescript_project_functionality() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let storage = Arc::new(StorageManager::new());
+    
+    let project_path = "tests/test_repos/simple_ts_project";
+    let project_dir = PathBuf::from(project_path);
+    
+    println!("Testing TypeScript project functionality: {}", project_path);
+    
+    // 验证项目目录存在
+    assert!(project_dir.exists(), "TypeScript project directory does not exist");
+    
+    // 构建图
+    let mut analyzer = CodeAnalyzer::new();
+    let result = analyzer.analyze_directory(&project_dir);
+    assert!(result.is_ok(), "Failed to analyze TypeScript directory");
+    
+    let code_graph = analyzer.get_code_graph().unwrap();
+    let stats = analyzer.get_stats().unwrap();
+    
+    println!("TypeScript project: {} files, {} functions", 
+             stats.total_files, stats.total_functions);
+    
+    // 验证TypeScript特定的函数
+    let ts_functions = code_graph.find_functions_by_name("run");
+    if !ts_functions.is_empty() {
+        println!("Found TypeScript Application.run method");
+        
+        let run_func = &ts_functions[0];
+        let callees = code_graph.get_callees(&run_func.id);
+        println!("Application.run has {} callees", callees.len());
+        
+        // 验证调用关系
+        for relation in &callees {
+            println!("  Calls: {} at {}:{}", 
+                     relation.callee_name, relation.callee_file.display(), relation.line_number);
+        }
+    }
+    
+    // 验证TypeScript类方法
+    let process_data_functions = code_graph.find_functions_by_name("processData");
+    if !process_data_functions.is_empty() {
+        println!("Found TypeScript processData method");
+        
+        let process_func = &process_data_functions[0];
+        let callees = code_graph.get_callees(&process_func.id);
+        println!("processData has {} callees", callees.len());
+    }
+    
+    // 验证TypeScript接口和类型
+    let format_output_functions = code_graph.find_functions_by_name("formatOutput");
+    if !format_output_functions.is_empty() {
+        println!("Found TypeScript formatOutput method");
+        
+        let format_func = &format_output_functions[0];
+        let callers = code_graph.get_callers(&format_func.id);
+        println!("formatOutput has {} callers", callers.len());
+    }
+    
+    // 转换为PetCodeGraph并验证
+    let mut pet_graph = PetCodeGraph::new();
+    for function in code_graph.functions.values() {
+        pet_graph.add_function(function.clone());
+    }
+    
+    for relation in &code_graph.call_relations {
+        let _ = pet_graph.add_call_relation(relation.clone());
+    }
+    
+    pet_graph.update_stats();
+    
+    let pet_stats = pet_graph.get_stats();
+    println!("PetCodeGraph for TypeScript: {} functions", pet_stats.total_functions);
+    
+    // 验证TypeScript特定的查询功能
+    test_typescript_specific_queries(&pet_graph);
+    
+    println!("TypeScript project functionality test passed!");
+}
+
+fn test_typescript_specific_queries(graph: &PetCodeGraph) {
+    println!("Testing TypeScript-specific queries...");
+    
+    // 测试TypeScript类方法查询
+    let class_methods = ["run", "processData", "formatOutput", "calculateSum"];
+    
+    for method_name in class_methods {
+        let functions = graph.find_functions_by_name(method_name);
+        if !functions.is_empty() {
+            println!("Found TypeScript method: {}", method_name);
+            
+            for function in &functions {
+                let callers = graph.get_callers(&function.id);
+                let callees = graph.get_callees(&function.id);
+                
+                println!("  {}: {} callers, {} callees", 
+                         function.name, callers.len(), callees.len());
+                
+                // 显示调用关系
+                for (caller_func, relation) in &callers {
+                    println!("    Called by: {} at {}:{}", 
+                             caller_func.name, caller_func.file_path.display(), relation.line_number);
+                }
+                
+                for (callee_func, relation) in &callees {
+                    println!("    Calls: {} at {}:{}", 
+                             callee_func.name, callee_func.file_path.display(), relation.line_number);
+                }
+            }
+        }
+    }
+    
+    // 测试TypeScript异步函数
+    let async_functions = graph.find_functions_by_name("processDataAsync");
+    if !async_functions.is_empty() {
+        println!("Found TypeScript async function: processDataAsync");
+    }
+    
+    // 测试TypeScript接口和类型
+    let interface_functions = graph.find_functions_by_name("getStringStats");
+    if !interface_functions.is_empty() {
+        println!("Found TypeScript interface method: getStringStats");
+    }
 } 
