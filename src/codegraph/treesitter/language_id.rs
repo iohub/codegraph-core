@@ -139,6 +139,7 @@ impl From<Language> for LanguageId {
             lang if lang == tree_sitter_rust::LANGUAGE.into() => Self::Rust,
             lang if lang == tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into() => Self::TypeScript,
             lang if lang == tree_sitter_typescript::LANGUAGE_TSX.into() => Self::TypeScriptReact,
+            lang if lang == tree_sitter_go::LANGUAGE.into() => Self::Go,
             _ => Self::Unknown,
         }
     }

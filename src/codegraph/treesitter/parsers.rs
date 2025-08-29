@@ -16,6 +16,7 @@ mod java;
 pub(crate) mod cpp;
 pub(crate) mod ts;
 mod js;
+pub(crate) mod go;
 
 
 #[derive(Debug, PartialEq, Eq)]
@@ -65,6 +66,10 @@ pub(crate) fn get_ast_parser(language_id: LanguageId) -> Result<Box<dyn AstLangu
             let parser = ts::TSParser::new()?; //quick fix untill we have a dedicated parser for TypeScriptReact
             Ok(Box::new(parser))
         }
+        LanguageId::Go => {
+            let parser = go::GoParser::new()?;
+            Ok(Box::new(parser))
+        }
         other => Err(ParserError {
             message: "Unsupported language id: ".to_string() + &other.to_string()
         }),
@@ -95,6 +100,7 @@ pub fn get_language_id_by_filename(filename: &PathBuf) -> Option<LanguageId> {
         "rs" => Some(LanguageId::Rust),
         "ts" => Some(LanguageId::TypeScript),
         "tsx" => Some(LanguageId::TypeScriptReact),
+        "go" => Some(LanguageId::Go),
         _ => None
     }
 }
