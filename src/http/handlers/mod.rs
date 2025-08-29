@@ -129,7 +129,7 @@ pub async fn query_call_graph(
     // Extract request parameters
     let filepath = request.filepath;
     let function_name = request.function_name;
-    let max_depth = request.max_depth.unwrap_or(3); // Default max depth is 3
+    let max_depth = request.max_depth.unwrap_or(2); // Default max depth is 2
     
     // Try to find the project ID by searching through stored graphs
     // In a real implementation, you might want to store project_id -> project_dir mapping
@@ -368,7 +368,7 @@ pub async fn query_hierarchical_graph(
     State(storage): State<Arc<StorageManager>>,
     Json(request): Json<super::models::QueryHierarchicalGraphRequest>,
 ) -> Result<Json<ApiResponse<super::models::QueryHierarchicalGraphResponse>>, StatusCode> {
-    let max_depth = request.max_depth.unwrap_or(5); // Default max depth is 5
+    let max_depth = request.max_depth.unwrap_or(2); // Default max depth is 2
     let include_file_info = request.include_file_info.unwrap_or(true);
     
     // Try to find the project ID
@@ -895,7 +895,7 @@ fn generate_error_page_html(filepath: &str, function_name: &str, status: axum::h
                 </div>
                 <div>
                     <div class="label">Max Depth</div>
-                    <input id="max_depth" type="number" min="1" max="10" value="3"/>
+                    <input id="max_depth" type="number" min="1" max="5" value="2"/>
                 </div>
             </div>
             <div class="actions">
@@ -941,8 +941,8 @@ fn generate_main_page_html() -> String {
         }}
         
         .container {{
-            max-width: 800px;
-            width: 90%;
+            max-width: 980px;
+            width: 92%;
             background: white;
             border-radius: 20px;
             box-shadow: 0 25px 50px rgba(0,0,0,0.15);
@@ -952,134 +952,140 @@ fn generate_main_page_html() -> String {
         .header {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 40px;
+            padding: 32px 40px;
             text-align: center;
         }}
         
         .header h1 {{
             margin: 0;
-            font-size: 3em;
+            font-size: 2.6em;
             font-weight: 300;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }}
         
         .header p {{
             margin: 0;
-            opacity: 0.9;
-            font-size: 1.2em;
+            opacity: 0.95;
+            font-size: 1.05em;
         }}
         
         .content {{
-            padding: 40px;
+            padding: 28px 40px 40px 40px;
+        }}
+        
+        .step {{
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }}
+        .step-title {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            color: #333;
+            margin: 0 0 14px 0;
+        }}
+        .step-title .badge {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            font-weight: 700;
         }}
         
         .form-group {{
-            margin-bottom: 25px;
+            margin-bottom: 16px;
         }}
-        
         .form-group label {{
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
             color: #333;
-            font-size: 1.1em;
         }}
-        
-        .form-group input {{
+        .form-group input, .form-group textarea {{
             width: 100%;
-            padding: 15px;
+            padding: 12px;
             border: 2px solid #e1e5e9;
             border-radius: 10px;
-            font-size: 16px;
-            transition: all 0.3s ease;
+            font-size: 14px;
+            transition: all 0.2s ease;
             box-sizing: border-box;
+            font-family: inherit;
         }}
-        
-        .form-group input:focus {{
+        .form-group input:focus, .form-group textarea:focus {{
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }}
-        
         .form-row {{
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
         }}
-        
+        .hint {{
+            font-size: 12px;
+            color: #667085;
+            margin-top: 6px;
+        }}
+        .actions {{
+            margin-top: 10px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }}
         .btn {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 18px 40px;
+            padding: 12px 18px;
             border-radius: 10px;
             cursor: pointer;
-            font-size: 18px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            width: 100%;
-            margin-top: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            transition: all 0.2s ease;
         }}
-        
         .btn:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.25);
         }}
+        .btn:disabled {{ opacity: 0.6; cursor: not-allowed; }}
+        .btn.secondary {{ background: linear-gradient(135deg, #6c757d 0%, #495057 100%); }}
         
-        .btn:active {{
-            transform: translateY(0);
+        .status {{
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            border-left: 4px solid #e9ecef;
+            background: #fff;
+            color: #495057;
+            white-space: pre-wrap;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 13px;
         }}
+        .status.ok {{ border-left-color: #2ea44f; background: #effaf3; }}
+        .status.err {{ border-left-color: #fa5252; background: #fff5f5; }}
         
-        .info {{
-            background: #f8f9fa;
-            border-left: 4px solid #667eea;
-            padding: 20px;
-            margin-top: 30px;
-            border-radius: 0 10px 10px 0;
-        }}
-        
-        .info h3 {{
-            margin: 0 0 15px 0;
-            color: #333;
-        }}
-        
-        .info p {{
-            margin: 0 0 10px 0;
-            color: #666;
-            line-height: 1.6;
-        }}
-        
-        .examples {{
-            margin-top: 30px;
-        }}
-        
-        .examples h3 {{
-            color: #333;
-            margin-bottom: 15px;
-        }}
-        
+        .examples {{ margin-top: 10px; }}
         .example-item {{
             background: #f8f9fa;
-            padding: 15px;
+            padding: 10px 12px;
             border-radius: 8px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             font-family: monospace;
             color: #667eea;
+            font-size: 13px;
         }}
         
         @media (max-width: 768px) {{
-            .form-row {{
-                grid-template-columns: 1fr;
-            }}
-            
-            .header h1 {{
-                font-size: 2.5em;
-            }}
-            
-            .container {{
-                width: 95%;
-                margin: 20px;
-            }}
+            .form-row {{ grid-template-columns: 1fr; }}
+            .container {{ width: 95%; margin: 20px; }}
         }}
     </style>
 </head>
@@ -1087,61 +1093,151 @@ fn generate_main_page_html() -> String {
     <div class="container">
         <div class="header">
             <h1>🔗 Function Call Graph</h1>
-            <p>Interactive visualization of function call relationships</p>
+            <p>Build and visualize function call relationships</p>
         </div>
         
         <div class="content">
-            <form id="graphForm" onsubmit="drawGraph(event)">
+            <!-- Step 1: Build Codebase -->
+            <div class="step" id="step1">
+                <h2 class="step-title"><span class="badge">1</span> Build Codebase</h2>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="filepath">File Path *</label>
-                        <input 
-                            type="text" 
-                            id="filepath" 
-                            name="filepath" 
-                            placeholder="e.g., /mnt/repo/src/main.rs"
-                            required
-                        >
+                        <label for="project_dir">Project Directory *</label>
+                        <input type="text" id="project_dir" placeholder="e.g., /home/do/ssd/iohub/codegraph-core" value="/home/do/ssd/iohub/codegraph-core" required>
+                        <div class="hint">Absolute path to the repository you want to analyze.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="exclude_patterns">Exclude dirs</label>
+                        <input type="text" id="exclude_patterns" placeholder="node_modules, .venv, __pycache__, target, .git" value="node_modules, .venv, __pycache__, target, .git">
+                        <div class="hint">Directories to skip during analysis.</div>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button class="btn" id="build_btn" onclick="buildCodebase()">🚀 Build Codebase</button>
+                </div>
+                <div id="build_status" class="status" style="display:none;"></div>
+            </div>
+            
+            <!-- Step 2: Draw Graph -->
+            <div class="step" id="step2">
+                <h2 class="step-title"><span class="badge">2</span> Draw Graph</h2>
+                <form id="graphForm" onsubmit="drawGraph(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="filepath">File Path *</label>
+                            <input 
+                                type="text" 
+                                id="filepath" 
+                                name="filepath" 
+                                placeholder="e.g., /mnt/repo/src/main.rs"
+                                required
+                            >
+                            <div class="hint">File path inside the analyzed repository.</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="function_name">Function Name</label>
+                            <input 
+                                type="text" 
+                                id="function_name" 
+                                name="function_name" 
+                                placeholder="e.g., main (optional)"
+                            >
+                            <div class="hint">Leave empty to visualize all functions in the file.</div>
+                        </div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="function_name">Function Name</label>
+                        <label for="max_depth">Max Depth</label>
                         <input 
-                            type="text" 
-                            id="function_name" 
-                            name="function_name" 
-                            placeholder="e.g., main (optional)"
+                            type="number" 
+                            id="max_depth" 
+                            name="max_depth" 
+                            value="2" 
+                            min="1" 
+                            max="5"
+                            placeholder="Maximum call depth (default: 2)"
                         >
                     </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="max_depth">Max Depth</label>
-                    <input 
-                        type="number" 
-                        id="max_depth" 
-                        name="max_depth" 
-                        value="3" 
-                        min="1" 
-                        max="10"
-                        placeholder="Maximum call depth (default: 3)"
-                    >
-                </div>
-                
-                <button type="submit" class="btn">🎨 Draw Graph</button>
-            </form>
-            
-            <div class="info">
-                <h3>📋 How to use</h3>
-                <p><strong>File Path:</strong> Enter the path to the source file you want to analyze (required)</p>
-                <p><strong>Function Name:</strong> Specify a particular function to focus on (optional)</p>
-                <p><strong>Max Depth:</strong> Set the maximum depth for call chain exploration (default: 3)</p>
+                    
+                    <button type="submit" class="btn">🎨 Draw Graph</button>
+                </form>
             </div>
-            
         </div>
     </div>
 
     <script>
+        function fillExample() {{
+            document.getElementById('project_dir').value = '/mnt/repo/codegraph-core';
+            document.getElementById('exclude_patterns').value = 'node_modules, .venv, __pycache__, target, .git';
+        }}
+
+        async function buildCodebase() {{
+            const btn = document.getElementById('build_btn');
+            const statusEl = document.getElementById('build_status');
+            const projectDir = document.getElementById('project_dir').value.trim();
+            const excludeStr = document.getElementById('exclude_patterns').value.trim();
+
+            if (!projectDir) {{
+                alert('Please enter a project directory');
+                return;
+            }}
+
+            let exclude_patterns = [];
+            if (excludeStr.length > 0) {{
+                exclude_patterns = excludeStr.split(',').map(s => s.trim()).filter(Boolean);
+            }}
+
+            const payload = {{
+                project_dir: projectDir,
+                force_rebuild: false,
+                exclude_patterns: exclude_patterns
+            }};
+
+            statusEl.style.display = 'block';
+            statusEl.className = 'status';
+            statusEl.textContent = 'Building... This may take a while for large repositories.';
+            btn.disabled = true;
+
+            try {{
+                const resp = await fetch('/build_graph', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify(payload)
+                }});
+
+                const text = await resp.text();
+                let data;
+                try {{ data = JSON.parse(text); }} catch (e) {{ data = {{ raw: text }}; }}
+
+                if (!resp.ok) {{
+                    statusEl.className = 'status err';
+                    statusEl.textContent = 'Build failed: ' + (data?.message || resp.status + ' ' + resp.statusText);
+                }} else {{
+                    statusEl.className = 'status ok';
+                    const build = data?.data || data;
+                    statusEl.textContent = 'Build succeeded.\n' +
+                        'project_id: ' + (build?.project_id || 'n/a') + '\n' +
+                        'total_files: ' + (build?.total_files ?? 'n/a') + '\n' +
+                        'total_functions: ' + (build?.total_functions ?? 'n/a') + '\n' +
+                        'build_time_ms: ' + (build?.build_time_ms ?? 'n/a');
+
+                    // Heuristic: suggest a filepath from the analyzed project
+                    if (projectDir) {{
+                        const input = document.getElementById('filepath');
+                        if (input && !input.value) {{
+                            input.value = projectDir.replace(/\/$/, '') + '/src/main.rs';
+                        }}
+                    }}
+                }}
+            }} catch (err) {{
+                statusEl.className = 'status err';
+                statusEl.textContent = 'Network error while building: ' + err;
+            }} finally {{
+                btn.disabled = false;
+            }}
+        }}
+
         function drawGraph(event) {{
             event.preventDefault();
             
@@ -1154,27 +1250,22 @@ fn generate_main_page_html() -> String {
                 return;
             }}
             
-            // Build the URL with query parameters
             let url = '/draw_call_graph?filepath=' + encodeURIComponent(filepath);
-            
             if (functionName) {{
                 url += '&function_name=' + encodeURIComponent(functionName);
             }}
-            
-            if (maxDepth && maxDepth !== '3') {{
+            if (maxDepth) {{
                 url += '&max_depth=' + encodeURIComponent(maxDepth);
             }}
-            
-            // Navigate to the graph visualization
             window.location.href = url;
         }}
-        
-        // Add some interactivity
+
+        // Enter key submits Step 2 as well
         document.addEventListener('DOMContentLoaded', function() {{
-            const inputs = document.querySelectorAll('input');
+            const inputs = document.querySelectorAll('input, textarea');
             inputs.forEach(input => {{
                 input.addEventListener('keypress', function(e) {{
-                    if (e.key === 'Enter') {{
+                    if (e.key === 'Enter' && (this.id === 'filepath' || this.id === 'function_name' || this.id === 'max_depth')) {{
                         document.getElementById('graphForm').dispatchEvent(new Event('submit'));
                     }}
                 }});
