@@ -1,6 +1,6 @@
 use axum::{
-    extract::State,
-    response::Json,
+    extract::{State, Query},
+    response::{Json, Html},
     http::StatusCode,
 };
 use std::sync::Arc;
@@ -9,6 +9,7 @@ use crate::services::CodeAnalyzer;
 use super::models::*;
 use md5;
 use uuid;
+use serde_json::json;
 
 pub async fn build_graph(
     State(storage): State<Arc<StorageManager>>,
@@ -128,7 +129,7 @@ pub async fn query_call_graph(
     // Extract request parameters
     let filepath = request.filepath;
     let function_name = request.function_name;
-    let max_depth = request.max_depth.unwrap_or(3); // Default max depth is 3
+    let max_depth = request.max_depth.unwrap_or(2); // Default max depth is 2
     
     // Try to find the project ID by searching through stored graphs
     // In a real implementation, you might want to store project_id -> project_dir mapping
@@ -367,7 +368,7 @@ pub async fn query_hierarchical_graph(
     State(storage): State<Arc<StorageManager>>,
     Json(request): Json<super::models::QueryHierarchicalGraphRequest>,
 ) -> Result<Json<ApiResponse<super::models::QueryHierarchicalGraphResponse>>, StatusCode> {
-    let max_depth = request.max_depth.unwrap_or(5); // Default max depth is 5
+    let max_depth = request.max_depth.unwrap_or(2); // Default max depth is 2
     let include_file_info = request.include_file_info.unwrap_or(true);
     
     // Try to find the project ID
@@ -670,77 +671,217 @@ pub async fn query_code_snippet(
 pub async fn query_code_skeleton(
     State(_storage): State<Arc<StorageManager>>,
     Json(request): Json<QueryCodeSkeletonRequest>,
-) -> Result<Json<ApiResponse<CodeSkeletonResponse>>, StatusCode> {
-    // Read file contents
-    let path = std::path::PathBuf::from(&request.filepath);
-    let code = match std::fs::read_to_string(&path) {
-        Ok(c) => c,
-        Err(_) => return Err(StatusCode::NOT_FOUND),
-    };
+) -> Result<Json<ApiResponse<CodeSkeletonBatchResponse>>, StatusCode> {
+    let mut skeletons = Vec::new();
 
-    // Get parser and language
-    let (mut parser, language_id) = match crate::codegraph::treesitter::parsers::get_ast_parser_by_filename(&path) {
-        Ok(v) => v,
-        Err(_) => return Err(StatusCode::BAD_REQUEST),
-    };
+    for filepath in &request.filepaths {
+        // Read file contents
+        let path = std::path::PathBuf::from(filepath);
+        let code = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => {
+                // Skip files that can't be read, but continue processing others
+                tracing::warn!("Failed to read file: {}", filepath);
+                continue;
+            }
+        };
 
-    // Parse and build symbol maps
-    let symbols = parser.parse(&code, &path);
-    let symbols_struct: Vec<crate::codegraph::treesitter::ast_instance_structs::SymbolInformation> =
-        symbols.iter().map(|s| s.read().symbol_info_struct()).collect();
+        // Get parser and language
+        let (mut parser, language_id) = match crate::codegraph::treesitter::parsers::get_ast_parser_by_filename(&path) {
+            Ok(v) => v,
+            Err(_) => {
+                // Skip files that can't be parsed, but continue processing others
+                tracing::warn!("Failed to get parser for file: {}", filepath);
+                continue;
+            }
+        };
 
-    // Build guid maps similar to tests
-    use uuid::Uuid;
-    use std::collections::HashMap;
-    let guid_to_children: HashMap<Uuid, Vec<Uuid>> = symbols
-        .iter()
-        .map(|s| (s.read().guid().clone(), s.read().childs_guid().clone()))
-        .collect();
+        // Parse and build symbol maps
+        let symbols = parser.parse(&code, &path);
+        let symbols_struct: Vec<crate::codegraph::treesitter::ast_instance_structs::SymbolInformation> =
+            symbols.iter().map(|s| s.read().symbol_info_struct()).collect();
 
-    // Build a minimal FileASTMarkup-compatible list
-    let ast_markup = crate::codegraph::treesitter::file_ast_markup::FileASTMarkup {
-        symbols_sorted_by_path_len: symbols_struct.clone(),
-    };
-    let guid_to_info: HashMap<Uuid, &crate::codegraph::treesitter::ast_instance_structs::SymbolInformation> =
-        ast_markup
-            .symbols_sorted_by_path_len
+        // Build guid maps similar to tests
+        use uuid::Uuid;
+        use std::collections::HashMap;
+        let guid_to_children: HashMap<Uuid, Vec<Uuid>> = symbols
             .iter()
-            .map(|s| (s.guid.clone(), s))
+            .map(|s| (s.read().guid().clone(), s.read().childs_guid().clone()))
             .collect();
 
-    // Make formatter
-    let formatter = crate::codegraph::treesitter::skeletonizer::make_formatter(&language_id);
+        // Build a minimal FileASTMarkup-compatible list
+        let ast_markup = crate::codegraph::treesitter::file_ast_markup::FileASTMarkup {
+            symbols_sorted_by_path_len: symbols_struct.clone(),
+        };
+        let guid_to_info: HashMap<Uuid, &crate::codegraph::treesitter::ast_instance_structs::SymbolInformation> =
+            ast_markup
+                .symbols_sorted_by_path_len
+                .iter()
+                .map(|s| (s.guid.clone(), s))
+                .collect();
 
-    // Filter top-level struct/class symbols and build skeleton text
-    use crate::codegraph::treesitter::structs::SymbolType;
-    let class_symbols: Vec<_> = ast_markup
-        .symbols_sorted_by_path_len
-        .iter()
-        .filter(|x| x.symbol_type == SymbolType::StructDeclaration)
-        .collect();
+        // Make formatter
+        let formatter = crate::codegraph::treesitter::skeletonizer::make_formatter(&language_id);
 
-    let mut lines: Vec<String> = Vec::new();
-    for symbol in class_symbols {
-        let skeleton_line = formatter.make_skeleton(&symbol, &code.to_string(), &guid_to_children, &guid_to_info);
-        lines.push(skeleton_line);
+        // Filter top-level struct/class and function symbols and build skeleton text
+        use crate::codegraph::treesitter::structs::SymbolType;
+        let class_symbols: Vec<_> = ast_markup
+            .symbols_sorted_by_path_len
+            .iter()
+            .filter(|x| x.symbol_type == SymbolType::StructDeclaration || x.symbol_type == SymbolType::FunctionDeclaration)
+            .collect();
+
+        let mut lines: Vec<String> = Vec::new();
+        for symbol in class_symbols {
+            let skeleton_line = formatter.make_skeleton(&symbol, &code.to_string(), &guid_to_children, &guid_to_info);
+            lines.push(skeleton_line);
+        }
+
+        let skeleton_text = if lines.is_empty() {
+            String::new()
+        } else {
+            lines.join("\n\n")
+        };
+
+        let language = language_id.to_string();
+
+        let skeleton_response = CodeSkeletonResponse {
+            filepath: path.display().to_string(),
+            language,
+            skeleton_text,
+        };
+
+        skeletons.push(skeleton_response);
     }
 
-    let skeleton_text = if lines.is_empty() {
-        String::new()
-    } else {
-        lines.join("\n\n")
-    };
-
-    let language = language_id.to_string();
-
-    let response = CodeSkeletonResponse {
-        filepath: path.display().to_string(),
-        language,
-        skeleton_text,
+    let response = CodeSkeletonBatchResponse {
+        skeletons,
     };
 
     Ok(Json(ApiResponse {
         success: true,
         data: response,
     }))
+} 
+
+pub async fn draw_call_graph(
+    State(storage): State<Arc<StorageManager>>,
+    Query(query): Query<super::models::DrawCallGraphQuery>,
+) -> Result<Html<String>, StatusCode> {
+    // Check if we have the required parameters
+    if query.filepath.is_empty() {
+        return Ok(Html(generate_main_page_html()));
+    }
+    
+    // First, get the call graph data using existing logic
+    let call_graph_request = super::models::QueryCallGraphRequest {
+        filepath: query.filepath.clone(),
+        function_name: query.function_name.clone(),
+        max_depth: query.max_depth,
+    };
+    
+    match query_call_graph(State(storage.clone()), Json(call_graph_request)).await {
+        Ok(resp) => {
+            let call_graph_data = resp.0.data;
+            let html_content = generate_echarts_call_graph_html(&call_graph_data);
+            Ok(Html(html_content))
+        }
+        Err(status) => {
+            let html = generate_error_page_html(
+                &query.filepath,
+                query.function_name.as_deref().unwrap_or(""),
+                status,
+            );
+            Ok(Html(html))
+        }
+    }
+}
+
+fn generate_error_page_html(filepath: &str, function_name: &str, status: axum::http::StatusCode) -> String {
+    let title = "Function Call Graph - Error";
+    let status_text = format!("{} {}", status.as_u16(), status.canonical_reason().unwrap_or("Error"));
+    let suggestion = if status == axum::http::StatusCode::NOT_FOUND {
+        "Graph data not found. Make sure you have built the project graph first via POST /build_graph (with JSON {\"project_dir\": \"/path/to/project\"}). Also verify the filepath and function name exist."
+            .to_string()
+    } else {
+        "An error occurred while generating the call graph. Please check server logs.".to_string()
+    };
+
+    let mut html = include_str!("templates/error_page.html").to_string();
+    html = html.replace("__TITLE__", title);
+    html = html.replace("__STATUS_TEXT__", &status_text);
+    html = html.replace("__SUGGESTION__", &suggestion);
+    html = html.replace("__FILEPATH__", filepath);
+    html = html.replace("__FUNCTION_NAME__", function_name);
+    html
+}
+
+// 新增：处理根路径的主页
+pub async fn draw_call_graph_home() -> Html<String> {
+    Html(generate_main_page_html())
+}
+
+fn generate_main_page_html() -> String {
+    include_str!("templates/main_page.html").to_string()
+}
+
+
+fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGraphResponse) -> String {
+    // Prepare nodes with names and metadata (use function name for link resolution)
+    let mut nodes: Vec<serde_json::Value> = Vec::new();
+    let mut name_set: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for function in &call_graph_data.functions {
+        name_set.insert(function.name.clone());
+        nodes.push(json!({
+            "id": function.name,
+            "name": function.name,
+            "file_path": call_graph_data.filepath,
+            "line_start": function.line_start,
+            "line_end": function.line_end
+        }));
+    }
+
+    // Build links using function names (ECharts allows source/target by name)
+    let mut links: Vec<serde_json::Value> = Vec::new();
+    for function in &call_graph_data.functions {
+        // callees: function -> callee
+        for callee in &function.callees {
+            if name_set.contains(&callee.function_name) {
+                links.push(json!({
+                    "source": function.name,
+                    "target": callee.function_name,
+                    "type": "calls"
+                }));
+            }
+        }
+        // callers: caller -> function
+        for caller in &function.callers {
+            if name_set.contains(&caller.function_name) {
+                links.push(json!({
+                    "source": caller.function_name,
+                    "target": function.name,
+                    "type": "called_by"
+                }));
+            }
+        }
+    }
+
+    let graph_data = json!({
+        "nodes": nodes,
+        "links": links
+    });
+
+    // Load template and replace placeholders
+    let mut html = include_str!("templates/echarts_call_graph.html").to_string();
+    html = html.replace("__FILEPATH_INPUT__", &call_graph_data.filepath);
+    let fn_input = call_graph_data
+        .functions
+        .first()
+        .map(|f| f.name.clone())
+        .unwrap_or_else(|| "All functions".to_string());
+    html = html.replace("__FUNCTION_NAME_INPUT__", &fn_input);
+    html = html.replace("__GRAPH_JSON__", &serde_json::to_string(&graph_data).unwrap());
+
+    html
 } 

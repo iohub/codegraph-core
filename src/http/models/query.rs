@@ -59,3 +59,26 @@ pub struct QueryHierarchicalGraphResponse {
     pub total_functions: usize,
     pub total_relations: usize,
 } 
+
+#[derive(Debug, Deserialize)]
+pub struct DrawCallGraphRequest {
+    pub filepath: String,
+    pub function_name: Option<String>,
+    pub max_depth: Option<usize>,
+}
+
+// 用于 GET 请求的查询参数结构
+#[derive(Debug, Deserialize)]
+pub struct DrawCallGraphQuery {
+    #[serde(default)]
+    pub filepath: String,
+    pub function_name: Option<String>,
+    #[serde(default = "default_max_depth")]
+    pub max_depth: Option<usize>,
+}
+
+fn default_max_depth() -> Option<usize> {
+    Some(3)
+}
+
+ 
