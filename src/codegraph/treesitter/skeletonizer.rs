@@ -9,6 +9,7 @@ use crate::codegraph::treesitter::parsers::rust::RustSkeletonFormatter;
 use crate::codegraph::treesitter::parsers::cpp::CppSkeletonFormatter;
 use crate::codegraph::treesitter::parsers::ts::TypescriptSkeletonFormatter;
 use crate::codegraph::treesitter::structs::SymbolType;
+use crate::codegraph::treesitter::parsers::go::GoSkeletonFormatter;
 
 struct BaseSkeletonFormatter;
 
@@ -161,6 +162,7 @@ pub fn make_formatter(language_id: &LanguageId) -> Box<dyn SkeletonFormatter> {
         LanguageId::Python => Box::new(PythonSkeletonFormatter {}),
         LanguageId::Rust => Box::new(RustSkeletonFormatter {}),
         LanguageId::Cpp => Box::new(CppSkeletonFormatter {}),
+        LanguageId::Go => Box::new(GoSkeletonFormatter {}),
         LanguageId::TypeScript => Box::new(TypescriptSkeletonFormatter {}),
         LanguageId::TypeScriptReact => Box::new(TypescriptSkeletonFormatter {}),
         _ => Box::new(BaseSkeletonFormatter {})

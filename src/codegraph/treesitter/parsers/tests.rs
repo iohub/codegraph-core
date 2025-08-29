@@ -40,6 +40,7 @@ mod java;
 mod cpp;
 mod ts;
 mod js;
+mod go;
 
 pub(crate) fn print(symbols: &Vec<AstSymbolInstanceArc>, code: &str) {
     let guid_to_symbol_map = symbols.iter()

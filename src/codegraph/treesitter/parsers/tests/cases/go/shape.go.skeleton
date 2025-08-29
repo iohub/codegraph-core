@@ -1,0 +1,5 @@
+[
+  {
+    "line": "type Rectangle struct {\n  width int\n  height int\n}"
+  }
+] 

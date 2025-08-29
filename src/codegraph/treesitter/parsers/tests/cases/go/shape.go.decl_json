@@ -1,0 +1,12 @@
+[
+  {
+    "top_row": 10,
+    "bottom_row": 17,
+    "line": "type Rectangle struct {\n  width int\n  height int\n}"
+  },
+  {
+    "top_row": 3,
+    "bottom_row": 6,
+    "line": "type Shape struct {\n  name string\n}"
+  }
+] 
