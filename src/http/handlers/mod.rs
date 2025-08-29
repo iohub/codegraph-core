@@ -722,12 +722,12 @@ pub async fn query_code_skeleton(
         // Make formatter
         let formatter = crate::codegraph::treesitter::skeletonizer::make_formatter(&language_id);
 
-        // Filter top-level struct/class symbols and build skeleton text
+        // Filter top-level struct/class and function symbols and build skeleton text
         use crate::codegraph::treesitter::structs::SymbolType;
         let class_symbols: Vec<_> = ast_markup
             .symbols_sorted_by_path_len
             .iter()
-            .filter(|x| x.symbol_type == SymbolType::StructDeclaration)
+            .filter(|x| x.symbol_type == SymbolType::StructDeclaration || x.symbol_type == SymbolType::FunctionDeclaration)
             .collect();
 
         let mut lines: Vec<String> = Vec::new();
