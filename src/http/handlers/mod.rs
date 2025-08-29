@@ -1,6 +1,6 @@
 use axum::{
-    extract::State,
-    response::Json,
+    extract::{State, Query},
+    response::{Json, Html},
     http::StatusCode,
 };
 use std::sync::Arc;
@@ -9,6 +9,7 @@ use crate::services::CodeAnalyzer;
 use super::models::*;
 use md5;
 use uuid;
+use serde_json::json;
 
 pub async fn build_graph(
     State(storage): State<Arc<StorageManager>>,
@@ -761,4 +762,799 @@ pub async fn query_code_skeleton(
         success: true,
         data: response,
     }))
+} 
+
+pub async fn draw_call_graph(
+    State(storage): State<Arc<StorageManager>>,
+    Query(query): Query<super::models::DrawCallGraphQuery>,
+) -> Result<Html<String>, StatusCode> {
+    // Check if we have the required parameters
+    if query.filepath.is_empty() {
+        return Ok(Html(generate_main_page_html()));
+    }
+    
+    // First, get the call graph data using existing logic
+    let call_graph_request = super::models::QueryCallGraphRequest {
+        filepath: query.filepath.clone(),
+        function_name: query.function_name.clone(),
+        max_depth: query.max_depth,
+    };
+    
+    let call_graph_response = query_call_graph(State(storage), Json(call_graph_request)).await?;
+    let call_graph_data = call_graph_response.0.data;
+    
+    // Generate HTML content with D3.js visualization
+    let html_content = generate_d3_call_graph_html(&call_graph_data);
+    
+    Ok(Html(html_content))
+}
+
+// 新增：处理根路径的主页
+pub async fn draw_call_graph_home() -> Html<String> {
+    Html(generate_main_page_html())
+}
+
+fn generate_main_page_html() -> String {
+    format!(r#"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Function Call Graph - Home</title>
+    <style>
+        body {{
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+        
+        .container {{
+            max-width: 800px;
+            width: 90%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }}
+        
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }}
+        
+        .header h1 {{
+            margin: 0;
+            font-size: 3em;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }}
+        
+        .header p {{
+            margin: 0;
+            opacity: 0.9;
+            font-size: 1.2em;
+        }}
+        
+        .content {{
+            padding: 40px;
+        }}
+        
+        .form-group {{
+            margin-bottom: 25px;
+        }}
+        
+        .form-group label {{
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1em;
+        }}
+        
+        .form-group input {{
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }}
+        
+        .form-group input:focus {{
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }}
+        
+        .form-row {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }}
+        
+        .btn {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }}
+        
+        .btn:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }}
+        
+        .btn:active {{
+            transform: translateY(0);
+        }}
+        
+        .info {{
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 0 10px 10px 0;
+        }}
+        
+        .info h3 {{
+            margin: 0 0 15px 0;
+            color: #333;
+        }}
+        
+        .info p {{
+            margin: 0 0 10px 0;
+            color: #666;
+            line-height: 1.6;
+        }}
+        
+        .examples {{
+            margin-top: 30px;
+        }}
+        
+        .examples h3 {{
+            color: #333;
+            margin-bottom: 15px;
+        }}
+        
+        .example-item {{
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-family: monospace;
+            color: #667eea;
+        }}
+        
+        @media (max-width: 768px) {{
+            .form-row {{
+                grid-template-columns: 1fr;
+            }}
+            
+            .header h1 {{
+                font-size: 2.5em;
+            }}
+            
+            .container {{
+                width: 95%;
+                margin: 20px;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔗 Function Call Graph</h1>
+            <p>Interactive visualization of function call relationships</p>
+        </div>
+        
+        <div class="content">
+            <form id="graphForm" onsubmit="drawGraph(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="filepath">File Path *</label>
+                        <input 
+                            type="text" 
+                            id="filepath" 
+                            name="filepath" 
+                            placeholder="e.g., src/main.rs"
+                            required
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="function_name">Function Name</label>
+                        <input 
+                            type="text" 
+                            id="function_name" 
+                            name="function_name" 
+                            placeholder="e.g., main (optional)"
+                        >
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="max_depth">Max Depth</label>
+                    <input 
+                        type="number" 
+                        id="max_depth" 
+                        name="max_depth" 
+                        value="3" 
+                        min="1" 
+                        max="10"
+                        placeholder="Maximum call depth (default: 3)"
+                    >
+                </div>
+                
+                <button type="submit" class="btn">🎨 Draw Graph</button>
+            </form>
+            
+            <div class="info">
+                <h3>📋 How to use</h3>
+                <p><strong>File Path:</strong> Enter the path to the source file you want to analyze (required)</p>
+                <p><strong>Function Name:</strong> Specify a particular function to focus on (optional)</p>
+                <p><strong>Max Depth:</strong> Set the maximum depth for call chain exploration (default: 3)</p>
+            </div>
+            
+            <div class="examples">
+                <h3>💡 Examples</h3>
+                <div class="example-item">src/main.rs</div>
+                <div class="example-item">src/http/handlers.rs</div>
+                <div class="example-item">src/storage/mod.rs</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function drawGraph(event) {{
+            event.preventDefault();
+            
+            const filepath = document.getElementById('filepath').value.trim();
+            const functionName = document.getElementById('function_name').value.trim();
+            const maxDepth = document.getElementById('max_depth').value;
+            
+            if (!filepath) {{
+                alert('Please enter a file path');
+                return;
+            }}
+            
+            // Build the URL with query parameters
+            let url = '/draw_call_graph?filepath=' + encodeURIComponent(filepath);
+            
+            if (functionName) {{
+                url += '&function_name=' + encodeURIComponent(functionName);
+            }}
+            
+            if (maxDepth && maxDepth !== '3') {{
+                url += '&max_depth=' + encodeURIComponent(maxDepth);
+            }}
+            
+            // Navigate to the graph visualization
+            window.location.href = url;
+        }}
+        
+        // Add some interactivity
+        document.addEventListener('DOMContentLoaded', function() {{
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach(input => {{
+                input.addEventListener('keypress', function(e) {{
+                    if (e.key === 'Enter') {{
+                        document.getElementById('graphForm').dispatchEvent(new Event('submit'));
+                    }}
+                }});
+            }});
+        }});
+    </script>
+</body>
+</html>
+    "#)
+}
+
+fn generate_d3_call_graph_html(call_graph_data: &super::models::QueryCallGraphResponse) -> String {
+    // Convert the call graph data to D3.js compatible format
+    let mut nodes = Vec::new();
+    let mut links = Vec::new();
+    let mut node_id_map = std::collections::HashMap::new();
+    
+    // Add all functions as nodes
+    for (index, function) in call_graph_data.functions.iter().enumerate() {
+        node_id_map.insert(&function.id, index);
+        nodes.push(json!({
+            "id": function.id,
+            "name": function.name,
+            "file_path": call_graph_data.filepath,
+            "line_start": function.line_start,
+            "line_end": function.line_end,
+            "group": 1
+        }));
+    }
+    
+    // Add call relationships as links
+    for function in &call_graph_data.functions {
+        let source_id = node_id_map.get(&function.id).unwrap();
+        
+        // Add callee relationships (function calls other functions)
+        for callee in &function.callees {
+            if let Some(target_id) = node_id_map.get(&callee.function_name) {
+                links.push(json!({
+                    "source": *source_id,
+                    "target": *target_id,
+                    "value": 1,
+                    "type": "calls"
+                }));
+            }
+        }
+        
+        // Add caller relationships (other functions call this function)
+        for caller in &function.callers {
+            if let Some(target_id) = node_id_map.get(&caller.function_name) {
+                links.push(json!({
+                    "source": *target_id,
+                    "target": *source_id,
+                    "value": 1,
+                    "type": "called_by"
+                }));
+            }
+        }
+    }
+    
+    let graph_data = json!({
+        "nodes": nodes,
+        "links": links
+    });
+    
+    // Generate the HTML content with D3.js visualization
+    format!(r#"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Function Call Graph Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {{
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }}
+        
+        .container {{
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }}
+        
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }}
+        
+        .header h1 {{
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }}
+        
+        .header p {{
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }}
+        
+        .controls {{
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }}
+        
+        .control-group {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        
+        .control-group label {{
+            font-weight: 600;
+            color: #495057;
+        }}
+        
+        .control-group input, .control-group select {{
+            padding: 8px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }}
+        
+        .control-group input:focus, .control-group select:focus {{
+            outline: none;
+            border-color: #667eea;
+        }}
+        
+        .btn {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }}
+        
+        .btn:hover {{
+            transform: translateY(-2px);
+        }}
+        
+        .btn-secondary {{
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }}
+        
+        .btn-secondary:hover {{
+            background: linear-gradient(135deg, #5a6268 0%, #343a40 100%);
+        }}
+        
+        .visualization {{
+            padding: 20px;
+            height: 600px;
+            position: relative;
+        }}
+        
+        .node {{
+            cursor: pointer;
+            stroke: #fff;
+            stroke-width: 2px;
+        }}
+        
+        .node:hover {{
+            stroke-width: 3px;
+        }}
+        
+        .link {{
+            stroke: #999;
+            stroke-opacity: 0.6;
+            stroke-width: 2px;
+        }}
+        
+        .link:hover {{
+            stroke-opacity: 1;
+            stroke-width: 3px;
+        }}
+        
+        .node-label {{
+            font-size: 12px;
+            font-weight: 600;
+            text-anchor: middle;
+            pointer-events: none;
+            fill: #333;
+        }}
+        
+        .tooltip {{
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+        }}
+        
+        .legend {{
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }}
+        
+        .legend-item {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }}
+        
+        .legend-color {{
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }}
+        
+        .stats {{
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-size: 14px;
+        }}
+        
+        .stats h4 {{
+            margin: 0 0 10px 0;
+            color: #495057;
+        }}
+        
+        .stats p {{
+            margin: 5px 0;
+            color: #6c757d;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔗 Function Call Graph</h1>
+            <p>Interactive visualization of function call relationships</p>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="filepath">File:</label>
+                <input type="text" id="filepath" value="{}" readonly>
+            </div>
+            <div class="control-group">
+                <label for="function">Function:</label>
+                <input type="text" id="function" value="{}" readonly>
+            </div>
+            <div class="control-group">
+                <label for="simulation">Simulation:</label>
+                <select id="simulation">
+                    <option value="force">Force Simulation</option>
+                    <option value="hierarchical">Hierarchical Layout</option>
+                </select>
+            </div>
+            <button class="btn" onclick="resetZoom()">Reset View</button>
+            <button class="btn" onclick="exportSVG()">Export SVG</button>
+            <button class="btn btn-secondary" onclick="goHome()">🏠 Home</button>
+        </div>
+        
+        <div class="visualization" id="visualization">
+            <div class="legend">
+                <h4>Legend</h4>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ff6b6b;"></div>
+                    <span>Function Node</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4ecdc4;"></div>
+                    <span>Call Relationship</span>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <h4>Statistics</h4>
+                <p>Nodes: <span id="nodeCount">{}</span></p>
+                <p>Links: <span id="linkCount">{}</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Graph data
+        const graphData = {};
+        
+        // Set up the visualization
+        const width = document.getElementById('visualization').clientWidth - 40;
+        const height = 600;
+        
+        // Create SVG
+        const svg = d3.select('#visualization')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .style('background', '#f8f9fa');
+        
+        // Create tooltip
+        const tooltip = d3.select('#visualization')
+            .append('div')
+            .attr('class', 'tooltip')
+            .style('opacity', 0);
+        
+        // Create zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on('zoom', (event) => {{
+                g.attr('transform', event.transform);
+            }});
+        
+        svg.call(zoom);
+        
+        // Create main group
+        const g = svg.append('g');
+        
+        // Create force simulation
+        const simulation = d3.forceSimulation(graphData.nodes)
+            .force('link', d3.forceLink(graphData.links).id(d => d.id).distance(100))
+            .force('charge', d3.forceManyBody().strength(-300))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(30));
+        
+        // Create links
+        const link = g.append('g')
+            .selectAll('line')
+            .data(graphData.links)
+            .enter().append('line')
+            .attr('class', 'link')
+            .attr('stroke-width', 2)
+            .attr('marker-end', 'url(#arrowhead)');
+        
+        // Create arrow marker
+        svg.append('defs').append('marker')
+            .attr('id', 'arrowhead')
+            .attr('viewBox', '0 -5 10 10')
+            .attr('refX', 20)
+            .attr('refY', 0)
+            .attr('markerWidth', 6)
+            .attr('markerHeight', 6)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M0,-5L10,0L0,5')
+            .attr('fill', '#999');
+        
+        // Create nodes
+        const node = g.append('g')
+            .selectAll('circle')
+            .data(graphData.nodes)
+            .enter().append('circle')
+            .attr('class', 'node')
+            .attr('r', 15)
+            .attr('fill', '#ff6b6b')
+            .call(d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended));
+        
+        // Create node labels
+        const label = g.append('g')
+            .selectAll('text')
+            .data(graphData.nodes)
+            .enter().append('text')
+            .attr('class', 'node-label')
+            .attr('dy', '.35em')
+            .text(d => d.name.length > 10 ? d.name.substring(0, 10) + '...' : d.name);
+        
+        // Add hover effects
+        node.on('mouseover', function(event, d) {{
+            d3.select(this).attr('r', 20);
+            tooltip.transition()
+                .duration(200)
+                .style('opacity', .9);
+            tooltip.html(`
+                <strong>${{d.name}}</strong><br/>
+                File: ${{d.file_path}}<br/>
+                Lines: ${{d.line_start}}-${{d.line_end}}
+            `)
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 28) + 'px');
+        }})
+        .on('mouseout', function() {{
+            d3.select(this).attr('r', 15);
+            tooltip.transition()
+                .duration(500)
+                .style('opacity', 0);
+        }});
+        
+        // Update positions on simulation tick
+        simulation.on('tick', () => {{
+            link
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+            
+            node
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y);
+            
+            label
+                .attr('x', d => d.x)
+                .attr('y', d => d.y);
+        }});
+        
+        // Drag functions
+        function dragstarted(event, d) {{
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }}
+        
+        function dragged(event, d) {{
+            d.fx = event.x;
+            d.fy = event.y;
+        }}
+        
+        function dragended(event, d) {{
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }}
+        
+        // Reset zoom function
+        function resetZoom() {{
+            svg.transition().duration(750).call(
+                zoom.transform,
+                d3.zoomIdentity
+            );
+        }}
+        
+        // Export SVG function
+        function exportSVG() {{
+            const svgData = new XMLSerializer().serializeToString(svg.node());
+            const svgBlob = new Blob([svgData], {{type: 'image/svg+xml;charset=utf-8'}});
+            const svgUrl = URL.createObjectURL(svgBlob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = svgUrl;
+            downloadLink.download = 'call_graph.svg';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }}
+        
+        // Go home function
+        function goHome() {{
+            window.location.href = '/draw_call_graph';
+        }}
+        
+        // Update stats
+        document.getElementById('nodeCount').textContent = graphData.nodes.length;
+        document.getElementById('linkCount').textContent = graphData.links.length;
+        
+        // Handle simulation type change
+        document.getElementById('simulation').addEventListener('change', function() {{
+            const simulationType = this.value;
+            if (simulationType === 'hierarchical') {{
+                // Switch to hierarchical layout
+                simulation.force('link', d3.forceLink(graphData.links).id(d => d.id).distance(150));
+                simulation.force('charge', d3.forceManyBody().strength(-500));
+                simulation.alpha(1).restart();
+            }} else {{
+                // Switch back to force layout
+                simulation.force('link', d3.forceLink(graphData.links).id(d => d.id).distance(100));
+                simulation.force('charge', d3.forceManyBody().strength(-300));
+                simulation.alpha(1).restart();
+            }}
+        }});
+    </script>
+</body>
+</html>
+    "#, 
+        call_graph_data.filepath,
+        call_graph_data.functions.first().map(|f| f.name.clone()).unwrap_or_else(|| "All functions".to_string()),
+        nodes.len(),
+        links.len(),
+        serde_json::to_string(&graph_data).unwrap()
+    )
 } 
