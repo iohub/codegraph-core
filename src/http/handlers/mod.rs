@@ -1195,7 +1195,7 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
     for function in &call_graph_data.functions {
         name_set.insert(function.name.clone());
         nodes.push(json!({
-            "id": function.id,
+            "id": function.name,
             "name": function.name,
             "file_path": call_graph_data.filepath,
             "line_start": function.line_start,
@@ -1352,9 +1352,9 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
          </div>
      </div>
  
-     <script>
-         const graphData = {};
-         const chart = echarts.init(document.getElementById('chart'));
+         <script>
+        const graphData = {};
+        const chart = echarts.init(document.getElementById('chart'));
 
         const categories = [{{ name: 'Function' }}];
 
@@ -1368,7 +1368,7 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
             const deg = degree[n.name] || 0;
             const size = Math.max(8, Math.min(60, 12 + deg * 3));
             return {{
-                id: n.id,
+                id: n.name,
                 name: n.name,
                 value: deg,
                 file_path: n.file_path,
@@ -1381,6 +1381,8 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
             }};
         }});
         const links = graphData.links.map(e => ({{ source: e.source, target: e.target }}));
+
+        console.log('CallGraph data:', {{ nodes: graphData.nodes?.length, links: graphData.links?.length }});
 
         const option = {{
             backgroundColor: '#f8f9fa',
@@ -1404,8 +1406,11 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
                 categories: categories,
                 data: data,
                 links: links,
-                label: {{ position: 'right', formatter: '{{b}}' }},
-                lineStyle: {{ color: 'source', curveness: 0.3 }},
+                edges: links,
+                edgeSymbol: ['none', 'arrow'],
+                edgeSymbolSize: 6,
+                label: {{ position: 'right', formatter: function(p) {{ return p.data?.name || p.name; }} }},
+                lineStyle: {{ color: '#888', opacity: 0.8, curveness: 0.3, width: 1.5 }},
                 emphasis: {{ focus: 'adjacency', lineStyle: {{ width: 10 }} }},
                 force: {{ repulsion: 420, edgeLength: [80, 220], gravity: 0.1 }}
             }}]
