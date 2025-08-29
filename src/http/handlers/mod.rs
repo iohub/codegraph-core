@@ -1355,61 +1355,70 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
      <script>
          const graphData = {};
          const chart = echarts.init(document.getElementById('chart'));
- 
-         const categories = [{{ name: 'Function' }}];
- 
-         const option = {{
-             backgroundColor: '#f8f9fa',
-             tooltip: {{
-                 trigger: 'item',
-                 formatter: function (params) {{
-                     if (params.dataType === 'edge') {{
-                         return `${{params.data.source}} → ${{params.data.target}}`;
-                     }}
-                     const d = params.data;
-                     const parts = [
-                         `<strong>${{d.name}}</strong>`,
-                         d.file_path ? `File: ${{d.file_path}}` : '',
-                         (d.line_start != null && d.line_end != null) ? `Lines: ${{d.line_start}}-${{d.line_end}}` : ''
-                     ].filter(Boolean);
-                     return parts.join('<br/>');
-                 }}
-             }},
-             series: [{{
-                 type: 'graph',
-                 layout: 'force',
-                 roam: true,
-                 draggable: true,
-                 focusNodeAdjacency: true,
-                 categories: categories,
-                 data: graphData.nodes.map(n => ({{
-                     id: n.id,
-                     name: n.name,
-                     value: 1,
-                     file_path: n.file_path,
-                     line_start: n.line_start,
-                     line_end: n.line_end,
-                     category: 0,
-                     symbolSize: 26,
-                     label: {{ show: true }}
-                 }})),
-                 links: graphData.links.map(e => ({{
-                     source: e.source,
-                     target: e.target
-                 }})),
-                 lineStyle: {{ width: 2, color: '#4ecdc4', opacity: 0.8 }},
-                 force: {{ repulsion: 420, edgeLength: [80, 220], gravity: 0.1 }}
-             }}]
-         }};
- 
-         chart.setOption(option);
-         window.addEventListener('resize', () => chart.resize());
-     </script>
-     </body>
-     </html>
-     "#,
-         call_graph_data.filepath,
-         call_graph_data.functions.first().map(|f| f.name.clone()).unwrap_or_else(|| "All functions".to_string()),
-         serde_json::to_string(&graph_data).unwrap()
-     )
- } 
+
+        const categories = [{{ name: 'Function' }}];
+
+        // Compute degree for dynamic symbol sizing
+        const degree = {{}};
+        graphData.links.forEach(l => {{
+            degree[l.source] = (degree[l.source] || 0) + 1;
+            degree[l.target] = (degree[l.target] || 0) + 1;
+        }});
+        const data = graphData.nodes.map(n => {{
+            const deg = degree[n.name] || 0;
+            const size = Math.max(8, Math.min(60, 12 + deg * 3));
+            return {{
+                id: n.id,
+                name: n.name,
+                value: deg,
+                file_path: n.file_path,
+                line_start: n.line_start,
+                line_end: n.line_end,
+                category: 0,
+                symbolSize: size,
+                label: {{ show: size > 30 }},
+                draggable: true
+            }};
+        }});
+        const links = graphData.links.map(e => ({{ source: e.source, target: e.target }}));
+
+        const option = {{
+            backgroundColor: '#f8f9fa',
+            title: {{
+                text: 'Call Graph',
+                subtext: 'ECharts graph style',
+                top: 'bottom',
+                left: 'right'
+            }},
+            tooltip: {{}},
+            legend: [{{ data: categories.map(c => c.name) }}],
+            animationDuration: 1500,
+            animationEasingUpdate: 'quinticInOut',
+            series: [{{
+                name: 'Call Graph',
+                type: 'graph',
+                legendHoverLink: false,
+                layout: 'force',
+                roam: true,
+                focusNodeAdjacency: true,
+                categories: categories,
+                data: data,
+                links: links,
+                label: {{ position: 'right', formatter: '{{b}}' }},
+                lineStyle: {{ color: 'source', curveness: 0.3 }},
+                emphasis: {{ focus: 'adjacency', lineStyle: {{ width: 10 }} }},
+                force: {{ repulsion: 420, edgeLength: [80, 220], gravity: 0.1 }}
+            }}]
+        }};
+        
+        chart.setOption(option);
+        window.addEventListener('resize', () => chart.resize());
+        </script>
+        </body>
+        </html>
+        "#,
+        call_graph_data.filepath,
+        call_graph_data.functions.first().map(|f| f.name.clone()).unwrap_or_else(|| "All functions".to_string()),
+        serde_json::to_string(&graph_data).unwrap()
+    )
+} 
