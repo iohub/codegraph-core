@@ -780,13 +780,139 @@ pub async fn draw_call_graph(
         max_depth: query.max_depth,
     };
     
-    let call_graph_response = query_call_graph(State(storage), Json(call_graph_request)).await?;
-    let call_graph_data = call_graph_response.0.data;
-    
-    // Generate HTML content with ECharts visualization
-    let html_content = generate_echarts_call_graph_html(&call_graph_data);
-    
-    Ok(Html(html_content))
+    match query_call_graph(State(storage.clone()), Json(call_graph_request)).await {
+        Ok(resp) => {
+            let call_graph_data = resp.0.data;
+            let html_content = generate_echarts_call_graph_html(&call_graph_data);
+            Ok(Html(html_content))
+        }
+        Err(status) => {
+            let html = generate_error_page_html(
+                &query.filepath,
+                query.function_name.as_deref().unwrap_or(""),
+                status,
+            );
+            Ok(Html(html))
+        }
+    }
+}
+
+fn generate_error_page_html(filepath: &str, function_name: &str, status: axum::http::StatusCode) -> String {
+    let title = "Function Call Graph - Error";
+    let status_text = format!("{} {}", status.as_u16(), status.canonical_reason().unwrap_or("Error"));
+    let suggestion = if status == axum::http::StatusCode::NOT_FOUND {
+        "Graph data not found. Make sure you have built the project graph first via POST /build_graph (with JSON {\"project_dir\": \"/path/to/project\"}). Also verify the filepath and function name exist."
+            .to_string()
+    } else {
+        "An error occurred while generating the call graph. Please check server logs.".to_string()
+    };
+    format!(r#"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{}</title>
+    <style>
+        body {{
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #f06595 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+        .card {{
+            background: white;
+            width: 90%;
+            max-width: 900px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }}
+        .header {{
+            background: #ff6b6b;
+            color: white;
+            padding: 20px 24px;
+        }}
+        .header h1 {{
+            margin: 0;
+            font-weight: 400;
+        }}
+        .content {{
+            padding: 24px;
+        }}
+        .label {{ color: #495057; font-weight: 600; }}
+        .value {{ color: #212529; font-family: monospace; }}
+        .status {{ margin-top: 12px; padding: 10px 12px; background: #fff5f5; border-left: 4px solid #fa5252; border-radius: 8px; }}
+        .hint {{ margin-top: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px; color: #495057; }}
+        .actions {{ margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap; }}
+        .btn {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+        }}
+        .btn.secondary {{ background: linear-gradient(135deg, #6c757d 0%, #495057 100%); }}
+        .inputs {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }}
+        .inputs input {{ width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px; }}
+        @media (max-width: 768px) {{ .inputs {{ grid-template-columns: 1fr; }} }}
+    </style>
+    <script>
+        function goHome() {{ window.location.href = '/draw_call_graph'; }}
+        function retry() {{
+            const filepath = document.getElementById('filepath').value.trim();
+            const functionName = document.getElementById('function').value.trim();
+            const maxDepth = document.getElementById('max_depth').value.trim();
+            if (!filepath) {{ alert('Please enter a file path'); return; }}
+            let url = '/draw_call_graph?filepath=' + encodeURIComponent(filepath);
+            if (functionName) {{ url += '&function_name=' + encodeURIComponent(functionName); }}
+            if (maxDepth) {{ url += '&max_depth=' + encodeURIComponent(maxDepth); }}
+            window.location.href = url;
+        }}
+    </script>
+</head>
+<body>
+    <div class="card">
+        <div class="header"><h1>Call Graph Error</h1></div>
+        <div class="content">
+            <div class="status"><strong>Status:</strong> {} </div>
+            <div class="hint">{}</div>
+            <div class="inputs">
+                <div>
+                    <div class="label">File</div>
+                    <input id="filepath" type="text" value="{}" placeholder="/mnt/repo/src/main.rs"/>
+                </div>
+                <div>
+                    <div class="label">Function</div>
+                    <input id="function" type="text" value="{}" placeholder="main (optional)"/>
+                </div>
+                <div>
+                    <div class="label">Max Depth</div>
+                    <input id="max_depth" type="number" min="1" max="10" value="3"/>
+                </div>
+            </div>
+            <div class="actions">
+                <a class="btn" href="javascript:retry()">Retry</a>
+                <a class="btn secondary" href="javascript:goHome()">Home</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+    "#,
+        title,
+        status_text,
+        suggestion,
+        filepath,
+        function_name,
+    )
 }
 
 // 新增：处理根路径的主页
@@ -973,7 +1099,7 @@ fn generate_main_page_html() -> String {
                             type="text" 
                             id="filepath" 
                             name="filepath" 
-                            placeholder="e.g., src/main.rs"
+                            placeholder="e.g., /mnt/repo/src/main.rs"
                             required
                         >
                     </div>
@@ -1012,12 +1138,6 @@ fn generate_main_page_html() -> String {
                 <p><strong>Max Depth:</strong> Set the maximum depth for call chain exploration (default: 3)</p>
             </div>
             
-            <div class="examples">
-                <h3>💡 Examples</h3>
-                <div class="example-item">src/main.rs</div>
-                <div class="example-item">src/http/handlers.rs</div>
-                <div class="example-item">src/storage/mod.rs</div>
-            </div>
         </div>
     </div>
 
@@ -1115,145 +1235,181 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
 
     // Generate the HTML content with ECharts visualization
     format!(r#"
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Function Call Graph Visualization (ECharts)</title>
-    <style>
-        body {{
-            margin: 0;
-            padding: 20px;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }}
-        .container {{
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }}
-        .header {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }}
-        .controls {{
-            padding: 20px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #e9ecef;
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-        }}
-        .control-group {{
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }}
-        .visualization {{
-            padding: 20px;
-            height: 700px;
-            box-sizing: border-box;
-        }}
-        #chart {{
-            width: 100%;
-            height: 100%;
-            background: #f8f9fa;
-            border-radius: 12px;
-        }}
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-    <script>
-        function goHome() {{ window.location.href = '/draw_call_graph'; }}
-    </script>
-    </head>
-    <body>
-    <div class="container">
-        <div class="header">
-            <h1>🔗 Function Call Graph</h1>
-            <p>Interactive visualization of function call relationships (ECharts)</p>
-        </div>
-        <div class="controls">
-            <div class="control-group">
-                <label>File:</label>
-                <input type="text" value="{}" readonly>
-            </div>
-            <div class="control-group">
-                <label>Function:</label>
-                <input type="text" value="{}" readonly>
-            </div>
-            <button onclick="goHome()">🏠 Home</button>
-        </div>
-        <div class="visualization">
-            <div id="chart"></div>
-        </div>
-    </div>
-
-    <script>
-        const graphData = {};
-        const chart = echarts.init(document.getElementById('chart'));
-
-        const categories = [{{ name: 'Function' }}];
-
-        const option = {{
-            backgroundColor: '#f8f9fa',
-            tooltip: {{
-                trigger: 'item',
-                formatter: function (params) {{
-                    if (params.dataType === 'edge') {{
-                        return `${{params.data.source}} → ${{params.data.target}}`;
-                    }}
-                    const d = params.data;
-                    const parts = [
-                        `<strong>${{d.name}}</strong>`,
-                        d.file_path ? `File: ${{d.file_path}}` : '',
-                        (d.line_start != null && d.line_end != null) ? `Lines: ${{d.line_start}}-${{d.line_end}}` : ''
-                    ].filter(Boolean);
-                    return parts.join('<br/>');
-                }}
-            }},
-            series: [{{
-                type: 'graph',
-                layout: 'force',
-                roam: true,
-                draggable: true,
-                focusNodeAdjacency: true,
-                categories: categories,
-                data: graphData.nodes.map(n => ({{
-                    id: n.id,
-                    name: n.name,
-                    value: 1,
-                    file_path: n.file_path,
-                    line_start: n.line_start,
-                    line_end: n.line_end,
-                    category: 0,
-                    symbolSize: 26,
-                    label: {{ show: true }}
-                }})),
-                links: graphData.links.map(e => ({{
-                    source: e.source,
-                    target: e.target
-                }})),
-                lineStyle: {{ width: 2, color: '#4ecdc4', opacity: 0.8 }},
-                force: {{ repulsion: 420, edgeLength: [80, 220], gravity: 0.1 }}
-            }}]
-        }};
-
-        chart.setOption(option);
-        window.addEventListener('resize', () => chart.resize());
-    </script>
-    </body>
-    </html>
-    "#,
-        call_graph_data.filepath,
-        call_graph_data.functions.first().map(|f| f.name.clone()).unwrap_or_else(|| "All functions".to_string()),
-        serde_json::to_string(&graph_data).unwrap()
-    )
-} 
+ <!DOCTYPE html>
+ <html lang="en">
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>Function Call Graph Visualization (ECharts)</title>
+     <style>
+         body {{
+             margin: 0;
+             padding: 20px;
+             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+             min-height: 100vh;
+         }}
+         .container {{
+             max-width: 1400px;
+             margin: 0 auto;
+             background: white;
+             border-radius: 15px;
+             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+             overflow: hidden;
+         }}
+         .header {{
+             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+             color: white;
+             padding: 20px;
+             text-align: center;
+         }}
+         .controls {{
+             padding: 20px;
+             background: #f8f9fa;
+             border-bottom: 1px solid #e9ecef;
+             display: flex;
+             gap: 15px;
+             align-items: center;
+             flex-wrap: wrap;
+         }}
+         .control-group {{
+             display: flex;
+             align-items: center;
+             gap: 8px;
+         }}
+         .control-group input {{
+             padding: 8px 12px;
+             border: 2px solid #e9ecef;
+             border-radius: 8px;
+             font-size: 14px;
+         }}
+         .btn {{
+             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+             color: white;
+             border: none;
+             padding: 10px 20px;
+             border-radius: 8px;
+             cursor: pointer;
+             font-weight: 600;
+         }}
+         .visualization {{
+             padding: 20px;
+             height: 700px;
+             box-sizing: border-box;
+         }}
+         #chart {{
+             width: 100%;
+             height: 100%;
+             background: #f8f9fa;
+             border-radius: 12px;
+         }}
+     </style>
+     <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+     <script>
+         function goHome() {{ window.location.href = '/draw_call_graph'; }}
+         function drawNew() {{
+             const filepath = document.getElementById('filepath').value.trim();
+             const functionName = document.getElementById('function').value.trim();
+             const maxDepth = document.getElementById('max_depth').value.trim();
+             if (!filepath) {{
+                 alert('Please enter a file path');
+                 return;
+             }}
+             let url = '/draw_call_graph?filepath=' + encodeURIComponent(filepath);
+             if (functionName) {{
+                 url += '&function_name=' + encodeURIComponent(functionName);
+             }}
+             if (maxDepth) {{
+                 url += '&max_depth=' + encodeURIComponent(maxDepth);
+             }}
+             window.location.href = url;
+         }}
+     </script>
+     </head>
+     <body>
+     <div class="container">
+         <div class="header">
+             <h1>🔗 Function Call Graph</h1>
+             <p>Interactive visualization of function call relationships (ECharts)</p>
+         </div>
+         <div class="controls">
+             <div class="control-group">
+                 <label for="filepath">File:</label>
+                 <input id="filepath" type="text" value="{}" placeholder="/mnt/repo/src/main.rs">
+             </div>
+             <div class="control-group">
+                 <label for="function">Function:</label>
+                 <input id="function" type="text" value="{}" placeholder="main (optional)">
+             </div>
+             <div class="control-group">
+                 <label for="max_depth">Max Depth:</label>
+                 <input id="max_depth" type="number" min="1" max="10" value="3">
+             </div>
+             <button class="btn" onclick="drawNew()">Draw</button>
+         </div>
+         <div class="visualization">
+             <div id="chart"></div>
+         </div>
+     </div>
+ 
+     <script>
+         const graphData = {};
+         const chart = echarts.init(document.getElementById('chart'));
+ 
+         const categories = [{{ name: 'Function' }}];
+ 
+         const option = {{
+             backgroundColor: '#f8f9fa',
+             tooltip: {{
+                 trigger: 'item',
+                 formatter: function (params) {{
+                     if (params.dataType === 'edge') {{
+                         return `${{params.data.source}} → ${{params.data.target}}`;
+                     }}
+                     const d = params.data;
+                     const parts = [
+                         `<strong>${{d.name}}</strong>`,
+                         d.file_path ? `File: ${{d.file_path}}` : '',
+                         (d.line_start != null && d.line_end != null) ? `Lines: ${{d.line_start}}-${{d.line_end}}` : ''
+                     ].filter(Boolean);
+                     return parts.join('<br/>');
+                 }}
+             }},
+             series: [{{
+                 type: 'graph',
+                 layout: 'force',
+                 roam: true,
+                 draggable: true,
+                 focusNodeAdjacency: true,
+                 categories: categories,
+                 data: graphData.nodes.map(n => ({{
+                     id: n.id,
+                     name: n.name,
+                     value: 1,
+                     file_path: n.file_path,
+                     line_start: n.line_start,
+                     line_end: n.line_end,
+                     category: 0,
+                     symbolSize: 26,
+                     label: {{ show: true }}
+                 }})),
+                 links: graphData.links.map(e => ({{
+                     source: e.source,
+                     target: e.target
+                 }})),
+                 lineStyle: {{ width: 2, color: '#4ecdc4', opacity: 0.8 }},
+                 force: {{ repulsion: 420, edgeLength: [80, 220], gravity: 0.1 }}
+             }}]
+         }};
+ 
+         chart.setOption(option);
+         window.addEventListener('resize', () => chart.resize());
+     </script>
+     </body>
+     </html>
+     "#,
+         call_graph_data.filepath,
+         call_graph_data.functions.first().map(|f| f.name.clone()).unwrap_or_else(|| "All functions".to_string()),
+         serde_json::to_string(&graph_data).unwrap()
+     )
+ } 
