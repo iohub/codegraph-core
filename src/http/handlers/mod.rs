@@ -1242,33 +1242,36 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
      <meta name="viewport" content="width=device-width, initial-scale=1.0">
      <title>Function Call Graph Visualization (ECharts)</title>
      <style>
+         html, body {{ height: 100%; }}
          body {{
              margin: 0;
-             padding: 20px;
+             padding: 0;
              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
              min-height: 100vh;
          }}
          .container {{
-             max-width: 1400px;
+             height: 100vh;
+             max-width: 100%;
              margin: 0 auto;
              background: white;
-             border-radius: 15px;
-             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-             overflow: hidden;
+             border-radius: 0;
+             box-shadow: 0 0 0 rgba(0,0,0,0);
+             display: flex;
+             flex-direction: column;
          }}
          .header {{
              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
              color: white;
-             padding: 20px;
-             text-align: center;
+             padding: 16px 20px;
+             text-align: left;
          }}
          .controls {{
-             padding: 20px;
+             padding: 12px 16px;
              background: #f8f9fa;
              border-bottom: 1px solid #e9ecef;
              display: flex;
-             gap: 15px;
+             gap: 12px;
              align-items: center;
              flex-wrap: wrap;
          }}
@@ -1293,15 +1296,13 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
              font-weight: 600;
          }}
          .visualization {{
-             padding: 20px;
-             height: 700px;
-             box-sizing: border-box;
+             flex: 1;
+             min-height: 0; /* allow child to size correctly in flex container */
          }}
          #chart {{
              width: 100%;
              height: 100%;
              background: #f8f9fa;
-             border-radius: 12px;
          }}
      </style>
      <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
@@ -1329,8 +1330,8 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
      <body>
      <div class="container">
          <div class="header">
-             <h1>🔗 Function Call Graph</h1>
-             <p>Interactive visualization of function call relationships (ECharts)</p>
+             <h1 style="margin:0; font-weight:400;">🔗 Function Call Graph</h1>
+             <p style="margin:4px 0 0; opacity:.9;">Interactive visualization of function call relationships (ECharts)</p>
          </div>
          <div class="controls">
              <div class="control-group">
@@ -1339,7 +1340,8 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
              </div>
              <div class="control-group">
                  <label for="function">Function:</label>
-                 <input id="function" type="text" value="{}" placeholder="main (optional)">
+                 <input id="function" type="text" value="{}" placeholder="main (optional)" list="function_suggestions">
+                 <datalist id="function_suggestions"></datalist>
              </div>
              <div class="control-group">
                  <label for="max_depth">Max Depth:</label>
@@ -1366,7 +1368,7 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
         }});
         const data = graphData.nodes.map(n => {{
             const deg = degree[n.name] || 0;
-            const size = Math.max(8, Math.min(60, 12 + deg * 3));
+            const size = Math.max(10, Math.min(48, 14 + deg * 2.5));
             return {{
                 id: n.name,
                 name: n.name,
@@ -1376,30 +1378,57 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
                 line_end: n.line_end,
                 category: 0,
                 symbolSize: size,
-                label: {{ show: size > 30 }},
+                label: {{ show: true }},
                 draggable: true
             }};
         }});
         const links = graphData.links.map(e => ({{ source: e.source, target: e.target }}));
 
-        console.log('CallGraph data:', {{ nodes: graphData.nodes?.length, links: graphData.links?.length }});
+        // Build suggestions from graph data
+        (function setupFunctionSuggest() {{
+            const input = document.getElementById('function');
+            const datalist = document.getElementById('function_suggestions');
+            const uniqueNames = Array.from(new Set(graphData.nodes.map(n => n.name))).sort();
+
+            function fuzzyScore(q, s) {{
+                q = q.toLowerCase(); s = s.toLowerCase();
+                let qi = 0, score = 0;
+                for (let i = 0; i < s.length && qi < q.length; i++) {{
+                    if (s[i] === q[qi]) {{ qi++; score += 2; }}
+                    else if (q.includes(s[i])) {{ score += 1; }}
+                }}
+                return qi === q.length ? score : -1;
+            }}
+
+            function updateList() {{
+                const q = input.value.trim();
+                let candidates = uniqueNames;
+                if (q.length > 0) {{
+                    candidates = uniqueNames
+                        .map(name => ({{ name, score: fuzzyScore(q, name) }}))
+                        .filter(x => x.score >= 0)
+                        .sort((a,b) => b.score - a.score)
+                        .slice(0, 50)
+                        .map(x => x.name);
+                }} else {{
+                    candidates = uniqueNames.slice(0, 50);
+                }}
+                datalist.innerHTML = candidates.map(n => `<option value="${{n}}"></option>`).join('');
+            }}
+
+            input.addEventListener('input', updateList);
+            updateList();
+        }})();
 
         const option = {{
-            backgroundColor: '#f8f9fa',
-            title: {{
-                text: 'Call Graph',
-                subtext: 'ECharts graph style',
-                top: 'bottom',
-                left: 'right'
-            }},
-            tooltip: {{}},
+            backgroundColor: '#ffffff',
+            tooltip: {{}} ,
             legend: [{{ data: categories.map(c => c.name) }}],
-            animationDuration: 1500,
+            animationDuration: 1200,
             animationEasingUpdate: 'quinticInOut',
             series: [{{
                 name: 'Call Graph',
                 type: 'graph',
-                legendHoverLink: false,
                 layout: 'force',
                 roam: true,
                 focusNodeAdjacency: true,
@@ -1409,10 +1438,10 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
                 edges: links,
                 edgeSymbol: ['none', 'arrow'],
                 edgeSymbolSize: 6,
-                label: {{ position: 'right', formatter: function(p) {{ return p.data?.name || p.name; }} }},
-                lineStyle: {{ color: '#888', opacity: 0.8, curveness: 0.3, width: 1.5 }},
-                emphasis: {{ focus: 'adjacency', lineStyle: {{ width: 10 }} }},
-                force: {{ repulsion: 420, edgeLength: [80, 220], gravity: 0.1 }}
+                label: {{ show: true, position: 'right', formatter: function(p) {{ return p.data?.name || p.name; }} }},
+                lineStyle: {{ color: '#98a2b3', opacity: 0.85, curveness: 0.25, width: 1.5 }},
+                emphasis: {{ focus: 'adjacency', lineStyle: {{ width: 8 }} }},
+                force: {{ repulsion: 520, edgeLength: [80, 220], gravity: 0.1 }}
             }}]
         }};
         
