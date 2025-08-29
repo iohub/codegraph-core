@@ -783,8 +783,8 @@ pub async fn draw_call_graph(
     let call_graph_response = query_call_graph(State(storage), Json(call_graph_request)).await?;
     let call_graph_data = call_graph_response.0.data;
     
-    // Generate HTML content with D3.js visualization
-    let html_content = generate_d3_call_graph_html(&call_graph_data);
+    // Generate HTML content with ECharts visualization
+    let html_content = generate_echarts_call_graph_html(&call_graph_data);
     
     Ok(Html(html_content))
 }
@@ -1066,68 +1066,61 @@ fn generate_main_page_html() -> String {
     "#)
 }
 
-fn generate_d3_call_graph_html(call_graph_data: &super::models::QueryCallGraphResponse) -> String {
-    // Convert the call graph data to D3.js compatible format
-    let mut nodes = Vec::new();
-    let mut links = Vec::new();
-    let mut node_id_map = std::collections::HashMap::new();
-    
-    // Add all functions as nodes
-    for (index, function) in call_graph_data.functions.iter().enumerate() {
-        node_id_map.insert(&function.id, index);
+
+fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGraphResponse) -> String {
+    // Prepare nodes with names and metadata (use function name for link resolution)
+    let mut nodes: Vec<serde_json::Value> = Vec::new();
+    let mut name_set: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for function in &call_graph_data.functions {
+        name_set.insert(function.name.clone());
         nodes.push(json!({
             "id": function.id,
             "name": function.name,
             "file_path": call_graph_data.filepath,
             "line_start": function.line_start,
-            "line_end": function.line_end,
-            "group": 1
+            "line_end": function.line_end
         }));
     }
-    
-    // Add call relationships as links
+
+    // Build links using function names (ECharts allows source/target by name)
+    let mut links: Vec<serde_json::Value> = Vec::new();
     for function in &call_graph_data.functions {
-        let source_id = node_id_map.get(&function.id).unwrap();
-        
-        // Add callee relationships (function calls other functions)
+        // callees: function -> callee
         for callee in &function.callees {
-            if let Some(target_id) = node_id_map.get(&callee.function_name) {
+            if name_set.contains(&callee.function_name) {
                 links.push(json!({
-                    "source": *source_id,
-                    "target": *target_id,
-                    "value": 1,
+                    "source": function.name,
+                    "target": callee.function_name,
                     "type": "calls"
                 }));
             }
         }
-        
-        // Add caller relationships (other functions call this function)
+        // callers: caller -> function
         for caller in &function.callers {
-            if let Some(target_id) = node_id_map.get(&caller.function_name) {
+            if name_set.contains(&caller.function_name) {
                 links.push(json!({
-                    "source": *target_id,
-                    "target": *source_id,
-                    "value": 1,
+                    "source": caller.function_name,
+                    "target": function.name,
                     "type": "called_by"
                 }));
             }
         }
     }
-    
+
     let graph_data = json!({
         "nodes": nodes,
         "links": links
     });
-    
-    // Generate the HTML content with D3.js visualization
+
+    // Generate the HTML content with ECharts visualization
     format!(r#"
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Function Call Graph Visualization</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <title>Function Call Graph Visualization (ECharts)</title>
     <style>
         body {{
             margin: 0;
@@ -1136,7 +1129,6 @@ fn generate_d3_call_graph_html(call_graph_data: &super::models::QueryCallGraphRe
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
         }}
-        
         .container {{
             max-width: 1400px;
             margin: 0 auto;
@@ -1145,26 +1137,12 @@ fn generate_d3_call_graph_html(call_graph_data: &super::models::QueryCallGraphRe
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             overflow: hidden;
         }}
-        
         .header {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 20px;
             text-align: center;
         }}
-        
-        .header h1 {{
-            margin: 0;
-            font-size: 2.5em;
-            font-weight: 300;
-        }}
-        
-        .header p {{
-            margin: 10px 0 0 0;
-            opacity: 0.9;
-            font-size: 1.1em;
-        }}
-        
         .controls {{
             padding: 20px;
             background: #f8f9fa;
@@ -1174,387 +1152,108 @@ fn generate_d3_call_graph_html(call_graph_data: &super::models::QueryCallGraphRe
             align-items: center;
             flex-wrap: wrap;
         }}
-        
         .control-group {{
             display: flex;
             align-items: center;
             gap: 8px;
         }}
-        
-        .control-group label {{
-            font-weight: 600;
-            color: #495057;
-        }}
-        
-        .control-group input, .control-group select {{
-            padding: 8px 12px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.3s ease;
-        }}
-        
-        .control-group input:focus, .control-group select:focus {{
-            outline: none;
-            border-color: #667eea;
-        }}
-        
-        .btn {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: transform 0.2s ease;
-        }}
-        
-        .btn:hover {{
-            transform: translateY(-2px);
-        }}
-        
-        .btn-secondary {{
-            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-        }}
-        
-        .btn-secondary:hover {{
-            background: linear-gradient(135deg, #5a6268 0%, #343a40 100%);
-        }}
-        
         .visualization {{
             padding: 20px;
-            height: 600px;
-            position: relative;
+            height: 700px;
+            box-sizing: border-box;
         }}
-        
-        .node {{
-            cursor: pointer;
-            stroke: #fff;
-            stroke-width: 2px;
-        }}
-        
-        .node:hover {{
-            stroke-width: 3px;
-        }}
-        
-        .link {{
-            stroke: #999;
-            stroke-opacity: 0.6;
-            stroke-width: 2px;
-        }}
-        
-        .link:hover {{
-            stroke-opacity: 1;
-            stroke-width: 3px;
-        }}
-        
-        .node-label {{
-            font-size: 12px;
-            font-weight: 600;
-            text-anchor: middle;
-            pointer-events: none;
-            fill: #333;
-        }}
-        
-        .tooltip {{
-            position: absolute;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            pointer-events: none;
-            z-index: 1000;
-        }}
-        
-        .legend {{
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }}
-        
-        .legend-item {{
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-        }}
-        
-        .legend-color {{
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-        }}
-        
-        .stats {{
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            font-size: 14px;
-        }}
-        
-        .stats h4 {{
-            margin: 0 0 10px 0;
-            color: #495057;
-        }}
-        
-        .stats p {{
-            margin: 5px 0;
-            color: #6c757d;
+        #chart {{
+            width: 100%;
+            height: 100%;
+            background: #f8f9fa;
+            border-radius: 12px;
         }}
     </style>
-</head>
-<body>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <script>
+        function goHome() {{ window.location.href = '/draw_call_graph'; }}
+    </script>
+    </head>
+    <body>
     <div class="container">
         <div class="header">
             <h1>🔗 Function Call Graph</h1>
-            <p>Interactive visualization of function call relationships</p>
+            <p>Interactive visualization of function call relationships (ECharts)</p>
         </div>
-        
         <div class="controls">
             <div class="control-group">
-                <label for="filepath">File:</label>
-                <input type="text" id="filepath" value="{}" readonly>
+                <label>File:</label>
+                <input type="text" value="{}" readonly>
             </div>
             <div class="control-group">
-                <label for="function">Function:</label>
-                <input type="text" id="function" value="{}" readonly>
+                <label>Function:</label>
+                <input type="text" value="{}" readonly>
             </div>
-            <div class="control-group">
-                <label for="simulation">Simulation:</label>
-                <select id="simulation">
-                    <option value="force">Force Simulation</option>
-                    <option value="hierarchical">Hierarchical Layout</option>
-                </select>
-            </div>
-            <button class="btn" onclick="resetZoom()">Reset View</button>
-            <button class="btn" onclick="exportSVG()">Export SVG</button>
-            <button class="btn btn-secondary" onclick="goHome()">🏠 Home</button>
+            <button onclick="goHome()">🏠 Home</button>
         </div>
-        
-        <div class="visualization" id="visualization">
-            <div class="legend">
-                <h4>Legend</h4>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #ff6b6b;"></div>
-                    <span>Function Node</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #4ecdc4;"></div>
-                    <span>Call Relationship</span>
-                </div>
-            </div>
-            
-            <div class="stats">
-                <h4>Statistics</h4>
-                <p>Nodes: <span id="nodeCount">{}</span></p>
-                <p>Links: <span id="linkCount">{}</span></p>
-            </div>
+        <div class="visualization">
+            <div id="chart"></div>
         </div>
     </div>
 
     <script>
-        // Graph data
         const graphData = {};
-        
-        // Set up the visualization
-        const width = document.getElementById('visualization').clientWidth - 40;
-        const height = 600;
-        
-        // Create SVG
-        const svg = d3.select('#visualization')
-            .append('svg')
-            .attr('width', width)
-            .attr('height', height)
-            .style('background', '#f8f9fa');
-        
-        // Create tooltip
-        const tooltip = d3.select('#visualization')
-            .append('div')
-            .attr('class', 'tooltip')
-            .style('opacity', 0);
-        
-        // Create zoom behavior
-        const zoom = d3.zoom()
-            .scaleExtent([0.1, 4])
-            .on('zoom', (event) => {{
-                g.attr('transform', event.transform);
-            }});
-        
-        svg.call(zoom);
-        
-        // Create main group
-        const g = svg.append('g');
-        
-        // Create force simulation
-        const simulation = d3.forceSimulation(graphData.nodes)
-            .force('link', d3.forceLink(graphData.links).id(d => d.id).distance(100))
-            .force('charge', d3.forceManyBody().strength(-300))
-            .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('collision', d3.forceCollide().radius(30));
-        
-        // Create links
-        const link = g.append('g')
-            .selectAll('line')
-            .data(graphData.links)
-            .enter().append('line')
-            .attr('class', 'link')
-            .attr('stroke-width', 2)
-            .attr('marker-end', 'url(#arrowhead)');
-        
-        // Create arrow marker
-        svg.append('defs').append('marker')
-            .attr('id', 'arrowhead')
-            .attr('viewBox', '0 -5 10 10')
-            .attr('refX', 20)
-            .attr('refY', 0)
-            .attr('markerWidth', 6)
-            .attr('markerHeight', 6)
-            .attr('orient', 'auto')
-            .append('path')
-            .attr('d', 'M0,-5L10,0L0,5')
-            .attr('fill', '#999');
-        
-        // Create nodes
-        const node = g.append('g')
-            .selectAll('circle')
-            .data(graphData.nodes)
-            .enter().append('circle')
-            .attr('class', 'node')
-            .attr('r', 15)
-            .attr('fill', '#ff6b6b')
-            .call(d3.drag()
-                .on('start', dragstarted)
-                .on('drag', dragged)
-                .on('end', dragended));
-        
-        // Create node labels
-        const label = g.append('g')
-            .selectAll('text')
-            .data(graphData.nodes)
-            .enter().append('text')
-            .attr('class', 'node-label')
-            .attr('dy', '.35em')
-            .text(d => d.name.length > 10 ? d.name.substring(0, 10) + '...' : d.name);
-        
-        // Add hover effects
-        node.on('mouseover', function(event, d) {{
-            d3.select(this).attr('r', 20);
-            tooltip.transition()
-                .duration(200)
-                .style('opacity', .9);
-            tooltip.html(`
-                <strong>${{d.name}}</strong><br/>
-                File: ${{d.file_path}}<br/>
-                Lines: ${{d.line_start}}-${{d.line_end}}
-            `)
-                .style('left', (event.pageX + 10) + 'px')
-                .style('top', (event.pageY - 28) + 'px');
-        }})
-        .on('mouseout', function() {{
-            d3.select(this).attr('r', 15);
-            tooltip.transition()
-                .duration(500)
-                .style('opacity', 0);
-        }});
-        
-        // Update positions on simulation tick
-        simulation.on('tick', () => {{
-            link
-                .attr('x1', d => d.source.x)
-                .attr('y1', d => d.source.y)
-                .attr('x2', d => d.target.x)
-                .attr('y2', d => d.target.y);
-            
-            node
-                .attr('cx', d => d.x)
-                .attr('cy', d => d.y);
-            
-            label
-                .attr('x', d => d.x)
-                .attr('y', d => d.y);
-        }});
-        
-        // Drag functions
-        function dragstarted(event, d) {{
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-        }}
-        
-        function dragged(event, d) {{
-            d.fx = event.x;
-            d.fy = event.y;
-        }}
-        
-        function dragended(event, d) {{
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-        }}
-        
-        // Reset zoom function
-        function resetZoom() {{
-            svg.transition().duration(750).call(
-                zoom.transform,
-                d3.zoomIdentity
-            );
-        }}
-        
-        // Export SVG function
-        function exportSVG() {{
-            const svgData = new XMLSerializer().serializeToString(svg.node());
-            const svgBlob = new Blob([svgData], {{type: 'image/svg+xml;charset=utf-8'}});
-            const svgUrl = URL.createObjectURL(svgBlob);
-            const downloadLink = document.createElement('a');
-            downloadLink.href = svgUrl;
-            downloadLink.download = 'call_graph.svg';
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-        }}
-        
-        // Go home function
-        function goHome() {{
-            window.location.href = '/draw_call_graph';
-        }}
-        
-        // Update stats
-        document.getElementById('nodeCount').textContent = graphData.nodes.length;
-        document.getElementById('linkCount').textContent = graphData.links.length;
-        
-        // Handle simulation type change
-        document.getElementById('simulation').addEventListener('change', function() {{
-            const simulationType = this.value;
-            if (simulationType === 'hierarchical') {{
-                // Switch to hierarchical layout
-                simulation.force('link', d3.forceLink(graphData.links).id(d => d.id).distance(150));
-                simulation.force('charge', d3.forceManyBody().strength(-500));
-                simulation.alpha(1).restart();
-            }} else {{
-                // Switch back to force layout
-                simulation.force('link', d3.forceLink(graphData.links).id(d => d.id).distance(100));
-                simulation.force('charge', d3.forceManyBody().strength(-300));
-                simulation.alpha(1).restart();
-            }}
-        }});
+        const chart = echarts.init(document.getElementById('chart'));
+
+        const categories = [{{ name: 'Function' }}];
+
+        const option = {{
+            backgroundColor: '#f8f9fa',
+            tooltip: {{
+                trigger: 'item',
+                formatter: function (params) {{
+                    if (params.dataType === 'edge') {{
+                        return `${{params.data.source}} → ${{params.data.target}}`;
+                    }}
+                    const d = params.data;
+                    const parts = [
+                        `<strong>${{d.name}}</strong>`,
+                        d.file_path ? `File: ${{d.file_path}}` : '',
+                        (d.line_start != null && d.line_end != null) ? `Lines: ${{d.line_start}}-${{d.line_end}}` : ''
+                    ].filter(Boolean);
+                    return parts.join('<br/>');
+                }}
+            }},
+            series: [{{
+                type: 'graph',
+                layout: 'force',
+                roam: true,
+                draggable: true,
+                focusNodeAdjacency: true,
+                categories: categories,
+                data: graphData.nodes.map(n => ({{
+                    id: n.id,
+                    name: n.name,
+                    value: 1,
+                    file_path: n.file_path,
+                    line_start: n.line_start,
+                    line_end: n.line_end,
+                    category: 0,
+                    symbolSize: 26,
+                    label: {{ show: true }}
+                }})),
+                links: graphData.links.map(e => ({{
+                    source: e.source,
+                    target: e.target
+                }})),
+                lineStyle: {{ width: 2, color: '#4ecdc4', opacity: 0.8 }},
+                force: {{ repulsion: 420, edgeLength: [80, 220], gravity: 0.1 }}
+            }}]
+        }};
+
+        chart.setOption(option);
+        window.addEventListener('resize', () => chart.resize());
     </script>
-</body>
-</html>
-    "#, 
+    </body>
+    </html>
+    "#,
         call_graph_data.filepath,
         call_graph_data.functions.first().map(|f| f.name.clone()).unwrap_or_else(|| "All functions".to_string()),
-        nodes.len(),
-        links.len(),
         serde_json::to_string(&graph_data).unwrap()
     )
 } 
