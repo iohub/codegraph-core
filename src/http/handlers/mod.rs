@@ -1345,7 +1345,7 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
              </div>
              <div class="control-group">
                  <label for="max_depth">Max Depth:</label>
-                 <input id="max_depth" type="number" min="1" max="10" value="3">
+                 <input id="max_depth" type="number" min="1" max="5" value="2">
              </div>
              <button class="btn" onclick="drawNew()">Draw</button>
          </div>
