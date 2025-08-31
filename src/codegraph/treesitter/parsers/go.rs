@@ -579,7 +579,6 @@ impl GoParser {
                 symbols.extend(self.parse_method_declaration(info, code, candidates));
             }
             "import_declaration" => {
-                println!("Parsing import_declaration node: {:?} ({} children)", info.node.range(), info.node.child_count());
                 symbols.extend(self.parse_import_declaration(info, code));
             }
             "field_declaration" => {
@@ -747,6 +746,7 @@ impl SkeletonFormatter for GoSkeletonFormatter {
                                      text: &String,
                                      guid_to_children: &HashMap<Uuid, Vec<Uuid>>,
                                      guid_to_info: &HashMap<Uuid, &SymbolInformation>) -> (String, (usize, usize)) {
+        
         if let Some(children) = guid_to_children.get(&symbol.guid) {
             let mut res_line: Vec<String> = Default::default();
             let mut row = symbol.full_range.start_point.row;
@@ -760,13 +760,15 @@ impl SkeletonFormatter for GoSkeletonFormatter {
                 res_line = symbol.get_content(text).unwrap().split("\n").map(|x| x.to_string()).collect::<Vec<_>>();
                 row = symbol.full_range.end_point.row;
             } else {
-                let mut content_lines = symbol.get_declaration_content(text).unwrap()
+                let mut content_lines = symbol.get_content(text).unwrap()
                     .split("\n")
-                    .map(|x| x.to_string().replace("\t", "    ")).collect::<Vec<_>>();
+                    .map(|x| x.to_string().replace("\t", "  ")).collect::<Vec<_>>();
                 let mut intent_n = 0;
                 if let Some(first) = content_lines.first_mut() {
                     intent_n = first.len() - first.trim_start().len();
                 }
+                
+                // Process comments that come before the declaration
                 for sym in all_symbols {
                     if sym.symbol_type != SymbolType::CommentDefinition {
                         break;
@@ -779,12 +781,17 @@ impl SkeletonFormatter for GoSkeletonFormatter {
                         .collect::<Vec<_>>();
                     res_line.extend(lines);
                 }
-                if res_line.is_empty() {
-                    return ("".to_string(), (0, 0));
+                
+                // If we have comments, add them before the content
+                if !res_line.is_empty() {
+                    res_line.push(format!("{}...", " ".repeat(intent_n + 4)));
+                    content_lines.extend(res_line);
+                    res_line = content_lines;
+                } else {
+                    // If no comments, just return the content
+                    res_line = content_lines;
                 }
-                res_line.push(format!("{}...", " ".repeat(intent_n + 4)));
-                content_lines.extend(res_line);
-                res_line = content_lines;
+                row = symbol.full_range.end_point.row;
             }
 
             let declaration = res_line.join("\n");
