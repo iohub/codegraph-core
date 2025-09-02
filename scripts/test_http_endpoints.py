@@ -286,7 +286,7 @@ def run_tests():
         # 4) query_code_skeleton
         print_header("Test 4: Query Code Skeleton Endpoint")
         skeleton_payload = {
-            "filepath": filepath,
+            "filepaths": [filepath],
         }
         print_info(f"POST /query_code_skeleton")
         print_json_pretty(skeleton_payload, "Request Payload")
@@ -302,7 +302,9 @@ def run_tests():
         assert_true(r.status_code == 200, f"/query_code_skeleton HTTP {r.status_code}: {r.text}")
         j = r.json()
         print_info("Skeleton text preview:")
-        skeleton_text = j["data"]["skeleton_text"]
+        skeletons = j["data"].get("skeletons", [])
+        assert_true(len(skeletons) > 0, "No skeletons returned from query_code_skeleton")
+        skeleton_text = skeletons[0].get("skeleton_text", "")
         # Truncate if too long
         if len(skeleton_text) > 200:
             print(f"{Colors.OKCYAN}{skeleton_text[:500]}...{Colors.ENDC}")
@@ -311,7 +313,7 @@ def run_tests():
             
         assert_true(j.get("success") is True, f"/query_code_skeleton success=false: {j}")
         print_success("/query_code_skeleton endpoint test passed")
-
+        
         print_header("Test Results Summary")
         print_success("All endpoint tests passed successfully! 🎉")
         print_info("✅ /build_graph")
