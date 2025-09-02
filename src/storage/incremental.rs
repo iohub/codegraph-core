@@ -388,6 +388,7 @@ impl IncrementalManager {
                 "ts" | "tsx" => "typescript".to_string(),
                 "java" => "java".to_string(),
                 "cpp" | "cc" | "cxx" | "c++" | "c" | "h" | "hpp" | "hxx" | "hh" => "cpp".to_string(),
+                "go" => "go".to_string(),
                 _ => "unknown".to_string(),
             }
         } else {
@@ -448,6 +449,17 @@ impl IncrementalManager {
                     if line.trim().starts_with("namespace ") {
                         if let Some(name) = line.trim().split_whitespace().nth(1) {
                             return name.to_string();
+                        }
+                    }
+                }
+                "global".to_string()
+            },
+            "go" => {
+                // 查找package声明
+                for line in content.lines() {
+                    if line.trim().starts_with("package ") {
+                        if let Some(package) = line.trim().split_whitespace().nth(1) {
+                            return package.trim_end_matches(';').to_string();
                         }
                     }
                 }

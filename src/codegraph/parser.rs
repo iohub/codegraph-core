@@ -73,7 +73,8 @@ impl CodeParser {
                 "js" | "jsx" |
                 "rs" |
                 "ts" |
-                "tsx"
+                "tsx" |
+                "go"
             )
         } else {
             false
@@ -385,6 +386,7 @@ impl CodeParser {
                 "ts" | "tsx" => "typescript".to_string(),
                 "java" => "java".to_string(),
                 "cpp" | "cc" | "cxx" | "c++" | "c" | "h" | "hpp" | "hxx" | "hh" => "cpp".to_string(),
+                "go" => "go".to_string(),
                 _ => "unknown".to_string(),
             }
         } else {
