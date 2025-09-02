@@ -80,6 +80,54 @@
         })();
         const option = { backgroundColor: '#ffffff', tooltip: {}, legend: [{ data: categories.map(c => c.name) }], animationDuration: 1200, animationEasingUpdate: 'quinticInOut', series: [{ name: 'Call Graph', type: 'graph', layout: 'force', roam: true, focusNodeAdjacency: true, categories: categories, data: data, links: links, edges: links, edgeSymbol: ['none', 'arrow'], edgeSymbolSize: 6, label: { show: true, position: 'right', formatter: function(p) { return p.data?.name || p.name; } }, lineStyle: { color: '#98a2b3', opacity: 0.85, curveness: 0.25, width: 1.5 }, emphasis: { focus: 'adjacency', lineStyle: { width: 8 } }, force: { repulsion: 520, edgeLength: [80, 220], gravity: 0.1 } }] };
         chart.setOption(option);
+
+        // Edge highlight styles for clarity yet harmonious with theme
+        const DEFAULT_EDGE = { color: '#98a2b3', width: 1.5, opacity: 0.85 };
+        const OUTGOING_EDGE = { color: '#4f46e5', width: 3, opacity: 0.95 }; // calls →
+        const INCOMING_EDGE = { color: '#f59e0b', width: 2.5, opacity: 0.95 }; // ← called by
+        const DIMMED_EDGE = { color: '#cbd5e1', width: 1, opacity: 0.2 };
+
+        // Keep a pristine copy of base links for resets
+        const baseLinks = links.map(e => ({ ...e }));
+
+        function applyEdgeStylesFor(nodeName) {
+            const styledLinks = baseLinks.map(e => {
+                if (e.source === nodeName) {
+                    return { ...e, lineStyle: { ...OUTGOING_EDGE, curveness: 0.25 } };
+                } else if (e.target === nodeName) {
+                    return { ...e, lineStyle: { ...INCOMING_EDGE, curveness: 0.25 } };
+                } else {
+                    return { ...e, lineStyle: { ...DIMMED_EDGE, curveness: 0.25 } };
+                }
+            });
+            chart.setOption({ series: [{
+                links: styledLinks,
+                edges: styledLinks,
+                lineStyle: DEFAULT_EDGE
+            }] });
+        }
+
+        function resetEdgeStyles() {
+            chart.setOption({ series: [{
+                links: baseLinks,
+                edges: baseLinks,
+                lineStyle: DEFAULT_EDGE
+            }] });
+        }
+
+        // Highlight outgoing vs incoming when a node is selected
+        chart.on('click', function(params) {
+            if (params && params.dataType === 'node' && params.data && params.data.name) {
+                applyEdgeStylesFor(params.data.name);
+            } else {
+                // Clicked on empty space or non-node → reset to default
+                resetEdgeStyles();
+            }
+        });
+
+        // Provide a quick way to reset via double-click anywhere
+        chart.getZr().on('dblclick', function() { resetEdgeStyles(); });
+
         window.addEventListener('resize', () => chart.resize());
     </script>
 </body>
