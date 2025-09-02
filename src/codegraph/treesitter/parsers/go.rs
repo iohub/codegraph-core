@@ -7,7 +7,7 @@ use tree_sitter::{Node, Parser, Range};
 use uuid::Uuid;
 use similar::DiffableStr;
 
-use crate::codegraph::treesitter::ast_instance_structs::{AstSymbolFields, AstSymbolInstanceArc, ClassFieldDeclaration, CommentDefinition, FunctionArg, FunctionDeclaration, ImportDeclaration, ImportType, StructDeclaration, TypeDef};
+use crate::codegraph::treesitter::ast_instance_structs::{AstSymbolFields, AstSymbolInstanceArc, ClassFieldDeclaration, CommentDefinition, FunctionArg, FunctionDeclaration, ImportDeclaration, ImportType, StructDeclaration, TypeDef, FunctionCall};
 use crate::codegraph::treesitter::language_id::LanguageId;
 use crate::codegraph::treesitter::parsers::{AstLanguageParser, internal_error, ParserError};
 use crate::codegraph::treesitter::parsers::utils::{CandidateInfo, get_children_guids, get_guid};
@@ -616,6 +616,9 @@ impl GoParser {
                     });
                 }
             }
+            "call_expression" => {
+                symbols.extend(self.parse_call_expression(info, code, candidates));
+            }
             _ => {
                 // Recursively process child nodes, but don't parse every identifier
                 for i in 0..info.node.child_count() {
@@ -662,6 +665,66 @@ impl GoParser {
             }
         }
 
+        symbols
+    }
+
+    fn parse_call_expression<'a>(&mut self, info: &CandidateInfo<'a>, code: &str, candidates: &mut VecDeque<CandidateInfo<'a>>) -> Vec<AstSymbolInstanceArc> {
+        let mut symbols: Vec<AstSymbolInstanceArc> = Default::default();
+        let mut decl = FunctionCall::default();
+
+        // Fill ast fields
+        decl.ast_fields.language = info.ast_fields.language;
+        decl.ast_fields.full_range = info.node.range();
+        decl.ast_fields.file_path = info.ast_fields.file_path.clone();
+        decl.ast_fields.parent_guid = Some(info.parent_guid.clone());
+        decl.ast_fields.guid = get_guid();
+        decl.ast_fields.is_error = info.ast_fields.is_error;
+
+        // Extract function name
+        if let Some(function_node) = info.node.child_by_field_name("function") {
+            match function_node.kind() {
+                // simple function call: foo()
+                "identifier" => {
+                    decl.ast_fields.name = code.slice(function_node.byte_range()).to_string();
+                }
+                // method or selector call: pkg.Func() or obj.Method()
+                "selector_expression" => {
+                    if let Some(field_node) = function_node.child_by_field_name("field") {
+                        decl.ast_fields.name = code.slice(field_node.byte_range()).to_string();
+                    }
+                    if let Some(expr_node) = function_node.child_by_field_name("operand") {
+                        candidates.push_back(CandidateInfo {
+                            ast_fields: decl.ast_fields.clone(),
+                            node: expr_node,
+                            parent_guid: info.parent_guid.clone(),
+                        });
+                    }
+                }
+                // fallback: keep traversing
+                _ => {
+                    candidates.push_back(CandidateInfo {
+                        ast_fields: decl.ast_fields.clone(),
+                        node: function_node,
+                        parent_guid: info.parent_guid.clone(),
+                    });
+                }
+            }
+        }
+
+        // Parse arguments list to traverse inner expressions
+        if let Some(args_node) = info.node.child_by_field_name("arguments")
+            .or_else(|| info.node.child_by_field_name("argument_list")) {
+            for i in 0..args_node.child_count() {
+                let child = args_node.child(i).unwrap();
+                candidates.push_back(CandidateInfo {
+                    ast_fields: info.ast_fields.clone(),
+                    node: child,
+                    parent_guid: info.parent_guid.clone(),
+                });
+            }
+        }
+
+        symbols.push(Arc::new(RwLock::new(Box::new(decl))));
         symbols
     }
 }
