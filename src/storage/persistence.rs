@@ -1,14 +1,22 @@
 use std::path::PathBuf;
 use std::fs;
 use std::io;
+use std::collections::HashMap;
 use crate::codegraph::types::PetCodeGraph;
+use crate::storage::petgraph_storage::PetGraphStorageManager;
+use crate::cli::args::StorageMode;
 
 pub struct PersistenceManager {
     base_dir: PathBuf,
+    storage_mode: StorageMode,
 }
 
 impl PersistenceManager {
     pub fn new() -> Self {
+        Self::with_storage_mode(StorageMode::Json)
+    }
+
+    pub fn with_storage_mode(storage_mode: StorageMode) -> Self {
         let base_dir = std::env::current_dir()
             .unwrap_or_else(|_| PathBuf::from("."))
             .join(".codegraph_cache");
@@ -18,29 +26,92 @@ impl PersistenceManager {
             fs::create_dir_all(&base_dir).ok();
         }
         
-        Self { base_dir }
+        Self { base_dir, storage_mode }
+    }
+
+    pub fn set_storage_mode(&mut self, storage_mode: StorageMode) {
+        self.storage_mode = storage_mode;
+    }
+
+    pub fn get_storage_mode(&self) -> &StorageMode {
+        &self.storage_mode
     }
 
     pub fn save_graph(&self, project_id: &str, graph: &PetCodeGraph) -> io::Result<()> {
         let project_dir = self.base_dir.join(project_id);
         fs::create_dir_all(&project_dir)?;
         
+        match self.storage_mode {
+            StorageMode::Json => {
+                self.save_graph_json(project_id, graph)?;
+            },
+            StorageMode::Binary => {
+                self.save_graph_binary(project_id, graph)?;
+            },
+            StorageMode::Both => {
+                self.save_graph_json(project_id, graph)?;
+                self.save_graph_binary(project_id, graph)?;
+            },
+        }
+        
+        Ok(())
+    }
+
+    fn save_graph_json(&self, project_id: &str, graph: &PetCodeGraph) -> io::Result<()> {
+        let project_dir = self.base_dir.join(project_id);
         let graph_file = project_dir.join("graph.json");
-        let json = serde_json::to_string_pretty(graph)?;
-        fs::write(graph_file, json)?;
+        
+        PetGraphStorageManager::save_to_file(graph, &graph_file)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        
+        Ok(())
+    }
+
+    fn save_graph_binary(&self, project_id: &str, graph: &PetCodeGraph) -> io::Result<()> {
+        let project_dir = self.base_dir.join(project_id);
+        let graph_file = project_dir.join("graph.bin");
+        
+        PetGraphStorageManager::save_to_binary(graph, &graph_file)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         
         Ok(())
     }
 
     pub fn load_graph(&self, project_id: &str) -> io::Result<Option<PetCodeGraph>> {
+        match self.storage_mode {
+            StorageMode::Json => self.load_graph_json(project_id),
+            StorageMode::Binary => self.load_graph_binary(project_id),
+            StorageMode::Both => {
+                // 优先尝试加载二进制格式（更快），如果失败则加载JSON格式
+                match self.load_graph_binary(project_id) {
+                    Ok(graph) => Ok(graph),
+                    Err(_) => self.load_graph_json(project_id),
+                }
+            },
+        }
+    }
+
+    fn load_graph_json(&self, project_id: &str) -> io::Result<Option<PetCodeGraph>> {
         let graph_file = self.base_dir.join(project_id).join("graph.json");
         
         if !graph_file.exists() {
             return Ok(None);
         }
         
-        let content = fs::read_to_string(graph_file)?;
-        let graph: PetCodeGraph = serde_json::from_str(&content)
+        let graph = PetGraphStorageManager::load_from_file(&graph_file)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        
+        Ok(Some(graph))
+    }
+
+    fn load_graph_binary(&self, project_id: &str) -> io::Result<Option<PetCodeGraph>> {
+        let graph_file = self.base_dir.join(project_id).join("graph.bin");
+        
+        if !graph_file.exists() {
+            return Ok(None);
+        }
+        
+        let graph = PetGraphStorageManager::load_from_binary(&graph_file)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         
         Ok(Some(graph))
@@ -103,6 +174,27 @@ impl PersistenceManager {
         
         Ok(projects)
     }
-}
 
-use std::collections::HashMap; 
+    /// 获取已保存的文件信息
+    pub fn get_saved_files_info(&self, project_id: &str) -> io::Result<Vec<String>> {
+        let project_dir = self.base_dir.join(project_id);
+        let mut files = Vec::new();
+        
+        if !project_dir.exists() {
+            return Ok(files);
+        }
+        
+        for entry in fs::read_dir(&project_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file() {
+                if let Some(name) = entry.file_name().to_str() {
+                    let metadata = entry.metadata()?;
+                    let size = metadata.len();
+                    files.push(format!("{} ({} bytes)", name, size));
+                }
+            }
+        }
+        
+        Ok(files)
+    }
+} 

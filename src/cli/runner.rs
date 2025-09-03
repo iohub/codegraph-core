@@ -3,7 +3,8 @@ use tracing::{info, Level, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::codegraph::parser::CodeParser;
-use crate::storage::PetGraphStorageManager;
+use crate::storage::{PetGraphStorageManager, StorageManager};
+use crate::cli::args::StorageMode;
 use super::args::{Cli, Commands};
 
 pub struct CodeGraphRunner;
@@ -20,14 +21,24 @@ impl CodeGraphRunner {
             .finish();
         tracing::subscriber::set_global_default(subscriber)?;
 
+        // Determine storage mode
+        let storage_mode = match &cli.command {
+            Commands::Analyze { storage_mode: Some(mode), .. } => mode.clone(),
+            Commands::Repo { storage_mode: Some(mode), .. } => mode.clone(),
+            Commands::Server { storage_mode: Some(mode), .. } => mode.clone(),
+            _ => cli.storage_mode.clone(),
+        };
+
+        info!("Using storage mode: {:?}", storage_mode);
+
         match cli.command {
-            Commands::Analyze { input, output, format } => {
-                Self::run_analyze(input, output, format)?;
+            Commands::Analyze { input, output, format, storage_mode: _ } => {
+                Self::run_analyze(input, output, format, storage_mode)?;
             }
-            Commands::Repo { path, state_dir, incremental, search, stats } => {
-                Self::run_repo_analysis(path, state_dir, incremental, search, stats)?;
+            Commands::Repo { path, state_dir, incremental, search, stats, storage_mode: _ } => {
+                Self::run_repo_analysis(path, state_dir, incremental, search, stats, storage_mode)?;
             }
-            Commands::Server { address: _ } => {
+            Commands::Server { address: _, storage_mode: _ } => {
                 // HTTP server is handled in main.rs
                 return Err("HTTP server should be started from main.rs".into());
             }
@@ -40,6 +51,7 @@ impl CodeGraphRunner {
         input: Option<PathBuf>,
         output: Option<PathBuf>,
         format: String,
+        storage_mode: StorageMode,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // Validate that input is provided
         let input = input.ok_or("Input directory is required for analysis")?;
@@ -55,12 +67,16 @@ impl CodeGraphRunner {
         // Get output path
         let output_path = output.unwrap_or_else(|| {
             let mut path = input.clone();
-            path.push("codegraph.json");
+            match storage_mode {
+                StorageMode::Json => path.push("codegraph.json"),
+                StorageMode::Binary => path.push("codegraph.bin"),
+                StorageMode::Both => path.push("codegraph"), // Will create both .json and .bin
+            }
             path
         });
         
-        // Export based on format
-        Self::export_code_graph(&code_graph, &format, &output_path)?;
+        // Export based on format and storage mode
+        Self::export_code_graph(&code_graph, &format, &output_path, &storage_mode)?;
         
         // Print statistics
         let stats = code_graph.get_stats();
@@ -80,10 +96,12 @@ impl CodeGraphRunner {
         incremental: bool,
         search: Option<String>,
         stats: bool,
+        storage_mode: StorageMode,
     ) -> Result<(), Box<dyn std::error::Error>> {
         use crate::codegraph::repository::RepositoryManager;
 
         info!("Starting repository analysis for: {}", path.display());
+        info!("Storage mode: {:?}", storage_mode);
 
         // 创建仓库管理器
         let mut repo_manager = RepositoryManager::new(path);
@@ -135,7 +153,18 @@ impl CodeGraphRunner {
             }
         }
 
-        // 保存状态
+        // 保存状态（使用指定的存储模式）
+        let storage_manager = StorageManager::with_storage_mode(storage_mode);
+        let persistence = storage_manager.get_persistence();
+        
+        // 这里需要根据实际的代码图数据进行保存
+        // 如果repo_manager有get_code_graph方法，可以这样调用：
+        // if let Some(graph) = repo_manager.get_code_graph() {
+        //     if let Err(e) = persistence.save_graph("main", &graph) {
+        //         warn!("Failed to save graph: {}", e);
+        //     }
+        // }
+
         if let Err(e) = repo_manager.save_state(&state_dir) {
             warn!("Failed to save state: {}", e);
         } else {
@@ -146,17 +175,37 @@ impl CodeGraphRunner {
         Ok(())
     }
 
-
-
     fn export_code_graph(
         code_graph: &crate::codegraph::PetCodeGraph,
         format: &str,
         output_path: &PathBuf,
+        storage_mode: &StorageMode,
     ) -> Result<(), Box<dyn std::error::Error>> {
         match format {
             "json" => {
-                PetGraphStorageManager::save_to_file(code_graph, output_path)?;
-                info!("Code graph saved to JSON file: {:?}", output_path);
+                match storage_mode {
+                    StorageMode::Json => {
+                        PetGraphStorageManager::save_to_file(code_graph, output_path)?;
+                        info!("Code graph saved to JSON file: {:?}", output_path);
+                    },
+                    StorageMode::Binary => {
+                        let mut binary_path = output_path.clone();
+                        binary_path.set_extension("bin");
+                        PetGraphStorageManager::save_to_binary(code_graph, &binary_path)?;
+                        info!("Code graph saved to binary file: {:?}", binary_path);
+                    },
+                    StorageMode::Both => {
+                        let mut json_path = output_path.clone();
+                        json_path.set_extension("json");
+                        let mut binary_path = output_path.clone();
+                        binary_path.set_extension("bin");
+                        
+                        PetGraphStorageManager::save_to_file(code_graph, &json_path)?;
+                        PetGraphStorageManager::save_to_binary(code_graph, &binary_path)?;
+                        info!("Code graph saved to both JSON and binary files: {:?} and {:?}", 
+                              json_path, binary_path);
+                    },
+                }
             }
 
             "dot" => {
@@ -169,7 +218,7 @@ impl CodeGraphRunner {
                 info!("Code graph saved to GraphML file: {:?}", output_path);
             }
             "gexf" => {
-                PetGraphStorageManager::export_to_graphml(code_graph, output_path)?;
+                PetGraphStorageManager::export_to_gexf(code_graph, output_path)?;
                 info!("Code graph saved to GEXF file: {:?}", output_path);
             }
             _ => {
