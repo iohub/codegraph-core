@@ -155,7 +155,6 @@ impl CodeParser {
                         namespace: namespace.clone(),
                         language: language.clone(),
                         signature: Some(symbol_ref.name().to_string()),
-                        return_type: None,
                         parameters: vec![],
                     };
                     functions.push(function);
@@ -491,9 +490,6 @@ impl CodeParser {
         // 尝试提取函数签名
         let signature = self._extract_function_signature(symbol);
         
-        // 尝试提取返回类型
-        let return_type = self._extract_return_type(symbol);
-        
         // 尝试提取参数信息
         let parameters = self._extract_function_parameters(symbol);
 
@@ -506,7 +502,6 @@ impl CodeParser {
             namespace: namespace.to_string(),
             language: language.to_string(),
             signature,
-            return_type,
             parameters,
         }
     }
@@ -576,29 +571,6 @@ impl CodeParser {
         
         // 否则返回函数名作为签名
         Some(symbol.name().to_string())
-    }
-
-    /// 提取返回类型
-    fn _extract_return_type(&self, symbol: &dyn crate::codegraph::treesitter::ast_instance_structs::AstSymbolInstance) -> Option<String> {
-        // 根据具体语言实现返回类型提取
-        let symbol_type = symbol.symbol_type();
-        let name = symbol.name();
-        
-        match symbol_type {
-            crate::codegraph::treesitter::structs::SymbolType::FunctionDeclaration => {
-                // 对于函数声明，尝试从名称或上下文推断返回类型
-                if name.contains("get_") || name.contains("is_") || name.contains("has_") {
-                    // 根据函数名推断返回类型
-                    if name.contains("is_") || name.contains("has_") {
-                        return Some("bool".to_string());
-                    } else if name.contains("get_") {
-                        return Some("unknown".to_string()); // 需要进一步分析
-                    }
-                }
-                None
-            },
-            _ => None,
-        }
     }
 
     /// 提取函数参数
@@ -1164,7 +1136,6 @@ impl CodeParser {
             namespace: "unresolved".to_string(),
             language: caller.language.clone(),
             signature: Some(format!("unresolved_call_{}", call_name)),
-            return_type: None,
             parameters: vec![],
         };
         
@@ -1432,7 +1403,6 @@ if __name__ == "__main__":
             namespace: "global".to_string(),
             language: "rust".to_string(),
             signature: Some("fn main()".to_string()),
-            return_type: None,
             parameters: vec![],
         };
         
@@ -1445,7 +1415,6 @@ if __name__ == "__main__":
             namespace: "global".to_string(),
             language: "rust".to_string(),
             signature: Some("fn calculate()".to_string()),
-            return_type: None,
             parameters: vec![],
         };
         
@@ -1489,7 +1458,6 @@ if __name__ == "__main__":
             namespace: "Calculator".to_string(),
             language: "rust".to_string(),
             signature: Some("fn process()".to_string()),
-            return_type: None,
             parameters: vec![],
         };
         

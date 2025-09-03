@@ -17,7 +17,6 @@ pub struct FunctionInfo {
     pub namespace: String,
     pub language: String,
     pub signature: Option<String>,
-    pub return_type: Option<String>,
     pub parameters: Vec<ParameterInfo>,
 }
 
