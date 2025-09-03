@@ -16,70 +16,43 @@ pub async fn build_graph(
     Json(request): Json<BuildGraphRequest>,
 ) -> Result<Json<ApiResponse<BuildGraphResponse>>, StatusCode> {
     let start_time = std::time::Instant::now();
-    
+
     // Get project directory path
     let project_dir = std::path::Path::new(&request.project_dir);
     
-    // Generate project ID using MD5 hash of project directory
-    let project_id = format!("{:x}", md5::compute(request.project_dir.as_bytes()));
+    // Validate directory
     if !project_dir.exists() || !project_dir.is_dir() {
         return Err(StatusCode::BAD_REQUEST);
     }
-    
-    // Check for existing graph
-    let _existing_graph: crate::codegraph::PetCodeGraph = if let Ok(Some(existing_graph)) = storage.get_persistence().load_graph(&project_id) {
-        existing_graph
-    } else {
-        // Create new graph using CodeAnalyzer
-        let mut analyzer = CodeAnalyzer::new();
-        
-        // Analyze directory and build code graph
-        match analyzer.analyze_directory(project_dir) {
-            Ok(_code_graph) => {
-                // Convert CodeGraph to PetCodeGraph
-                if let Some(_cg) = analyzer.get_code_graph() {
-                    // For now, create a new PetCodeGraph since we need to convert from CodeGraph
-                    // In the future, we could modify the analyzer to return PetCodeGraph directly
-                    crate::codegraph::types::PetCodeGraph::new()
-                } else {
-                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
-                }
-            },
-            Err(e) => {
-                tracing::error!("Failed to analyze directory: {}", e);
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        }
-    };
-    
-    
-    // Use CodeAnalyzer to build the actual graph
+
+    // Generate project ID using MD5 hash of project directory
+    let project_id = format!("{:x}", md5::compute(request.project_dir.as_bytes()));
+
+    // Build the graph using CodeAnalyzer once
     let mut analyzer = CodeAnalyzer::new();
     let mut total_files = 0;
     let mut total_functions = 0;
-    
+
     match analyzer.analyze_directory(project_dir) {
         Ok(_code_graph) => {
             if let Some(stats) = analyzer.get_stats() {
                 total_files = stats.total_files;
                 total_functions = stats.total_functions;
             }
-            
+
             // Get the actual code graph for saving
             if let Some(cg) = analyzer.get_code_graph() {
                 // Convert to PetCodeGraph for storage
-                // This is a simplified conversion - in practice you might want to implement
-                // a proper conversion method from CodeGraph to PetCodeGraph
                 let mut pet_graph = crate::codegraph::types::PetCodeGraph::new();
-                
-                // First, add all functions to the pet graph
+
+                // Add all functions to the pet graph
                 for function in cg.functions.values() {
                     pet_graph.add_function(function.clone());
                 }
-                
+
                 tracing::info!("Added {} functions to PetCodeGraph", cg.functions.len());
-                
-                // Then, add all call relations
+
+                // Add all call relations
                 let mut successful_relations = 0;
                 for relation in &cg.call_relations {
                     if let Err(e) = pet_graph.add_call_relation(relation.clone()) {
@@ -88,34 +61,40 @@ pub async fn build_graph(
                         successful_relations += 1;
                     }
                 }
-                
-                tracing::info!("Successfully added {}/{} call relations to PetCodeGraph", 
-                              successful_relations, cg.call_relations.len());
-                
-                // Update stats
+
+                tracing::info!(
+                    "Successfully added {}/{} call relations to PetCodeGraph",
+                    successful_relations,
+                    cg.call_relations.len()
+                );
+
+                // Update stats and save the graph
                 pet_graph.update_stats();
-                
-                // Save the converted graph
-                if let Err(_) = storage.get_persistence().save_graph(&project_id, &pet_graph) {
+
+                if let Err(e) = storage.get_persistence().save_graph(&project_id, &pet_graph) {
+                    tracing::error!("Failed to save graph: {}", e);
                     return Err(StatusCode::INTERNAL_SERVER_ERROR);
                 }
+            } else {
+                tracing::error!("Analyzer produced no code graph");
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
-        },
+        }
         Err(e) => {
             tracing::error!("Failed to analyze directory: {}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     }
-    
+
     let build_time_ms = start_time.elapsed().as_millis() as u64;
-    
+
     let response = BuildGraphResponse {
         project_id,
         total_files,
         total_functions,
         build_time_ms,
     };
-    
+
     Ok(Json(ApiResponse {
         success: true,
         data: response,
