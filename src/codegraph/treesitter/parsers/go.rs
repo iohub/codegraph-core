@@ -6,6 +6,7 @@ use parking_lot::RwLock;
 use tree_sitter::{Node, Parser, Range};
 use uuid::Uuid;
 use similar::DiffableStr;
+use tracing::debug;
 
 use crate::codegraph::treesitter::ast_instance_structs::{AstSymbolFields, AstSymbolInstanceArc, ClassFieldDeclaration, CommentDefinition, FunctionArg, FunctionDeclaration, ImportDeclaration, ImportType, StructDeclaration, TypeDef, FunctionCall};
 use crate::codegraph::treesitter::language_id::LanguageId;
@@ -50,7 +51,8 @@ impl GoParser {
         }
         
         if full_range == info.node.range() {
-            println!("  No type_declaration found, using struct_type range: {:?}", full_range);
+            debug!("anonymous struct: {}", code.slice(info.node.byte_range()).to_string());
+            return symbols;
         }
         decl.ast_fields.full_range = full_range;
         
