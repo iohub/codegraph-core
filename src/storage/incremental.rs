@@ -530,3 +530,29 @@ impl Default for IncrementalManager {
         Self::new()
     }
 } 
+
+impl crate::storage::traits::IncrementalUpdater for IncrementalManager {
+    fn compute_file_md5(&self, file_path: &std::path::Path) -> Result<String, std::io::Error> {
+        Self::compute_file_md5(self, file_path)
+    }
+
+    fn needs_update(&self, file_path: &std::path::Path) -> Result<bool, std::io::Error> {
+        Self::needs_update(self, file_path)
+    }
+
+    fn refresh_file(
+        &mut self,
+        file_path: &std::path::PathBuf,
+        entity_graph: &mut EntityGraph,
+        call_graph: &mut PetCodeGraph,
+    ) -> Result<(), String> {
+        Self::refresh_file(self, file_path, entity_graph, call_graph)
+    }
+
+    fn get_file_index(&self) -> &FileIndex { Self::get_file_index(self) }
+    fn get_snippet_index(&self) -> &SnippetIndex { Self::get_snippet_index(self) }
+    fn get_all_file_metadata(&self) -> &HashMap<std::path::PathBuf, FileMetadata> { Self::get_all_file_metadata(self) }
+
+    fn save_state(&self, path: &std::path::Path) -> Result<(), String> { Self::save_state(self, path) }
+    fn load_state(&mut self, path: &std::path::Path) -> Result<(), String> { Self::load_state(self, path) }
+} 

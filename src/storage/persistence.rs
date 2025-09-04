@@ -271,3 +271,49 @@ impl PersistenceManager {
         Ok(registry.projects.values().cloned().collect())
     }
 } 
+
+impl crate::storage::traits::GraphPersistence for PersistenceManager {
+    fn save_graph(&self, project_id: &str, graph: &PetCodeGraph) -> io::Result<()> {
+        Self::save_graph(self, project_id, graph)
+    }
+
+    fn load_graph(&self, project_id: &str) -> io::Result<Option<PetCodeGraph>> {
+        Self::load_graph(self, project_id)
+    }
+
+    fn save_file_hash(&self, project_id: &str, file_path: &str, hash: &str) -> io::Result<()> {
+        Self::save_file_hash(self, project_id, file_path, hash)
+    }
+
+    fn load_file_hashes(&self, project_id: &str) -> io::Result<HashMap<String, String>> {
+        Self::load_file_hashes(self, project_id)
+    }
+
+    fn delete_project(&self, project_id: &str) -> io::Result<()> {
+        Self::delete_project(self, project_id)
+    }
+
+    fn list_projects(&self) -> io::Result<Vec<String>> {
+        Self::list_projects(self)
+    }
+
+    fn get_saved_files_info(&self, project_id: &str) -> io::Result<Vec<String>> {
+        Self::get_saved_files_info(self, project_id)
+    }
+
+    fn register_project(&self, project_id: &str, project_dir: &str) -> io::Result<()> {
+        Self::register_project(self, project_id, project_dir)
+    }
+
+    fn is_project_parsed(&self, project_id: &str) -> io::Result<bool> {
+        Self::is_project_parsed(self, project_id)
+    }
+
+    fn find_project_by_dir(&self, project_dir: &str) -> io::Result<Option<String>> {
+        Self::find_project_by_dir(self, project_dir)
+    }
+
+    fn list_parsed_projects(&self) -> io::Result<Vec<crate::storage::persistence::ProjectRecord>> {
+        Self::list_parsed_projects(self)
+    }
+} 
