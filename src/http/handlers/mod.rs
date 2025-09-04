@@ -864,3 +864,80 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
 
     html
 } 
+
+pub async fn init(
+    State(storage): State<Arc<StorageManager>>,
+    Json(request): Json<InitRequest>,
+) -> Result<Json<ApiResponse<InitResponse>>, StatusCode> {
+    let project_dir = std::path::Path::new(&request.project_dir);
+
+    if !project_dir.exists() || !project_dir.is_dir() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let project_id = format!("{:x}", md5::compute(request.project_dir.as_bytes()));
+
+    // First try to load existing graph from persistence
+    match storage.get_persistence().load_graph(&project_id) {
+        Ok(Some(graph)) => {
+            let stats = graph.get_stats().clone();
+            // Cache in memory
+            storage.get_graphs().write().insert(project_id.clone(), graph);
+
+            let resp = InitResponse {
+                project_id,
+                loaded_from_cache: true,
+                total_functions: stats.total_functions,
+                total_files: stats.total_files,
+            };
+
+            Ok(Json(ApiResponse { success: true, data: resp }))
+        }
+        Ok(None) => {
+            // Build and persist, then cache
+            let mut analyzer = CodeAnalyzer::new();
+            match analyzer.analyze_directory(project_dir) {
+                Ok(cg) => {
+                    let stats = cg.get_stats();
+
+                    // Convert to PetCodeGraph
+                    let mut pet_graph = crate::codegraph::types::PetCodeGraph::new();
+                    for function in cg.functions.values() {
+                        pet_graph.add_function(function.clone());
+                    }
+                    for relation in &cg.call_relations {
+                        if let Err(e) = pet_graph.add_call_relation(relation.clone()) {
+                            tracing::warn!("Failed to add call relation: {}", e);
+                        }
+                    }
+                    pet_graph.update_stats();
+
+                    if let Err(e) = storage.get_persistence().save_graph(&project_id, &pet_graph) {
+                        tracing::error!("Failed to save graph: {}", e);
+                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
+
+                    // Cache in memory
+                    storage.get_graphs().write().insert(project_id.clone(), pet_graph);
+
+                    let resp = InitResponse {
+                        project_id,
+                        loaded_from_cache: false,
+                        total_functions: stats.total_functions,
+                        total_files: stats.total_files,
+                    };
+
+                    Ok(Json(ApiResponse { success: true, data: resp }))
+                }
+                Err(e) => {
+                    tracing::error!("Failed to analyze directory: {}", e);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to load graph: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+} 

@@ -9,7 +9,7 @@ use tower_http::cors::CorsLayer;
 use crate::storage::StorageManager;
 
 use super::{
-    handlers::{build_graph, query_call_graph, query_code_snippet, query_code_skeleton, query_hierarchical_graph, draw_call_graph, draw_call_graph_home},
+    handlers::{build_graph, query_call_graph, query_code_snippet, query_code_skeleton, query_hierarchical_graph, draw_call_graph, draw_call_graph_home, init},
     models::ApiResponse,
 };
 
@@ -38,6 +38,7 @@ impl CodeGraphServer {
 
         Router::new()
             .route("/health", get(health_check))
+            .route("/init", post(init))
             .route("/build_graph", post(build_graph))
             .route("/query_call_graph", post(query_call_graph))
             .route("/query_code_snippet", post(query_code_snippet))
