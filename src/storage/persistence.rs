@@ -34,7 +34,7 @@ impl PersistenceManager {
     pub fn with_storage_mode(storage_mode: StorageMode) -> Self {
         let base_dir = std::env::current_dir()
             .unwrap_or_else(|_| PathBuf::from("."))
-            .join(".codegraph_cache");
+            .join(".codegraph_db");
         
         // Create base directory if it doesn't exist
         if !base_dir.exists() {

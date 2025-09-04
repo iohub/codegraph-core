@@ -40,7 +40,7 @@ pub fn greet(name: &str) {
     println!("   构建时间: {:?}", duration1);
     
     // 检查缓存文件
-    let cache_dir = PathBuf::from(".codegraph_cache/http_test_project");
+    let cache_dir = PathBuf::from(".codegraph_db/http_test_project");
     if cache_dir.exists() {
         println!("📁 缓存目录已创建: {}", cache_dir.display());
         

@@ -31,7 +31,7 @@ pub fn hello() {
     println!("✅ 构建完成！函数数量: {}", stats1.total_functions);
     
     // 检查缓存目录
-    let cache_dir = PathBuf::from(".codegraph_cache");
+    let cache_dir = PathBuf::from(".codegraph_db");
     if cache_dir.exists() {
         println!("📁 缓存目录存在");
         
