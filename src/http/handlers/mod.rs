@@ -75,6 +75,11 @@ pub async fn build_graph(
                     tracing::error!("Failed to save graph: {}", e);
                     return Err(StatusCode::INTERNAL_SERVER_ERROR);
                 }
+
+                // Register this project as parsed for later querying
+                if let Err(e) = storage.get_persistence().register_project(&project_id, &request.project_dir) {
+                    tracing::warn!("Failed to register project in registry: {}", e);
+                }
             } else {
                 tracing::error!("Analyzer produced no code graph");
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
@@ -118,16 +123,14 @@ pub async fn query_call_graph(
         projects.first().cloned()
     } else {
         return Err(StatusCode::NOT_FOUND);
-    };
-    
-    let project_id = project_id.ok_or(StatusCode::NOT_FOUND)?;
-    
-    // Load the code graph for the project
-    let graph = match storage.get_persistence().load_graph(&project_id) {
-        Ok(Some(graph)) => graph,
-        Ok(None) => return Err(StatusCode::NOT_FOUND),
-        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
-    };
+    }
+    .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Load the graph for the project
+    let graph = storage.get_persistence()
+        .load_graph(&project_id)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
     
     // Debug: Log graph information
     tracing::info!("Loaded graph with {} functions", graph.get_stats().total_functions);
@@ -915,6 +918,11 @@ pub async fn init(
                     if let Err(e) = storage.get_persistence().save_graph(&project_id, &pet_graph) {
                         tracing::error!("Failed to save graph: {}", e);
                         return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
+
+                    // Register this project as parsed for later querying
+                    if let Err(e) = storage.get_persistence().register_project(&project_id, &request.project_dir) {
+                        tracing::warn!("Failed to register project in registry: {}", e);
                     }
 
                     // Cache in memory

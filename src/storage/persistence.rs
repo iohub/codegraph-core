@@ -5,10 +5,25 @@ use std::collections::HashMap;
 use crate::codegraph::types::PetCodeGraph;
 use crate::storage::petgraph_storage::PetGraphStorageManager;
 use crate::cli::args::StorageMode;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 pub struct PersistenceManager {
     base_dir: PathBuf,
     storage_mode: StorageMode,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectRecord {
+    pub project_id: String,
+    pub project_dir: String,
+    pub parsed_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct ProjectsRegistry {
+    // key: project_id
+    projects: HashMap<String, ProjectRecord>,
 }
 
 impl PersistenceManager {
@@ -155,6 +170,10 @@ impl PersistenceManager {
         if project_dir.exists() {
             fs::remove_dir_all(project_dir)?;
         }
+        // also remove from registry if present
+        let mut registry = self.load_registry()?;
+        registry.projects.remove(project_id);
+        self.save_registry(&registry)?;
         Ok(())
     }
 
@@ -196,5 +215,59 @@ impl PersistenceManager {
         }
         
         Ok(files)
+    }
+
+    // ---- Projects registry (for parsed projects) ----
+
+    fn registry_path(&self) -> PathBuf {
+        self.base_dir.join("projects.json")
+    }
+
+    fn load_registry(&self) -> io::Result<ProjectsRegistry> {
+        let path = self.registry_path();
+        if !path.exists() {
+            return Ok(ProjectsRegistry::default());
+        }
+        let content = fs::read_to_string(path)?;
+        let reg: ProjectsRegistry = serde_json::from_str(&content)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        Ok(reg)
+    }
+
+    fn save_registry(&self, registry: &ProjectsRegistry) -> io::Result<()> {
+        let path = self.registry_path();
+        let json = serde_json::to_string_pretty(registry)?;
+        fs::write(path, json)
+    }
+
+    pub fn register_project(&self, project_id: &str, project_dir: &str) -> io::Result<()> {
+        let mut registry = self.load_registry()?;
+        let record = ProjectRecord {
+            project_id: project_id.to_string(),
+            project_dir: project_dir.to_string(),
+            parsed_at: Utc::now(),
+        };
+        registry.projects.insert(project_id.to_string(), record);
+        self.save_registry(&registry)
+    }
+
+    pub fn is_project_parsed(&self, project_id: &str) -> io::Result<bool> {
+        let registry = self.load_registry()?;
+        Ok(registry.projects.contains_key(project_id))
+    }
+
+    pub fn find_project_by_dir(&self, project_dir: &str) -> io::Result<Option<String>> {
+        let registry = self.load_registry()?;
+        for (pid, rec) in registry.projects.iter() {
+            if rec.project_dir == project_dir {
+                return Ok(Some(pid.clone()));
+            }
+        }
+        Ok(None)
+    }
+
+    pub fn list_parsed_projects(&self) -> io::Result<Vec<ProjectRecord>> {
+        let registry = self.load_registry()?;
+        Ok(registry.projects.values().cloned().collect())
     }
 } 
