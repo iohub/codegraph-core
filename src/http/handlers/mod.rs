@@ -80,6 +80,9 @@ pub async fn build_graph(
                 if let Err(e) = storage.get_persistence().register_project(&project_id, &request.project_dir) {
                     tracing::warn!("Failed to register project in registry: {}", e);
                 }
+
+                // Cache the graph in memory for subsequent queries
+                storage.get_graphs().write().insert(project_id.clone(), pet_graph);
             } else {
                 tracing::error!("Analyzer produced no code graph");
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
@@ -115,22 +118,12 @@ pub async fn query_call_graph(
     let function_name = request.function_name;
     let max_depth = request.max_depth.unwrap_or(2); // Default max depth is 2
     
-    // Try to find the project ID by searching through stored graphs
-    // In a real implementation, you might want to store project_id -> project_dir mapping
-    let project_id = if let Ok(projects) = storage.get_persistence().list_projects() {
-        // For now, use the first available project
-        // In practice, you'd want to implement a proper project lookup mechanism
-        projects.first().cloned()
-    } else {
-        return Err(StatusCode::NOT_FOUND);
-    }
-    .ok_or(StatusCode::NOT_FOUND)?;
-
-    // Load the graph for the project
-    let graph = storage.get_persistence()
-        .load_graph(&project_id)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
+    // Retrieve a graph from the in-memory cache populated by init/build_graph
+    let graphs_lock = storage.get_graphs();
+    let graph = {
+        let graphs_read = graphs_lock.read();
+        graphs_read.values().next().cloned()
+    }.ok_or(StatusCode::NOT_FOUND)?;
     
     // Debug: Log graph information
     tracing::info!("Loaded graph with {} functions", graph.get_stats().total_functions);
@@ -783,8 +776,7 @@ fn generate_error_page_html(filepath: &str, function_name: &str, status: axum::h
     let title = "Function Call Graph - Error";
     let status_text = format!("{} {}", status.as_u16(), status.canonical_reason().unwrap_or("Error"));
     let suggestion = if status == axum::http::StatusCode::NOT_FOUND {
-        "Graph data not found. Make sure you have built the project graph first via POST /build_graph (with JSON {\"project_dir\": \"/path/to/project\"}). Also verify the filepath and function name exist."
-            .to_string()
+        "Graph data not found.".to_string()
     } else {
         "An error occurred while generating the call graph. Please check server logs.".to_string()
     };
