@@ -159,14 +159,12 @@ pub async fn query_call_graph(
                     super::models::CallRelation {
                         function_name: caller_func.name.clone(),
                         file_path: caller_func.file_path.display().to_string(),
-                        line_number: relation.line_number,
                     }
                 }).collect(),
                 callees: callees.iter().map(|(callee_func, relation)| {
                     super::models::CallRelation {
                         function_name: callee_func.name.clone(),
                         file_path: callee_func.file_path.display().to_string(),
-                        line_number: relation.line_number,
                     }
                 }).collect(),
             };
@@ -203,14 +201,12 @@ pub async fn query_call_graph(
                     super::models::CallRelation {
                         function_name: caller_func.name.clone(),
                         file_path: caller_func.file_path.display().to_string(),
-                        line_number: relation.line_number,
                     }
                 }).collect(),
                 callees: callees.iter().map(|(callee_func, relation)| {
                     super::models::CallRelation {
                         function_name: callee_func.name.clone(),
                         file_path: callee_func.file_path.display().to_string(),
-                        line_number: relation.line_number,
                     }
                 }).collect(),
             };
@@ -285,7 +281,6 @@ fn expand_call_chain(
                 let caller_relation = super::models::CallRelation {
                     function_name: related_func.name.clone(),
                     file_path: related_func.file_path.display().to_string(),
-                    line_number: relation.line_number,
                 };
                 
                 if !existing_function.callers.iter().any(|c| c.function_name == caller_relation.function_name) {
@@ -296,7 +291,6 @@ fn expand_call_chain(
                 let callee_relation = super::models::CallRelation {
                     function_name: related_func.name.clone(),
                     file_path: related_func.file_path.display().to_string(),
-                    line_number: relation.line_number,
                 };
                 
                 if !existing_function.callees.iter().any(|c| c.function_name == callee_relation.function_name) {
@@ -319,14 +313,12 @@ fn expand_call_chain(
                 new_function.callers.push(super::models::CallRelation {
                     function_name: related_func.name.clone(),
                     file_path: related_func.file_path.display().to_string(),
-                    line_number: relation.line_number,
                 });
             } else {
                 // Add callee relation
                 new_function.callees.push(super::models::CallRelation {
                     function_name: related_func.name.clone(),
                     file_path: related_func.file_path.display().to_string(),
-                    line_number: relation.line_number,
                 });
             }
             
@@ -983,7 +975,6 @@ pub async fn investigate_repo(
 				.map(|(callee, rel)| super::models::CallRelation {
 					function_name: callee.name.clone(),
 					file_path: callee.file_path.display().to_string().replace(&request.project_dir, "").trim_start_matches('/').to_string(),
-					line_number: rel.line_number,
 				})
 				.collect();
 			core_functions.push(super::models::InvestigateFunctionInfo {
