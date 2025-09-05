@@ -941,3 +941,119 @@ pub async fn init(
         }
     }
 } 
+
+pub async fn investigate_repo(
+	State(storage): State<Arc<StorageManager>>,
+	Json(request): Json<super::models::InvestigateRepoRequest>,
+) -> Result<Json<ApiResponse<super::models::InvestigateRepoResponse>>, StatusCode> {
+	// Ensure project is initialized (reuse init logic quickly)
+	let init_req = super::models::InitRequest { project_dir: request.project_dir.clone() };
+	let init_resp = match init(State(storage.clone()), Json(init_req)).await {
+		Ok(r) => r.0.data,
+		Err(e) => return Err(e),
+	};
+
+	// Load graph from memory
+	let graphs_lock = storage.get_graphs();
+	let graph = {
+		let graphs_read = graphs_lock.read();
+		// Prefer the specific project if present
+		if let Some(g) = graphs_read.get(&init_resp.project_id) { g.clone() } else {
+			graphs_read.values().next().cloned().ok_or(StatusCode::NOT_FOUND)?
+		}
+	};
+
+	// Compute out-degree for each function and collect top 15
+	use std::cmp::Reverse;
+	let mut items: Vec<(usize, uuid::Uuid)> = Vec::new();
+	for (func_id, _node_idx) in graph.function_to_node.iter() {
+		let out_degree = graph.get_callees(func_id).len();
+		items.push((out_degree, *func_id));
+	}
+	items.sort_by_key(|(deg, _)| Reverse(*deg));
+	let top = items.into_iter().take(15).collect::<Vec<_>>();
+
+	// Build response top_functions and collect unique files for skeletons
+	use std::collections::BTreeSet;
+	let mut files_needed: BTreeSet<std::path::PathBuf> = BTreeSet::new();
+	let mut top_functions: Vec<super::models::InvestigateFunctionInfo> = Vec::new();
+	for (out_degree, func_id) in top.iter() {
+		if let Some(f) = graph.get_function_by_id(func_id) {
+			let callees = graph.get_callees(func_id)
+				.into_iter()
+				.map(|(callee, rel)| super::models::CallRelation {
+					function_name: callee.name.clone(),
+					file_path: callee.file_path.display().to_string(),
+					line_number: rel.line_number,
+				})
+				.collect();
+			top_functions.push(super::models::InvestigateFunctionInfo {
+				name: f.name.clone(),
+				file_path: f.file_path.display().to_string(),
+				out_degree: *out_degree,
+				callees,
+			});
+			files_needed.insert(f.file_path.clone());
+		}
+	}
+
+	// For each unique file, build code skeleton text (reuse skeleton builder logic)
+	let mut file_skeletons: Vec<super::models::CodeSkeletonResponse> = Vec::new();
+	for path in files_needed.into_iter() {
+		let filepath = path.display().to_string();
+		// Reuse existing batch skeletonizer by calling internal logic inline
+		let code = match std::fs::read_to_string(&path) {
+			Ok(c) => c,
+			Err(_) => continue,
+		};
+		let (mut parser, language_id) = match crate::codegraph::treesitter::parsers::get_ast_parser_by_filename(&path) {
+			Ok(v) => v,
+			Err(_) => continue,
+		};
+		let symbols = parser.parse(&code, &path);
+		let symbols_struct: Vec<crate::codegraph::treesitter::ast_instance_structs::SymbolInformation> =
+			symbols.iter().map(|s| s.read().symbol_info_struct()).collect();
+		use uuid::Uuid;
+		use std::collections::HashMap;
+		let guid_to_children: HashMap<Uuid, Vec<Uuid>> = symbols
+			.iter()
+			.map(|s| (s.read().guid().clone(), s.read().childs_guid().clone()))
+			.collect();
+		let ast_markup = crate::codegraph::treesitter::file_ast_markup::FileASTMarkup {
+			symbols_sorted_by_path_len: symbols_struct.clone(),
+		};
+		let guid_to_info: HashMap<Uuid, &crate::codegraph::treesitter::ast_instance_structs::SymbolInformation> =
+			ast_markup
+				.symbols_sorted_by_path_len
+				.iter()
+				.map(|s| (s.guid.clone(), s))
+				.collect();
+		let formatter = crate::codegraph::treesitter::skeletonizer::make_formatter(&language_id);
+		use crate::codegraph::treesitter::structs::SymbolType;
+		let class_symbols: Vec<_> = ast_markup
+			.symbols_sorted_by_path_len
+			.iter()
+			.filter(|x| x.symbol_type == SymbolType::StructDeclaration || x.symbol_type == SymbolType::FunctionDeclaration)
+			.collect();
+		let mut lines: Vec<String> = Vec::new();
+		for symbol in class_symbols {
+			let skeleton_line = formatter.make_skeleton(&symbol, &code.to_string(), &guid_to_children, &guid_to_info);
+			lines.push(skeleton_line);
+		}
+		let skeleton_text = if lines.is_empty() { String::new() } else { lines.join("\n\n") };
+		file_skeletons.push(super::models::CodeSkeletonResponse {
+			filepath,
+			language: language_id.to_string(),
+			skeleton_text,
+		});
+	}
+
+	let resp = super::models::InvestigateRepoResponse {
+		project_id: init_resp.project_id,
+		total_functions: init_resp.total_functions,
+		top_functions,
+		file_skeletons,
+	};
+
+	Ok(Json(ApiResponse { success: true, data: resp }))
+} 
