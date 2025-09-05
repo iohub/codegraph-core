@@ -970,17 +970,49 @@ pub async fn investigate_repo(
 	let mut core_functions: Vec<super::models::InvestigateFunctionInfo> = Vec::new();
 	for (out_degree, func_id) in top.iter() {
 		if let Some(f) = graph.get_function_by_id(func_id) {
-			let callees = graph.get_callees(func_id)
+			// Collect callers with deduplication based on function_name + file_path
+			let mut callers_set: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
+			let callers = graph.get_callers(func_id)
 				.into_iter()
-				.map(|(callee, rel)| super::models::CallRelation {
-					function_name: callee.name.clone(),
-					file_path: callee.file_path.display().to_string().replace(&request.project_dir, "").trim_start_matches('/').to_string(),
+				.filter_map(|(caller, _rel)| {
+					let function_name = caller.name.clone();
+					let file_path = caller.file_path.display().to_string().replace(&request.project_dir, "").trim_start_matches('/').to_string();
+					let key = (function_name.clone(), file_path.clone());
+					if callers_set.insert(key) {
+						Some(super::models::CallRelation {
+							function_name,
+							file_path,
+						})
+					} else {
+						None
+					}
 				})
 				.collect();
+
+			// Collect callees with deduplication based on function_name + file_path
+			let mut callees_set: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
+			let callees = graph.get_callees(func_id)
+				.into_iter()
+				.filter_map(|(callee, _rel)| {
+					let function_name = callee.name.clone();
+					let file_path = callee.file_path.display().to_string().replace(&request.project_dir, "").trim_start_matches('/').to_string();
+					let key = (function_name.clone(), file_path.clone());
+					if callees_set.insert(key) {
+						Some(super::models::CallRelation {
+							function_name,
+							file_path,
+						})
+					} else {
+						None
+					}
+				})
+				.collect();
+
 			core_functions.push(super::models::InvestigateFunctionInfo {
 				name: f.name.clone(),
 				file_path: f.file_path.display().to_string().replace(&request.project_dir, "").trim_start_matches('/').to_string(),
 				out_degree: *out_degree,
+				callers,
 				callees,
 			});
 			files_needed.insert(f.file_path.clone());

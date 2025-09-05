@@ -12,6 +12,7 @@ pub struct InvestigateFunctionInfo {
     pub name: String,
     pub file_path: String,
     pub out_degree: usize,
+    pub callers: Vec<CallRelation>,
     pub callees: Vec<CallRelation>,
 }
 
