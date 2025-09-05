@@ -171,7 +171,6 @@ impl IncrementalManager {
                         namespace: namespace.clone(),
                         language: language.clone(),
                         signature: Some(symbol_ref.name().to_string()),
-                        parameters: vec![],
                     };
                     functions.push(function);
                 },

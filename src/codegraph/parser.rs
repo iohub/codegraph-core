@@ -6,7 +6,7 @@ use tracing::{info, warn, debug};
 
 use crate::codegraph::types::{
     FunctionInfo, CallRelation, PetCodeGraph, EntityGraph, ClassInfo, ClassType,
-    FileIndex, SnippetIndex, ParameterInfo
+    FileIndex, SnippetIndex
 };
 use crate::codegraph::graph::CodeGraph;
 use crate::codegraph::treesitter::TreeSitterParser;
@@ -155,7 +155,6 @@ impl CodeParser {
                         namespace: namespace.clone(),
                         language: language.clone(),
                         signature: Some(symbol_ref.name().to_string()),
-                        parameters: vec![],
                     };
                     functions.push(function);
                 },
@@ -440,7 +439,7 @@ impl CodeParser {
             match symbol_ref.symbol_type() {
                 crate::codegraph::treesitter::structs::SymbolType::FunctionDeclaration => {
                     // 提取函数信息
-                    let function = self._extract_function_info(symbol_ref, file_path, &language, &namespace);
+                    let function = self._extract_function_info(symbol_ref, file_path, &namespace, &language);
                     functions.push(function);
                 },
                 crate::codegraph::treesitter::structs::SymbolType::StructDeclaration => {
@@ -479,19 +478,15 @@ impl CodeParser {
         &self,
         symbol: &dyn crate::codegraph::treesitter::ast_instance_structs::AstSymbolInstance,
         file_path: &PathBuf,
-        language: &str,
         namespace: &str,
+        language: &str,
     ) -> FunctionInfo {
         let name = symbol.name().to_string();
-        let range = symbol.full_range();
-        let line_start = range.start_point.row + 1;
-        let line_end = range.end_point.row + 1;
-
+        let line_start = symbol.full_range().start_point.row + 1;
+        let line_end = symbol.full_range().end_point.row + 1;
+        
         // 尝试提取函数签名
         let signature = self._extract_function_signature(symbol);
-        
-        // 尝试提取参数信息
-        let parameters = self._extract_function_parameters(symbol);
 
         FunctionInfo {
             id: Uuid::new_v4(),
@@ -502,7 +497,6 @@ impl CodeParser {
             namespace: namespace.to_string(),
             language: language.to_string(),
             signature,
-            parameters,
         }
     }
 
@@ -573,65 +567,6 @@ impl CodeParser {
         Some(symbol.name().to_string())
     }
 
-    /// 提取函数参数
-    fn _extract_function_parameters(&self, symbol: &dyn crate::codegraph::treesitter::ast_instance_structs::AstSymbolInstance) -> Vec<ParameterInfo> {
-        // 根据具体语言实现参数提取
-        let symbol_type = symbol.symbol_type();
-        let name = symbol.name();
-        
-        match symbol_type {
-            crate::codegraph::treesitter::structs::SymbolType::FunctionDeclaration => {
-                // 对于函数声明，尝试从名称推断参数
-                let mut parameters = Vec::new();
-                
-                // 简单的参数推断逻辑
-                if name.contains("(") && name.contains(")") {
-                    // 如果名称包含括号，可能包含参数信息
-                    if let Some(param_start) = name.find('(') {
-                        if let Some(param_end) = name.find(')') {
-                            let param_str = &name[param_start + 1..param_end];
-                            if !param_str.is_empty() {
-                                // 分割参数
-                                for (i, param) in param_str.split(',').enumerate() {
-                                    let param = param.trim();
-                                    if !param.is_empty() {
-                                        parameters.push(ParameterInfo {
-                                            name: format!("param_{}", i),
-                                            type_name: Some(param.to_string()),
-                                            default_value: None,
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // 根据函数名推断可能的参数
-                    if name.contains("add") || name.contains("set") {
-                        parameters.push(ParameterInfo {
-                            name: "value".to_string(),
-                            type_name: Some("unknown".to_string()),
-                            default_value: None,
-                        });
-                    } else if name.contains("get") {
-                        // getter 通常没有参数
-                    } else {
-                        // 默认参数
-                        parameters.push(ParameterInfo {
-                            name: "input".to_string(),
-                            type_name: Some("unknown".to_string()),
-                            default_value: None,
-                        });
-                    }
-                }
-                
-                parameters
-            },
-            _ => vec![],
-        }
-    }
-
-    /// 从文件内容提取命名空间
     fn _extract_namespace_from_content(&self, content: &str, file_path: &PathBuf) -> String {
         let language = self._detect_language(file_path);
         
@@ -1423,7 +1358,6 @@ impl CodeParser {
             namespace: "unresolved".to_string(),
             language: caller.language.clone(),
             signature: Some(format!("unresolved_call_{}", call_name)),
-            parameters: vec![],
         };
         
         // 添加到代码图
@@ -1690,7 +1624,6 @@ if __name__ == "__main__":
             namespace: "global".to_string(),
             language: "rust".to_string(),
             signature: Some("fn main()".to_string()),
-            parameters: vec![],
         };
         
         let func2 = FunctionInfo {
@@ -1702,7 +1635,6 @@ if __name__ == "__main__":
             namespace: "global".to_string(),
             language: "rust".to_string(),
             signature: Some("fn calculate()".to_string()),
-            parameters: vec![],
         };
         
         // 添加到代码图
@@ -1745,7 +1677,6 @@ if __name__ == "__main__":
             namespace: "Calculator".to_string(),
             language: "rust".to_string(),
             signature: Some("fn process()".to_string()),
-            parameters: vec![],
         };
         
         code_graph.add_function(method.clone());
