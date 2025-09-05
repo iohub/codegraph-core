@@ -19,6 +19,6 @@ pub struct InvestigateFunctionInfo {
 pub struct InvestigateRepoResponse {
     pub project_id: String,
     pub total_functions: usize,
-    pub top_functions: Vec<InvestigateFunctionInfo>,
+    pub core_functions: Vec<InvestigateFunctionInfo>,
     pub file_skeletons: Vec<CodeSkeletonResponse>,
 } 

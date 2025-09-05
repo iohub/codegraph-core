@@ -973,23 +973,22 @@ pub async fn investigate_repo(
 	items.sort_by_key(|(deg, _)| Reverse(*deg));
 	let top = items.into_iter().take(15).collect::<Vec<_>>();
 
-	// Build response top_functions and collect unique files for skeletons
 	use std::collections::BTreeSet;
 	let mut files_needed: BTreeSet<std::path::PathBuf> = BTreeSet::new();
-	let mut top_functions: Vec<super::models::InvestigateFunctionInfo> = Vec::new();
+	let mut core_functions: Vec<super::models::InvestigateFunctionInfo> = Vec::new();
 	for (out_degree, func_id) in top.iter() {
 		if let Some(f) = graph.get_function_by_id(func_id) {
 			let callees = graph.get_callees(func_id)
 				.into_iter()
 				.map(|(callee, rel)| super::models::CallRelation {
 					function_name: callee.name.clone(),
-					file_path: callee.file_path.display().to_string(),
+					file_path: callee.file_path.display().to_string().replace(&request.project_dir, "").trim_start_matches('/').to_string(),
 					line_number: rel.line_number,
 				})
 				.collect();
-			top_functions.push(super::models::InvestigateFunctionInfo {
+			core_functions.push(super::models::InvestigateFunctionInfo {
 				name: f.name.clone(),
-				file_path: f.file_path.display().to_string(),
+				file_path: f.file_path.display().to_string().replace(&request.project_dir, "").trim_start_matches('/').to_string(),
 				out_degree: *out_degree,
 				callees,
 			});
@@ -1000,7 +999,7 @@ pub async fn investigate_repo(
 	// For each unique file, build code skeleton text (reuse skeleton builder logic)
 	let mut file_skeletons: Vec<super::models::CodeSkeletonResponse> = Vec::new();
 	for path in files_needed.into_iter() {
-		let filepath = path.display().to_string();
+		let rel_path = path.display().to_string().replace(&request.project_dir, "").trim_start_matches('/').to_string();
 		// Reuse existing batch skeletonizer by calling internal logic inline
 		let code = match std::fs::read_to_string(&path) {
 			Ok(c) => c,
@@ -1042,7 +1041,7 @@ pub async fn investigate_repo(
 		}
 		let skeleton_text = if lines.is_empty() { String::new() } else { lines.join("\n\n") };
 		file_skeletons.push(super::models::CodeSkeletonResponse {
-			filepath,
+			filepath: rel_path,
 			language: language_id.to_string(),
 			skeleton_text,
 		});
@@ -1051,7 +1050,7 @@ pub async fn investigate_repo(
 	let resp = super::models::InvestigateRepoResponse {
 		project_id: init_resp.project_id,
 		total_functions: init_resp.total_functions,
-		top_functions,
+		core_functions,
 		file_skeletons,
 	};
 
