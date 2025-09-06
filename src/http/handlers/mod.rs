@@ -993,10 +993,21 @@ pub async fn investigate_repo(
 			ignored_dirs.contains(&name)
 		}
 		
-		fn build_node(path: &std::path::Path, ignored_dirs: &[&str]) -> std::io::Result<DirectoryTreeNode> {
+		fn build_node(path: &std::path::Path, root_path: &std::path::Path, ignored_dirs: &[&str]) -> std::io::Result<DirectoryTreeNode> {
 			let metadata = std::fs::metadata(path)?;
 			let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| ".".to_string());
-			let path_str = path.display().to_string();
+			// Use relative path instead of absolute path
+			let path_str = path.strip_prefix(root_path).map_or_else(
+				|_| path.display().to_string(),
+				|rel_path| {
+					if rel_path.as_os_str().is_empty() {
+						// Root directory case
+						"".to_string()
+					} else {
+						rel_path.to_string_lossy().into_owned()
+					}
+				}
+			);
 			
 			if metadata.is_dir() {
 				let mut children = Vec::new();
@@ -1010,7 +1021,7 @@ pub async fn investigate_repo(
 						continue;
 					}
 					
-					let child_node = build_node(&entry.path(), ignored_dirs)?;
+					let child_node = build_node(&entry.path(), root_path, ignored_dirs)?;
 					children.push(child_node);
 				}
 				// Sort children: directories first, then files, both alphabetically
@@ -1050,7 +1061,7 @@ pub async fn investigate_repo(
 				continue;
 			}
 			
-			let node = build_node(&entry.path(), &ignored_dirs)?;
+			let node = build_node(&entry.path(), root_path, &ignored_dirs)?;
 			root_nodes.push(node);
 		}
 		
