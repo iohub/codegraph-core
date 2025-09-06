@@ -955,6 +955,68 @@ pub async fn investigate_repo(
 	let top = items.into_iter().take(15).collect::<Vec<_>>();
 
 	use std::collections::BTreeSet;
+	use super::models::DirectoryTreeNode;
+	
+	// Helper function to build directory tree
+	fn build_directory_tree(root_path: &std::path::Path) -> std::io::Result<Vec<DirectoryTreeNode>> {
+		fn build_node(path: &std::path::Path) -> std::io::Result<DirectoryTreeNode> {
+			let metadata = std::fs::metadata(path)?;
+			let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| ".".to_string());
+			let path_str = path.display().to_string();
+			
+			if metadata.is_dir() {
+				let mut children = Vec::new();
+				for entry in std::fs::read_dir(path)? {
+					let entry = entry?;
+					let child_node = build_node(&entry.path())?;
+					children.push(child_node);
+				}
+				// Sort children: directories first, then files, both alphabetically
+				children.sort_by(|a, b| {
+					if a.is_dir == b.is_dir {
+						a.name.cmp(&b.name)
+					} else {
+						// Directories come before files
+						b.is_dir.cmp(&a.is_dir)
+					}
+				});
+				Ok(DirectoryTreeNode {
+					name,
+					path: path_str,
+					is_dir: true,
+					children: Some(children),
+				})
+			} else {
+				Ok(DirectoryTreeNode {
+					name,
+					path: path_str,
+					is_dir: false,
+					children: None,
+				})
+			}
+		}
+		
+		// Build tree for each item in the root directory
+		let mut root_nodes = Vec::new();
+		for entry in std::fs::read_dir(root_path)? {
+			let entry = entry?;
+			let node = build_node(&entry.path())?;
+			root_nodes.push(node);
+		}
+		
+		// Sort root nodes: directories first, then files, both alphabetically
+		root_nodes.sort_by(|a, b| {
+			if a.is_dir == b.is_dir {
+				a.name.cmp(&b.name)
+			} else {
+				// Directories come before files
+				b.is_dir.cmp(&a.is_dir)
+			}
+		});
+		
+		Ok(root_nodes)
+	}
+	
 	let mut files_needed: BTreeSet<std::path::PathBuf> = BTreeSet::new();
 	let mut core_functions: Vec<super::models::InvestigateFunctionInfo> = Vec::new();
 	for (out_degree, func_id) in top.iter() {
@@ -1059,11 +1121,18 @@ pub async fn investigate_repo(
 		});
 	}
 
+	// Build directory tree
+	let directory_tree = match build_directory_tree(std::path::Path::new(&request.project_dir)) {
+		Ok(tree) => tree,
+		Err(_) => vec![],
+	};
+	
 	let resp = super::models::InvestigateRepoResponse {
 		project_id: init_resp.project_id,
 		total_functions: init_resp.total_functions,
 		core_functions,
 		file_skeletons,
+		directory_tree,
 	};
 
 	Ok(Json(ApiResponse { success: true, data: resp }))
