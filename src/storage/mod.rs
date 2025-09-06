@@ -11,14 +11,13 @@ pub use traits::{GraphPersistence, IncrementalUpdater, GraphSerializer};
 
 use std::sync::Arc;
 use parking_lot::RwLock;
-use std::collections::HashMap;
 use crate::codegraph::types::PetCodeGraph;
 use crate::cli::args::StorageMode;
 
 pub struct StorageManager {
     persistence: Arc<PersistenceManager>,
     incremental: Arc<IncrementalManager>,
-    graphs: Arc<RwLock<HashMap<String, PetCodeGraph>>>,
+    graph: Arc<RwLock<Option<PetCodeGraph>>>,
     storage_mode: StorageMode,
 }
 
@@ -31,7 +30,7 @@ impl StorageManager {
         Self {
             persistence: Arc::new(PersistenceManager::with_storage_mode(storage_mode.clone())),
             incremental: Arc::new(IncrementalManager::new()),
-            graphs: Arc::new(RwLock::new(HashMap::new())),
+            graph: Arc::new(RwLock::new(None)),
             storage_mode,
         }
     }
@@ -56,7 +55,15 @@ impl StorageManager {
         self.incremental.clone()
     }
 
-    pub fn get_graphs(&self) -> Arc<RwLock<HashMap<String, PetCodeGraph>>> {
-        self.graphs.clone()
+    pub fn get_graph(&self) -> Arc<RwLock<Option<PetCodeGraph>>> {
+        self.graph.clone()
+    }
+
+    pub fn set_graph(&self, graph: PetCodeGraph) {
+        *self.graph.write() = Some(graph);
+    }
+
+    pub fn get_graph_clone(&self) -> Option<PetCodeGraph> {
+        self.graph.read().clone()
     }
 } 

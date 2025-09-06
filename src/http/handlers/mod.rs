@@ -82,7 +82,7 @@ pub async fn build_graph(
                 }
 
                 // Cache the graph in memory for subsequent queries
-                storage.get_graphs().write().insert(project_id.clone(), pet_graph);
+                storage.set_graph(pet_graph);
             } else {
                 tracing::error!("Analyzer produced no code graph");
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
@@ -119,11 +119,7 @@ pub async fn query_call_graph(
     let max_depth = request.max_depth.unwrap_or(2); // Default max depth is 2
     
     // Retrieve a graph from the in-memory cache populated by init/build_graph
-    let graphs_lock = storage.get_graphs();
-    let graph = {
-        let graphs_read = graphs_lock.read();
-        graphs_read.values().next().cloned()
-    }.ok_or(StatusCode::NOT_FOUND)?;
+    let graph = storage.get_graph_clone().ok_or(StatusCode::NOT_FOUND)?;
     
     // Debug: Log graph information
     tracing::info!("Loaded graph with {} functions", graph.get_stats().total_functions);
@@ -869,7 +865,7 @@ pub async fn init(
         Ok(Some(graph)) => {
             let stats = graph.get_stats().clone();
             // Cache in memory
-            storage.get_graphs().write().insert(project_id.clone(), graph);
+            storage.set_graph(graph);
 
             let resp = InitResponse {
                 project_id,
@@ -910,7 +906,7 @@ pub async fn init(
                     }
 
                     // Cache in memory
-                    storage.get_graphs().write().insert(project_id.clone(), pet_graph);
+                    storage.set_graph(pet_graph);
 
                     let resp = InitResponse {
                         project_id,
@@ -946,14 +942,7 @@ pub async fn investigate_repo(
 	};
 
 	// Load graph from memory
-	let graphs_lock = storage.get_graphs();
-	let graph = {
-		let graphs_read = graphs_lock.read();
-		// Prefer the specific project if present
-		if let Some(g) = graphs_read.get(&init_resp.project_id) { g.clone() } else {
-			graphs_read.values().next().cloned().ok_or(StatusCode::NOT_FOUND)?
-		}
-	};
+	let graph = storage.get_graph_clone().ok_or(StatusCode::NOT_FOUND)?;
 
 	// Compute out-degree for each function and collect top 15
 	use std::cmp::Reverse;
