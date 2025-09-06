@@ -959,7 +959,41 @@ pub async fn investigate_repo(
 	
 	// Helper function to build directory tree
 	fn build_directory_tree(root_path: &std::path::Path) -> std::io::Result<Vec<DirectoryTreeNode>> {
-		fn build_node(path: &std::path::Path) -> std::io::Result<DirectoryTreeNode> {
+		// List of directories to ignore
+		let ignored_dirs = [
+			"node_modules",
+			"target",
+			"dist",
+			"build",
+			"vendor",
+			".git",
+			".svn",
+			".hg",
+			".vscode",
+			".idea",
+			".DS_Store",
+			"__pycache__",
+			".pytest_cache",
+			"coverage",
+			".nyc_output",
+			".sass-cache",
+			".yarn",
+			".pnpm",
+			"go/pkg",
+			"go/bin",
+		];
+		
+		fn is_ignored(name: &str, ignored_dirs: &[&str]) -> bool {
+			// Ignore hidden files/directories (starting with .)
+			if name.starts_with('.') {
+				return true;
+			}
+			
+			// Ignore specific directories
+			ignored_dirs.contains(&name)
+		}
+		
+		fn build_node(path: &std::path::Path, ignored_dirs: &[&str]) -> std::io::Result<DirectoryTreeNode> {
 			let metadata = std::fs::metadata(path)?;
 			let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| ".".to_string());
 			let path_str = path.display().to_string();
@@ -968,7 +1002,15 @@ pub async fn investigate_repo(
 				let mut children = Vec::new();
 				for entry in std::fs::read_dir(path)? {
 					let entry = entry?;
-					let child_node = build_node(&entry.path())?;
+					let child_name = entry.file_name();
+					let child_name_str = child_name.to_string_lossy();
+					
+					// Skip ignored directories
+					if is_ignored(&child_name_str, ignored_dirs) {
+						continue;
+					}
+					
+					let child_node = build_node(&entry.path(), ignored_dirs)?;
 					children.push(child_node);
 				}
 				// Sort children: directories first, then files, both alphabetically
@@ -1000,7 +1042,15 @@ pub async fn investigate_repo(
 		let mut root_nodes = Vec::new();
 		for entry in std::fs::read_dir(root_path)? {
 			let entry = entry?;
-			let node = build_node(&entry.path())?;
+			let file_name = entry.file_name();
+			let file_name_str = file_name.to_string_lossy();
+			
+			// Skip ignored directories
+			if is_ignored(&file_name_str, &ignored_dirs) {
+				continue;
+			}
+			
+			let node = build_node(&entry.path(), &ignored_dirs)?;
 			root_nodes.push(node);
 		}
 		
