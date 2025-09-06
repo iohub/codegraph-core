@@ -955,10 +955,9 @@ pub async fn investigate_repo(
 	let top = items.into_iter().take(15).collect::<Vec<_>>();
 
 	use std::collections::BTreeSet;
-	use super::models::DirectoryTreeNode;
 	
 	// Helper function to build directory tree
-	fn build_directory_tree(root_path: &std::path::Path) -> std::io::Result<Vec<DirectoryTreeNode>> {
+	fn build_directory_tree(root_path: &std::path::Path) -> std::io::Result<String> {
 		// List of directories to ignore
 		let ignored_dirs = [
 			"node_modules",
@@ -993,89 +992,88 @@ pub async fn investigate_repo(
 			ignored_dirs.contains(&name)
 		}
 		
-		fn build_node(path: &std::path::Path, root_path: &std::path::Path, ignored_dirs: &[&str]) -> std::io::Result<DirectoryTreeNode> {
-			let metadata = std::fs::metadata(path)?;
-			let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| ".".to_string());
-			// Use relative path instead of absolute path
-			let path_str = path.strip_prefix(root_path).map_or_else(
-				|_| path.display().to_string(),
-				|rel_path| {
-					if rel_path.as_os_str().is_empty() {
-						// Root directory case
-						"".to_string()
-					} else {
-						rel_path.to_string_lossy().into_owned()
-					}
-				}
-			);
+		// Recursive function to build tree structure
+		fn build_tree_recursive(
+			path: &std::path::Path,
+			prefix: &str,
+			ignored_dirs: &[&str],
+			is_ignored: fn(&str, &[&str]) -> bool,
+		) -> std::io::Result<String> {
+			let mut result = String::new();
 			
-			if metadata.is_dir() {
-				let mut children = Vec::new();
-				for entry in std::fs::read_dir(path)? {
-					let entry = entry?;
-					let child_name = entry.file_name();
-					let child_name_str = child_name.to_string_lossy();
+			// If it's a directory, process its contents
+			if path.is_dir() {
+				let mut entries: Vec<_> = std::fs::read_dir(path)?
+					.filter_map(|entry| entry.ok())
+					.filter(|entry| {
+						let name = entry.file_name();
+						let name_str = name.to_string_lossy();
+						!is_ignored(&name_str, ignored_dirs)
+					})
+					.collect();
+				
+				// Sort entries: directories first, then files, both alphabetically
+				entries.sort_by(|a, b| {
+					let a_is_dir = a.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
+					let b_is_dir = b.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
 					
-					// Skip ignored directories
-					if is_ignored(&child_name_str, ignored_dirs) {
-						continue;
-					}
-					
-					let child_node = build_node(&entry.path(), root_path, ignored_dirs)?;
-					children.push(child_node);
-				}
-				// Sort children: directories first, then files, both alphabetically
-				children.sort_by(|a, b| {
-					if a.is_dir == b.is_dir {
-						a.name.cmp(&b.name)
-					} else {
-						// Directories come before files
-						b.is_dir.cmp(&a.is_dir)
+					match (a_is_dir, b_is_dir) {
+						(true, false) => std::cmp::Ordering::Less,
+						(false, true) => std::cmp::Ordering::Greater,
+						_ => {
+							let a_name = a.file_name().to_string_lossy().to_string();
+							let b_name = b.file_name().to_string_lossy().to_string();
+							a_name.cmp(&b_name)
+						}
 					}
 				});
-				Ok(DirectoryTreeNode {
-					name,
-					path: path_str,
-					is_dir: true,
-					children: Some(children),
-				})
-			} else {
-				Ok(DirectoryTreeNode {
-					name,
-					path: path_str,
-					is_dir: false,
-					children: None,
-				})
+				
+				// Process each entry
+				let count = entries.len();
+				for (i, entry) in entries.iter().enumerate() {
+					let is_last_entry = i == count - 1;
+					
+					// Get file name
+					let file_name = entry.file_name()
+						.to_string_lossy()
+						.to_string();
+					
+					// Add current item to result
+					let connector = if is_last_entry { "└── " } else { "├── " };
+					result.push_str(&format!("{}{}{}\n", prefix, connector, file_name));
+					
+					// If it's a directory, recursively process its contents
+					if entry.path().is_dir() {
+						let new_prefix = if is_last_entry {
+							format!("{}    ", prefix)
+						} else {
+							format!("{}│   ", prefix)
+						};
+						
+						let entry_result = build_tree_recursive(
+							entry.path().as_path(),
+							&new_prefix,
+							ignored_dirs,
+							is_ignored,
+						)?;
+						
+						result.push_str(&entry_result);
+					}
+				}
 			}
+			
+			Ok(result)
 		}
 		
-		// Build tree for each item in the root directory
-		let mut root_nodes = Vec::new();
-		for entry in std::fs::read_dir(root_path)? {
-			let entry = entry?;
-			let file_name = entry.file_name();
-			let file_name_str = file_name.to_string_lossy();
-			
-			// Skip ignored directories
-			if is_ignored(&file_name_str, &ignored_dirs) {
-				continue;
-			}
-			
-			let node = build_node(&entry.path(), root_path, &ignored_dirs)?;
-			root_nodes.push(node);
-		}
-		
-		// Sort root nodes: directories first, then files, both alphabetically
-		root_nodes.sort_by(|a, b| {
-			if a.is_dir == b.is_dir {
-				a.name.cmp(&b.name)
-			} else {
-				// Directories come before files
-				b.is_dir.cmp(&a.is_dir)
-			}
-		});
-		
-		Ok(root_nodes)
+		// Start building the tree
+		let file_name = root_path.file_name()
+			.and_then(|name| name.to_str())
+			.unwrap_or("");
+		let mut result = String::new();
+		result.push_str(&format!("{}\n", file_name));
+		let tree_content = build_tree_recursive(root_path, "", &ignored_dirs, is_ignored)?;
+		result.push_str(&tree_content);
+		Ok(result)
 	}
 	
 	let mut files_needed: BTreeSet<std::path::PathBuf> = BTreeSet::new();
@@ -1185,7 +1183,7 @@ pub async fn investigate_repo(
 	// Build directory tree
 	let directory_tree = match build_directory_tree(std::path::Path::new(&request.project_dir)) {
 		Ok(tree) => tree,
-		Err(_) => vec![],
+		Err(_) => "".to_string(),
 	};
 	
 	let resp = super::models::InvestigateRepoResponse {
