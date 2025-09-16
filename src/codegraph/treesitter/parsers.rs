@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use std::path::PathBuf;
+use std::error::Error;
 
 use tracing::error;
 
@@ -23,6 +24,14 @@ pub(crate) mod go;
 pub struct ParserError {
     pub message: String,
 }
+
+impl Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Parser error: {}", self.message)
+    }
+}
+
+impl Error for ParserError {}
 
 pub trait AstLanguageParser: Send {
     fn parse(&mut self, code: &str, path: &PathBuf) -> Vec<AstSymbolInstanceArc>;

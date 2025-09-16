@@ -47,5 +47,8 @@ itertools = "0.14"
 similar = "2.3"
 typetag = "0.2"
 
+# Vector database dependencies
+qdrant-client = "1.11"
+
 [dev-dependencies]
 tempfile = "3.8"
