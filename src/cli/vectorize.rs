@@ -50,12 +50,12 @@ impl VectorizeService {
                 vectors_config: Some(VectorsConfig {
                     config: Some(qdrant_client::qdrant::vectors_config::Config::Params(
                         VectorParams {
-                            size: 384,
+                            size: 768,
                             distance: Distance::Cosine.into(),
                             ..Default::default()
                         }
                     ))
-                }), // 384维向量，使用余弦相似度
+                }), // 768维向量，使用余弦相似度
                 ..Default::default()
             };
             
@@ -89,27 +89,25 @@ impl VectorizeService {
         let response_json: serde_json::Value = response.json().await?;
         
         // 解析返回的嵌入向量
-        if let Some(embedding_array) = response_json.get("embedding") {
-            if let Some(embedding_values) = embedding_array.as_array() {
-                let vector: Vec<f32> = embedding_values
-                    .iter()
-                    .filter_map(|v| v.as_f64().map(|f| f as f32))
-                    .collect();
-                
-                if vector.len() == 384 {
-                    debug!("Successfully received embedding vector with {} dimensions", vector.len());
+        if let Some(first_item) = response_json.get(0) {
+            if let Some(embedding_array) = first_item.get("embedding") {
+                if let Some(embedding_values) = embedding_array.as_array() {
+                    let vector: Vec<f32> = embedding_values
+                        .iter()
+                        .filter_map(|v| v.as_f64().map(|f| f as f32))
+                        .collect();
                     Ok(vector)
                 } else {
-                    error!("Expected 384 dimensions, got {}", vector.len());
-                    Err(format!("Expected 384 dimensions, got {}", vector.len()).into())
+                    error!("Embedding field is not an array");
+                    Err("Embedding field is not an array".into())
                 }
             } else {
-                error!("Embedding field is not an array");
-                Err("Embedding field is not an array".into())
+                error!("No embedding field in response");
+                Err("No embedding field in response".into())
             }
         } else {
-            error!("No embedding field in response");
-            Err("No embedding field in response".into())
+            error!("No data in response");
+            Err("No data in response".into())
         }
     }
 
