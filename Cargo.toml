@@ -50,5 +50,8 @@ typetag = "0.2"
 # Vector database dependencies
 qdrant-client = "1.11"
 
+# HTTP client for embedding service
+reqwest = { version = "0.11", features = ["json", "rustls-tls"], default-features = false }
+
 [dev-dependencies]
 tempfile = "3.8"

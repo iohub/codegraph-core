@@ -6,6 +6,8 @@ use qdrant_client::config::QdrantConfig;
 use qdrant_client::qdrant::{CreateCollection, VectorParams, Distance, PointStruct, VectorsConfig, Value, UpsertPointsBuilder};
 use uuid::Uuid;
 use tracing::{info, error, debug};
+use serde_json::json;
+use reqwest;
 
 use crate::codegraph::treesitter::TreeSitterParser;
 use crate::codegraph::parser::CodeParser;
@@ -13,16 +15,22 @@ use crate::codegraph::parser::CodeParser;
 pub struct VectorizeService {
     qdrant_client: Qdrant,
     collection_name: String,
+    embedding_client: reqwest::Client,
+    embedding_url: String,
 }
 
 impl VectorizeService {
     pub async fn new(qdrant_url: &str, collection_name: String) -> Result<Self, Box<dyn std::error::Error>> {
         let config = QdrantConfig::from_url(qdrant_url);
         let qdrant_client = Qdrant::new(config)?;
+        let embedding_client = reqwest::Client::new();
+        let embedding_url = "http://localhost:9200/embedding".to_string();
         
         Ok(Self {
             qdrant_client,
             collection_name,
+            embedding_client,
+            embedding_url,
         })
     }
 
@@ -60,24 +68,49 @@ impl VectorizeService {
         Ok(())
     }
 
-    /// 获取代码块的嵌入向量（mock实现）
-    fn get_embedding(&self, code_block: &str) -> Vec<f32> {
-        // Mock embedding - 使用简单的哈希方法生成384维向量
-        let mut vector = vec![0.0f32; 384];
-        let code_bytes = code_block.as_bytes();
+    /// 获取代码块的嵌入向量（HTTP请求实现）
+    async fn get_embedding(&self, code_block: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+        let request_body = json!({
+            "content": code_block
+        });
+
+        debug!("Sending embedding request for code block (length: {})", code_block.len());
         
-        for (i, &byte) in code_bytes.iter().enumerate() {
-            let idx = i % 384;
-            vector[idx] += (byte as f32) / 255.0;
+        let response = self.embedding_client
+            .post(&self.embedding_url)
+            .json(&request_body)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(format!("Embedding service returned error: {}", response.status()).into());
         }
+
+        let response_json: serde_json::Value = response.json().await?;
         
-        // 归一化向量
-        let norm = vector.iter().map(|x| x * x).sum::<f32>().sqrt();
-        if norm > 0.0 {
-            vector.iter_mut().for_each(|x| *x /= norm);
+        // 解析返回的嵌入向量
+        if let Some(embedding_array) = response_json.get("embedding") {
+            if let Some(embedding_values) = embedding_array.as_array() {
+                let vector: Vec<f32> = embedding_values
+                    .iter()
+                    .filter_map(|v| v.as_f64().map(|f| f as f32))
+                    .collect();
+                
+                if vector.len() == 384 {
+                    debug!("Successfully received embedding vector with {} dimensions", vector.len());
+                    Ok(vector)
+                } else {
+                    error!("Expected 384 dimensions, got {}", vector.len());
+                    Err(format!("Expected 384 dimensions, got {}", vector.len()).into())
+                }
+            } else {
+                error!("Embedding field is not an array");
+                Err("Embedding field is not an array".into())
+            }
+        } else {
+            error!("No embedding field in response");
+            Err("No embedding field in response".into())
         }
-        
-        vector
     }
 
     /// 向量化目录中的代码文件
@@ -141,7 +174,13 @@ impl VectorizeService {
                         });
                     
                     // 生成嵌入向量
-                    let embedding = self.get_embedding(&code_block);
+                    let embedding = match self.get_embedding(&code_block).await {
+                        Ok(vec) => vec,
+                        Err(e) => {
+                            error!("Failed to get embedding for symbol {}: {}", symbol_ref.name(), e);
+                            continue;
+                        }
+                    };
                     
                     // 创建点数据
                     let point_id = Uuid::new_v4().to_string();
