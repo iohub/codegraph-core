@@ -95,40 +95,24 @@ impl VectorizeService {
         }
 
         let response_json: serde_json::Value = response.json().await?;
-        // info!("Embedding service response: {:?}", response_json);
-        // 解析返回的嵌入向量
-        if let Some(first_item) = response_json.get(0) {
-            if let Some(embedding_array) = first_item.get("embedding") {
-                // embedding是一个二维数组 [[...]]，我们需要获取第一个（也是唯一一个）子数组
-                if let Some(embedding_outer_array) = embedding_array.as_array() {
-                    if let Some(embedding_inner_array) = embedding_outer_array.get(0) {
-                        if let Some(embedding_values) = embedding_inner_array.as_array() {
-                            let vector: Vec<f32> = embedding_values
-                                .iter()
-                                .filter_map(|v| v.as_f64().map(|f| f as f32))
-                                .collect();
-                            info!("Embedding vector created with size: {}", vector.len());
-                            Ok(vector)
-                        } else {
-                            error!("Inner embedding field is not an array");
-                            Err("Inner embedding field is not an array".into())
-                        }
-                    } else {
-                        error!("No inner embedding array found");
-                        Err("No inner embedding array found".into())
-                    }
-                } else {
-                    error!("Embedding field is not an array");
-                    Err("Embedding field is not an array".into())
-                }
-            } else {
-                error!("No embedding field in response");
-                Err("No embedding field in response".into())
-            }
-        } else {
-            error!("No data in response");
-            Err("No data in response".into())
-        }
+        
+        // 解析返回的嵌入向量 - 支持二维数组格式: [{"embedding": [[...]]}]
+        let vector = response_json
+            .get(0)
+            .and_then(|item| item.get("embedding"))
+            .and_then(|embedding| embedding.as_array())
+            .and_then(|outer_array| outer_array.get(0))
+            .and_then(|inner_array| inner_array.as_array())
+            .map(|values| {
+                values.iter()
+                    .filter_map(|v| v.as_f64().map(|f| f as f32))
+                    .collect::<Vec<f32>>()
+            })
+            .filter(|vec| !vec.is_empty())
+            .ok_or("Failed to parse embedding from response")?;
+            
+        info!("Embedding vector created with size: {}", vector.len());
+        Ok(vector)
     }
 
     /// 向量化目录中的代码文件
