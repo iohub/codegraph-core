@@ -22,12 +22,6 @@ A powerful Rust-based tool for analyzing code dependencies, building code graphs
 - **Hierarchical Views**: Display code relationships in tree and graph formats
 - **Real-time Updates**: Dynamic graph updates and exploration
 
-### 🚀 HTTP API & CLI
-- **RESTful API**: Complete HTTP API for integration with other tools
-- **Command Line Interface**: Powerful CLI for batch processing and automation
-- **Multiple Storage Formats**: Support for JSON and binary serialization
-- **CORS Support**: Web-friendly API with cross-origin support
-
 <img width="720" src="assets/demo.gif" alt="graph demo"/><br>
 
 ## Installation
