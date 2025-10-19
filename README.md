@@ -28,6 +28,8 @@ A powerful Rust-based tool for analyzing code dependencies, building code graphs
 - **Multiple Storage Formats**: Support for JSON and binary serialization
 - **CORS Support**: Web-friendly API with cross-origin support
 
+<img width="720" src="assets/demo.gif" alt="graph demo"/><br>
+
 ## Installation
 
 ### Prerequisites
