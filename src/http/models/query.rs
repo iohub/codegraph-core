@@ -21,7 +21,6 @@ pub struct FunctionInfo {
 pub struct CallRelation {
     pub function_name: String,
     pub file_path: String,
-    pub line_number: usize,
 }
 
 #[derive(Debug, Serialize)]

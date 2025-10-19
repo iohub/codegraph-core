@@ -243,3 +243,37 @@ impl PetGraphStorageManager {
         Ok(())
     }
 } 
+
+impl crate::storage::traits::GraphSerializer for PetGraphStorageManager {
+    fn save_to_file(code_graph: &PetCodeGraph, file_path: &std::path::Path) -> Result<(), String> {
+        Self::save_to_file(code_graph, file_path)
+    }
+
+    fn load_from_file(file_path: &std::path::Path) -> Result<PetCodeGraph, String> {
+        Self::load_from_file(file_path)
+    }
+
+    fn save_to_json(code_graph: &PetCodeGraph) -> Result<String, String> {
+        Self::save_to_json(code_graph)
+    }
+
+    fn load_from_json(json_str: &str) -> Result<PetCodeGraph, String> {
+        Self::load_from_json(json_str)
+    }
+
+    fn save_to_binary(code_graph: &PetCodeGraph, file_path: &std::path::Path) -> Result<(), String> {
+        Self::save_to_binary(code_graph, file_path)
+    }
+
+    fn load_from_binary(file_path: &std::path::Path) -> Result<PetCodeGraph, String> {
+        Self::load_from_binary(file_path)
+    }
+
+    fn export_to_graphml(code_graph: &PetCodeGraph, file_path: &std::path::Path) -> Result<(), String> {
+        Self::export_to_graphml(code_graph, file_path)
+    }
+
+    fn export_to_gexf(code_graph: &PetCodeGraph, file_path: &std::path::Path) -> Result<(), String> {
+        Self::export_to_gexf(code_graph, file_path)
+    }
+} 

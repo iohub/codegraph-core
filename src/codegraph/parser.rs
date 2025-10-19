@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::fs;
 use uuid::Uuid;
-use tracing::{info, warn};
+use tracing::{info, warn, debug};
 
 use crate::codegraph::types::{
     FunctionInfo, CallRelation, PetCodeGraph, EntityGraph, ClassInfo, ClassType,
-    FileIndex, SnippetIndex, ParameterInfo
+    FileIndex, SnippetIndex
 };
 use crate::codegraph::graph::CodeGraph;
 use crate::codegraph::treesitter::TreeSitterParser;
@@ -73,7 +73,8 @@ impl CodeParser {
                 "js" | "jsx" |
                 "rs" |
                 "ts" |
-                "tsx"
+                "tsx" |
+                "go"
             )
         } else {
             false
@@ -154,8 +155,6 @@ impl CodeParser {
                         namespace: namespace.clone(),
                         language: language.clone(),
                         signature: Some(symbol_ref.name().to_string()),
-                        return_type: None,
-                        parameters: vec![],
                     };
                     functions.push(function);
                 },
@@ -385,6 +384,7 @@ impl CodeParser {
                 "ts" | "tsx" => "typescript".to_string(),
                 "java" => "java".to_string(),
                 "cpp" | "cc" | "cxx" | "c++" | "c" | "h" | "hpp" | "hxx" | "hh" => "cpp".to_string(),
+                "go" => "go".to_string(),
                 _ => "unknown".to_string(),
             }
         } else {
@@ -439,7 +439,7 @@ impl CodeParser {
             match symbol_ref.symbol_type() {
                 crate::codegraph::treesitter::structs::SymbolType::FunctionDeclaration => {
                     // 提取函数信息
-                    let function = self._extract_function_info(symbol_ref, file_path, &language, &namespace);
+                    let function = self._extract_function_info(symbol_ref, file_path, &namespace, &language);
                     functions.push(function);
                 },
                 crate::codegraph::treesitter::structs::SymbolType::StructDeclaration => {
@@ -478,22 +478,15 @@ impl CodeParser {
         &self,
         symbol: &dyn crate::codegraph::treesitter::ast_instance_structs::AstSymbolInstance,
         file_path: &PathBuf,
-        language: &str,
         namespace: &str,
+        language: &str,
     ) -> FunctionInfo {
         let name = symbol.name().to_string();
-        let range = symbol.full_range();
-        let line_start = range.start_point.row + 1;
-        let line_end = range.end_point.row + 1;
-
+        let line_start = symbol.full_range().start_point.row + 1;
+        let line_end = symbol.full_range().end_point.row + 1;
+        
         // 尝试提取函数签名
         let signature = self._extract_function_signature(symbol);
-        
-        // 尝试提取返回类型
-        let return_type = self._extract_return_type(symbol);
-        
-        // 尝试提取参数信息
-        let parameters = self._extract_function_parameters(symbol);
 
         FunctionInfo {
             id: Uuid::new_v4(),
@@ -504,8 +497,6 @@ impl CodeParser {
             namespace: namespace.to_string(),
             language: language.to_string(),
             signature,
-            return_type,
-            parameters,
         }
     }
 
@@ -576,88 +567,6 @@ impl CodeParser {
         Some(symbol.name().to_string())
     }
 
-    /// 提取返回类型
-    fn _extract_return_type(&self, symbol: &dyn crate::codegraph::treesitter::ast_instance_structs::AstSymbolInstance) -> Option<String> {
-        // 根据具体语言实现返回类型提取
-        let symbol_type = symbol.symbol_type();
-        let name = symbol.name();
-        
-        match symbol_type {
-            crate::codegraph::treesitter::structs::SymbolType::FunctionDeclaration => {
-                // 对于函数声明，尝试从名称或上下文推断返回类型
-                if name.contains("get_") || name.contains("is_") || name.contains("has_") {
-                    // 根据函数名推断返回类型
-                    if name.contains("is_") || name.contains("has_") {
-                        return Some("bool".to_string());
-                    } else if name.contains("get_") {
-                        return Some("unknown".to_string()); // 需要进一步分析
-                    }
-                }
-                None
-            },
-            _ => None,
-        }
-    }
-
-    /// 提取函数参数
-    fn _extract_function_parameters(&self, symbol: &dyn crate::codegraph::treesitter::ast_instance_structs::AstSymbolInstance) -> Vec<ParameterInfo> {
-        // 根据具体语言实现参数提取
-        let symbol_type = symbol.symbol_type();
-        let name = symbol.name();
-        
-        match symbol_type {
-            crate::codegraph::treesitter::structs::SymbolType::FunctionDeclaration => {
-                // 对于函数声明，尝试从名称推断参数
-                let mut parameters = Vec::new();
-                
-                // 简单的参数推断逻辑
-                if name.contains("(") && name.contains(")") {
-                    // 如果名称包含括号，可能包含参数信息
-                    if let Some(param_start) = name.find('(') {
-                        if let Some(param_end) = name.find(')') {
-                            let param_str = &name[param_start + 1..param_end];
-                            if !param_str.is_empty() {
-                                // 分割参数
-                                for (i, param) in param_str.split(',').enumerate() {
-                                    let param = param.trim();
-                                    if !param.is_empty() {
-                                        parameters.push(ParameterInfo {
-                                            name: format!("param_{}", i),
-                                            type_name: Some(param.to_string()),
-                                            default_value: None,
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // 根据函数名推断可能的参数
-                    if name.contains("add") || name.contains("set") {
-                        parameters.push(ParameterInfo {
-                            name: "value".to_string(),
-                            type_name: Some("unknown".to_string()),
-                            default_value: None,
-                        });
-                    } else if name.contains("get") {
-                        // getter 通常没有参数
-                    } else {
-                        // 默认参数
-                        parameters.push(ParameterInfo {
-                            name: "input".to_string(),
-                            type_name: Some("unknown".to_string()),
-                            default_value: None,
-                        });
-                    }
-                }
-                
-                parameters
-            },
-            _ => vec![],
-        }
-    }
-
-    /// 从文件内容提取命名空间
     fn _extract_namespace_from_content(&self, content: &str, file_path: &PathBuf) -> String {
         let language = self._detect_language(file_path);
         
@@ -777,52 +686,339 @@ impl CodeParser {
         Ok(())
     }
 
-    /// 构建完整的代码图
+    /// 构建完整的代码图（增量构建）
     pub fn build_code_graph(&mut self, dir: &Path) -> Result<CodeGraph, String> {
-        // 1. 解析所有文件
-        self.parse_directory(dir)?;
+        // 1. 尝试从本地数据库加载现有的图
+        let mut code_graph = self._load_existing_code_graph(dir)?;
+        let has_existing_data = code_graph.is_some();
         
-        // 2. 构建代码图
-        let mut code_graph = CodeGraph::new();
+        if let Some(ref mut existing_graph) = code_graph {
+            info!("Loaded existing CodeGraph with {} functions", existing_graph.functions.len());
+        } else {
+            info!("No existing CodeGraph found, starting fresh analysis");
+            code_graph = Some(CodeGraph::new());
+        }
         
-        // 3. 提取函数信息并直接添加到代码图
-        for (_file_path, functions) in &self.file_functions {
-            for function in functions {
-                code_graph.add_function(function.clone());
+        let mut code_graph = code_graph.unwrap();
+        
+        // 2. 扫描目录下的所有文件
+        let files = self.scan_directory(dir);
+        info!("Found {} files to process", files.len());
+        
+        // 3. 加载文件哈希值（如果存在）
+        let mut file_hashes = self._load_file_hashes(dir)?;
+        
+        // 4. 逐个处理文件，检查是否需要重新解析
+        let mut processed_files = 0;
+        let mut skipped_files = 0;
+        
+        for file_path in files {
+            if self._should_skip_file(&file_path, &mut file_hashes)? {
+                skipped_files += 1;
+                continue;
+            }
+            
+            if let Err(e) = self.parse_file(&file_path) {
+                warn!("Failed to parse {}: {}", file_path.display(), e);
+            } else {
+                processed_files += 1;
             }
         }
         
-        // 4. 分析调用关系 
+        info!("File processing completed: {} processed, {} skipped", processed_files, skipped_files);
+        
+        // 5. 如果这是增量构建，需要合并新解析的函数
+        if has_existing_data {
+            if !self.file_functions.is_empty() {
+                self._merge_new_functions_to_code_graph(&mut code_graph);
+            }
+            // 如果没有新解析的函数，保持现有的图不变
+        } else {
+            // 全量构建：直接添加所有函数
+            for (_file_path, functions) in &self.file_functions {
+                for function in functions {
+                    code_graph.add_function(function.clone());
+                }
+            }
+        }
+        
+        // 6. 分析调用关系
         self._analyze_call_relations(&mut code_graph);
         
-        // 5. 更新统计信息
+        // 7. 更新统计信息
         code_graph.update_stats();
+        
+        // 8. 保存新的文件哈希值
+        self._save_file_hashes(dir, &file_hashes)?;
         
         Ok(code_graph)
     }
 
-    /// 构建基于petgraph的代码图
+    /// 构建基于petgraph的代码图（增量构建）
     pub fn build_petgraph_code_graph(&mut self, dir: &Path) -> Result<PetCodeGraph, String> {
-        // 1. 解析所有文件
-        self.parse_directory(dir)?;
+        // 1. 尝试从本地数据库加载现有的图
+        let mut code_graph = self._load_existing_graph(dir)?;
+        let has_existing_data = code_graph.is_some();
         
-        // 2. 构建petgraph代码图
-        let mut code_graph = PetCodeGraph::new();
+        if let Some(ref mut existing_graph) = code_graph {
+            info!("Loaded existing graph with {} functions", existing_graph.get_stats().total_functions);
+        } else {
+            info!("No existing graph found, starting fresh analysis");
+            code_graph = Some(PetCodeGraph::new());
+        }
         
-        // 3. 提取函数信息并直接添加到代码图
-        for (_file_path, functions) in &self.file_functions {
-            for function in functions {
-                code_graph.add_function(function.clone());
+        let mut code_graph = code_graph.unwrap();
+        
+        // 2. 扫描目录下的所有文件
+        let files = self.scan_directory(dir);
+        info!("Found {} files to process", files.len());
+        
+        // 3. 加载文件哈希值（如果存在）
+        let mut file_hashes = self._load_file_hashes(dir)?;
+        
+        // 4. 逐个处理文件，检查是否需要重新解析
+        let mut processed_files = 0;
+        let mut skipped_files = 0;
+        
+        for file_path in files {
+            if self._should_skip_file(&file_path, &mut file_hashes)? {
+                skipped_files += 1;
+                continue;
+            }
+            
+            if let Err(e) = self.parse_file(&file_path) {
+                warn!("Failed to parse {}: {}", file_path.display(), e);
+            } else {
+                processed_files += 1;
             }
         }
         
-        // 4. 分析调用关系 
+        info!("File processing completed: {} processed, {} skipped", processed_files, skipped_files);
+        
+        // 5. 如果这是增量构建，需要合并新解析的函数
+        if has_existing_data {
+            self._merge_new_functions(&mut code_graph);
+        } else {
+            // 全量构建：直接添加所有函数
+            for (_file_path, functions) in &self.file_functions {
+                for function in functions {
+                    code_graph.add_function(function.clone());
+                }
+            }
+        }
+        
+        // 6. 分析调用关系
         self._analyze_petgraph_call_relations(&mut code_graph);
         
-        // 5. 更新统计信息
+        // 7. 更新统计信息
         code_graph.update_stats();
         
+        // 8. 保存新的文件哈希值
+        self._save_file_hashes(dir, &file_hashes)?;
+        
         Ok(code_graph)
+    }
+
+    /// 尝试从本地数据库加载现有的CodeGraph
+    fn _load_existing_code_graph(&self, dir: &Path) -> Result<Option<CodeGraph>, String> {
+        use crate::storage::PersistenceManager;
+        use md5;
+        
+        let persistence = PersistenceManager::new();
+        
+        // 尝试多种方式的项目ID
+        let project_ids = vec![
+            // 1. 使用目录名（原始方式）
+            dir.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("default")
+                .to_string(),
+            // 2. 使用目录路径的MD5哈希（HTTP接口方式）
+            format!("{:x}", md5::compute(dir.to_string_lossy().as_bytes())),
+        ];
+        
+        for project_id in project_ids {
+            info!("Attempting to load existing CodeGraph for project ID: {}", project_id);
+            
+            match persistence.load_graph(&project_id) {
+                Ok(Some(pet_graph)) => {
+                    info!("Found existing PetCodeGraph with {} functions for project ID: {}", 
+                          pet_graph.graph.node_count(), project_id);
+                    
+                    // 将PetCodeGraph转换为CodeGraph
+                    let mut code_graph = CodeGraph::new();
+                    
+                    // 添加所有函数
+                    let mut function_count = 0;
+                    for function in pet_graph.graph.node_weights() {
+                        code_graph.add_function(function.clone());
+                        function_count += 1;
+                    }
+                    info!("Converted {} functions from PetCodeGraph to CodeGraph", function_count);
+                    
+                    // 添加所有调用关系
+                    let mut relation_count = 0;
+                    for edge in pet_graph.graph.edge_weights() {
+                        code_graph.add_call_relation(edge.clone());
+                        relation_count += 1;
+                    }
+                    info!("Converted {} call relations from PetCodeGraph to CodeGraph", relation_count);
+                    
+                    return Ok(Some(code_graph));
+                },
+                Ok(None) => {
+                    info!("No existing graph found for project ID: {}", project_id);
+                    continue;
+                },
+                Err(e) => {
+                    warn!("Failed to load existing CodeGraph for project ID {}: {}", project_id, e);
+                    continue;
+                }
+            }
+        }
+        
+        info!("No existing graph found for any project ID");
+        Ok(None)
+    }
+
+    /// 合并新解析的函数到现有CodeGraph中
+    fn _merge_new_functions_to_code_graph(&self, code_graph: &mut CodeGraph) {
+        for (_file_path, functions) in &self.file_functions {
+            for function in functions {
+                // 检查函数是否已存在（基于文件路径和行号）
+                let exists = code_graph.functions.values().any(|existing_func| {
+                    existing_func.file_path == function.file_path &&
+                    existing_func.line_start == function.line_start &&
+                    existing_func.line_end == function.line_end
+                });
+                
+                if !exists {
+                    code_graph.add_function(function.clone());
+                }
+            }
+        }
+    }
+
+    /// 尝试从本地数据库加载现有的图
+    fn _load_existing_graph(&self, dir: &Path) -> Result<Option<PetCodeGraph>, String> {
+        use crate::storage::PersistenceManager;
+        
+        // 使用项目路径作为项目ID
+        let project_id = dir.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("default");
+        
+        let persistence = PersistenceManager::new();
+        match persistence.load_graph(project_id) {
+            Ok(Some(graph)) => Ok(Some(graph)),
+            Ok(None) => Ok(None),
+            Err(e) => {
+                warn!("Failed to load existing graph: {}", e);
+                Ok(None)
+            }
+        }
+    }
+
+    /// 加载文件哈希值
+    fn _load_file_hashes(&self, dir: &Path) -> Result<HashMap<String, String>, String> {
+        use crate::storage::PersistenceManager;
+        use md5;
+        
+        let persistence = PersistenceManager::new();
+        
+        // 尝试多种方式的项目ID
+        let project_ids = vec![
+            // 1. 使用目录名（原始方式）
+            dir.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("default")
+                .to_string(),
+            // 2. 使用目录路径的MD5哈希（HTTP接口方式）
+            format!("{:x}", md5::compute(dir.to_string_lossy().as_bytes())),
+        ];
+        
+        for project_id in project_ids {
+            match persistence.load_file_hashes(&project_id) {
+                Ok(hashes) => {
+                    if !hashes.is_empty() {
+                        info!("Loaded {} file hashes for project ID: {}", hashes.len(), project_id);
+                        return Ok(hashes);
+                    }
+                },
+                Err(e) => {
+                    debug!("Failed to load file hashes for project ID {}: {}", project_id, e);
+                    continue;
+                }
+            }
+        }
+        
+        info!("No file hashes found for any project ID");
+        Ok(HashMap::new())
+    }
+
+    /// 保存文件哈希值
+    fn _save_file_hashes(&self, dir: &Path, hashes: &HashMap<String, String>) -> Result<(), String> {
+        use crate::storage::PersistenceManager;
+        use md5;
+        
+        let persistence = PersistenceManager::new();
+        
+        // 使用目录路径的MD5哈希作为项目ID（与HTTP接口保持一致）
+        let project_id = format!("{:x}", md5::compute(dir.to_string_lossy().as_bytes()));
+        info!("Saving file hashes for project ID: {}", project_id);
+        
+        // 为每个文件保存哈希值
+        for (file_path, hash) in hashes {
+            if let Err(e) = persistence.save_file_hash(&project_id, file_path, hash) {
+                warn!("Failed to save hash for {}: {}", file_path, e);
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// 检查文件是否应该跳过（基于MD5哈希值）
+    fn _should_skip_file(&self, file_path: &PathBuf, file_hashes: &mut HashMap<String, String>) -> Result<bool, String> {
+        use std::fs;
+        use md5;
+        
+        // 计算当前文件的MD5哈希值
+        let content = fs::read(file_path)
+            .map_err(|e| format!("Failed to read file {}: {}", file_path.display(), e))?;
+        let current_hash = format!("{:x}", md5::compute(&content));
+        
+        // 获取相对文件路径（相对于当前工作目录）
+        let file_path_str = file_path.to_string_lossy().to_string();
+        
+        // 检查是否存在相同的哈希值
+        if let Some(saved_hash) = file_hashes.get(&file_path_str) {
+            if saved_hash == &current_hash {
+                debug!("File {} unchanged (MD5: {}), skipping", file_path.display(), current_hash);
+                return Ok(true);
+            }
+        }
+        
+        // 更新哈希值
+        file_hashes.insert(file_path_str, current_hash);
+        Ok(false)
+    }
+
+    /// 合并新解析的函数到现有图中
+    fn _merge_new_functions(&self, code_graph: &mut PetCodeGraph) {
+        for (_file_path, functions) in &self.file_functions {
+            for function in functions {
+                // 检查函数是否已存在（基于文件路径和行号）
+                let exists = code_graph.graph.node_weights().any(|existing_func| {
+                    existing_func.file_path == function.file_path &&
+                    existing_func.line_start == function.line_start &&
+                    existing_func.line_end == function.line_end
+                });
+                
+                if !exists {
+                    code_graph.add_function(function.clone());
+                }
+            }
+        }
     }
 
     /// 分析调用关系 
@@ -1162,8 +1358,6 @@ impl CodeParser {
             namespace: "unresolved".to_string(),
             language: caller.language.clone(),
             signature: Some(format!("unresolved_call_{}", call_name)),
-            return_type: None,
-            parameters: vec![],
         };
         
         // 添加到代码图
@@ -1430,8 +1624,6 @@ if __name__ == "__main__":
             namespace: "global".to_string(),
             language: "rust".to_string(),
             signature: Some("fn main()".to_string()),
-            return_type: None,
-            parameters: vec![],
         };
         
         let func2 = FunctionInfo {
@@ -1443,8 +1635,6 @@ if __name__ == "__main__":
             namespace: "global".to_string(),
             language: "rust".to_string(),
             signature: Some("fn calculate()".to_string()),
-            return_type: None,
-            parameters: vec![],
         };
         
         // 添加到代码图
@@ -1487,8 +1677,6 @@ if __name__ == "__main__":
             namespace: "Calculator".to_string(),
             language: "rust".to_string(),
             signature: Some("fn process()".to_string()),
-            return_type: None,
-            parameters: vec![],
         };
         
         code_graph.add_function(method.clone());
@@ -1500,5 +1688,63 @@ if __name__ == "__main__":
         let resolved_func = result.unwrap();
         assert_eq!(resolved_func.name, "process");
         assert_eq!(resolved_func.namespace, "Calculator");
+    }
+
+    #[test]
+    fn test_incremental_build_with_md5_checking() {
+        // 创建临时目录
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let project_dir = temp_dir.path().join("test_project");
+        fs::create_dir(&project_dir).unwrap();
+
+        // 创建测试文件
+        let test_file = project_dir.join("test.rs");
+        let content = r#"
+pub fn hello() {
+    println!("Hello, world!");
+}
+
+pub fn greet(name: &str) {
+    println!("Hello, {}!", name);
+}
+"#;
+        fs::write(&test_file, content).unwrap();
+
+        // 创建解析器
+        let mut parser = CodeParser::new();
+
+        // 第一次构建
+        let graph1 = parser.build_petgraph_code_graph(&project_dir).unwrap();
+        let stats1 = graph1.get_stats();
+        assert_eq!(stats1.total_functions, 2);
+
+        // 修改文件内容
+        let new_content = r#"
+pub fn hello() {
+    println!("Hello, world!");
+}
+
+pub fn greet(name: &str) {
+    println!("Hello, {}!", name);
+}
+
+pub fn new_function() {
+    println!("This is a new function!");
+}
+"#;
+        fs::write(&test_file, new_content).unwrap();
+
+        // 第二次构建（应该检测到文件变化）
+        let graph2 = parser.build_petgraph_code_graph(&project_dir).unwrap();
+        let stats2 = graph2.get_stats();
+        assert_eq!(stats2.total_functions, 3); // 应该有3个函数
+
+        // 再次构建（文件未变化，应该跳过解析）
+        let graph3 = parser.build_petgraph_code_graph(&project_dir).unwrap();
+        let stats3 = graph3.get_stats();
+        assert_eq!(stats3.total_functions, 3); // 应该仍然是3个函数
+
+        // 清理
+        temp_dir.close().unwrap();
     }
 }

@@ -16,70 +16,43 @@ pub async fn build_graph(
     Json(request): Json<BuildGraphRequest>,
 ) -> Result<Json<ApiResponse<BuildGraphResponse>>, StatusCode> {
     let start_time = std::time::Instant::now();
-    
+
     // Get project directory path
     let project_dir = std::path::Path::new(&request.project_dir);
     
-    // Generate project ID using MD5 hash of project directory
-    let project_id = format!("{:x}", md5::compute(request.project_dir.as_bytes()));
+    // Validate directory
     if !project_dir.exists() || !project_dir.is_dir() {
         return Err(StatusCode::BAD_REQUEST);
     }
-    
-    // Check for existing graph
-    let _existing_graph: crate::codegraph::PetCodeGraph = if let Ok(Some(existing_graph)) = storage.get_persistence().load_graph(&project_id) {
-        existing_graph
-    } else {
-        // Create new graph using CodeAnalyzer
-        let mut analyzer = CodeAnalyzer::new();
-        
-        // Analyze directory and build code graph
-        match analyzer.analyze_directory(project_dir) {
-            Ok(_code_graph) => {
-                // Convert CodeGraph to PetCodeGraph
-                if let Some(_cg) = analyzer.get_code_graph() {
-                    // For now, create a new PetCodeGraph since we need to convert from CodeGraph
-                    // In the future, we could modify the analyzer to return PetCodeGraph directly
-                    crate::codegraph::types::PetCodeGraph::new()
-                } else {
-                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
-                }
-            },
-            Err(e) => {
-                tracing::error!("Failed to analyze directory: {}", e);
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        }
-    };
-    
-    
-    // Use CodeAnalyzer to build the actual graph
+
+    // Generate project ID using MD5 hash of project directory
+    let project_id = format!("{:x}", md5::compute(request.project_dir.as_bytes()));
+
+    // Build the graph using CodeAnalyzer once
     let mut analyzer = CodeAnalyzer::new();
     let mut total_files = 0;
     let mut total_functions = 0;
-    
+
     match analyzer.analyze_directory(project_dir) {
         Ok(_code_graph) => {
             if let Some(stats) = analyzer.get_stats() {
                 total_files = stats.total_files;
                 total_functions = stats.total_functions;
             }
-            
+
             // Get the actual code graph for saving
             if let Some(cg) = analyzer.get_code_graph() {
                 // Convert to PetCodeGraph for storage
-                // This is a simplified conversion - in practice you might want to implement
-                // a proper conversion method from CodeGraph to PetCodeGraph
                 let mut pet_graph = crate::codegraph::types::PetCodeGraph::new();
-                
-                // First, add all functions to the pet graph
+
+                // Add all functions to the pet graph
                 for function in cg.functions.values() {
                     pet_graph.add_function(function.clone());
                 }
-                
+
                 tracing::info!("Added {} functions to PetCodeGraph", cg.functions.len());
-                
-                // Then, add all call relations
+
+                // Add all call relations
                 let mut successful_relations = 0;
                 for relation in &cg.call_relations {
                     if let Err(e) = pet_graph.add_call_relation(relation.clone()) {
@@ -88,34 +61,48 @@ pub async fn build_graph(
                         successful_relations += 1;
                     }
                 }
-                
-                tracing::info!("Successfully added {}/{} call relations to PetCodeGraph", 
-                              successful_relations, cg.call_relations.len());
-                
-                // Update stats
+
+                tracing::info!(
+                    "Successfully added {}/{} call relations to PetCodeGraph",
+                    successful_relations,
+                    cg.call_relations.len()
+                );
+
+                // Update stats and save the graph
                 pet_graph.update_stats();
-                
-                // Save the converted graph
-                if let Err(_) = storage.get_persistence().save_graph(&project_id, &pet_graph) {
+
+                if let Err(e) = storage.get_persistence().save_graph(&project_id, &pet_graph) {
+                    tracing::error!("Failed to save graph: {}", e);
                     return Err(StatusCode::INTERNAL_SERVER_ERROR);
                 }
+
+                // Register this project as parsed for later querying
+                if let Err(e) = storage.get_persistence().register_project(&project_id, &request.project_dir) {
+                    tracing::warn!("Failed to register project in registry: {}", e);
+                }
+
+                // Cache the graph in memory for subsequent queries
+                storage.set_graph(pet_graph);
+            } else {
+                tracing::error!("Analyzer produced no code graph");
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
-        },
+        }
         Err(e) => {
             tracing::error!("Failed to analyze directory: {}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     }
-    
+
     let build_time_ms = start_time.elapsed().as_millis() as u64;
-    
+
     let response = BuildGraphResponse {
         project_id,
         total_files,
         total_functions,
         build_time_ms,
     };
-    
+
     Ok(Json(ApiResponse {
         success: true,
         data: response,
@@ -131,24 +118,8 @@ pub async fn query_call_graph(
     let function_name = request.function_name;
     let max_depth = request.max_depth.unwrap_or(2); // Default max depth is 2
     
-    // Try to find the project ID by searching through stored graphs
-    // In a real implementation, you might want to store project_id -> project_dir mapping
-    let project_id = if let Ok(projects) = storage.get_persistence().list_projects() {
-        // For now, use the first available project
-        // In practice, you'd want to implement a proper project lookup mechanism
-        projects.first().cloned()
-    } else {
-        return Err(StatusCode::NOT_FOUND);
-    };
-    
-    let project_id = project_id.ok_or(StatusCode::NOT_FOUND)?;
-    
-    // Load the code graph for the project
-    let graph = match storage.get_persistence().load_graph(&project_id) {
-        Ok(Some(graph)) => graph,
-        Ok(None) => return Err(StatusCode::NOT_FOUND),
-        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
-    };
+    // Retrieve a graph from the in-memory cache populated by init/build_graph
+    let graph = storage.get_graph_clone().ok_or(StatusCode::NOT_FOUND)?;
     
     // Debug: Log graph information
     tracing::info!("Loaded graph with {} functions", graph.get_stats().total_functions);
@@ -184,14 +155,12 @@ pub async fn query_call_graph(
                     super::models::CallRelation {
                         function_name: caller_func.name.clone(),
                         file_path: caller_func.file_path.display().to_string(),
-                        line_number: relation.line_number,
                     }
                 }).collect(),
                 callees: callees.iter().map(|(callee_func, relation)| {
                     super::models::CallRelation {
                         function_name: callee_func.name.clone(),
                         file_path: callee_func.file_path.display().to_string(),
-                        line_number: relation.line_number,
                     }
                 }).collect(),
             };
@@ -228,14 +197,12 @@ pub async fn query_call_graph(
                     super::models::CallRelation {
                         function_name: caller_func.name.clone(),
                         file_path: caller_func.file_path.display().to_string(),
-                        line_number: relation.line_number,
                     }
                 }).collect(),
                 callees: callees.iter().map(|(callee_func, relation)| {
                     super::models::CallRelation {
                         function_name: callee_func.name.clone(),
                         file_path: callee_func.file_path.display().to_string(),
-                        line_number: relation.line_number,
                     }
                 }).collect(),
             };
@@ -310,7 +277,6 @@ fn expand_call_chain(
                 let caller_relation = super::models::CallRelation {
                     function_name: related_func.name.clone(),
                     file_path: related_func.file_path.display().to_string(),
-                    line_number: relation.line_number,
                 };
                 
                 if !existing_function.callers.iter().any(|c| c.function_name == caller_relation.function_name) {
@@ -321,7 +287,6 @@ fn expand_call_chain(
                 let callee_relation = super::models::CallRelation {
                     function_name: related_func.name.clone(),
                     file_path: related_func.file_path.display().to_string(),
-                    line_number: relation.line_number,
                 };
                 
                 if !existing_function.callees.iter().any(|c| c.function_name == callee_relation.function_name) {
@@ -344,14 +309,12 @@ fn expand_call_chain(
                 new_function.callers.push(super::models::CallRelation {
                     function_name: related_func.name.clone(),
                     file_path: related_func.file_path.display().to_string(),
-                    line_number: relation.line_number,
                 });
             } else {
                 // Add callee relation
                 new_function.callees.push(super::models::CallRelation {
                     function_name: related_func.name.clone(),
                     file_path: related_func.file_path.display().to_string(),
-                    line_number: relation.line_number,
                 });
             }
             
@@ -801,8 +764,7 @@ fn generate_error_page_html(filepath: &str, function_name: &str, status: axum::h
     let title = "Function Call Graph - Error";
     let status_text = format!("{} {}", status.as_u16(), status.canonical_reason().unwrap_or("Error"));
     let suggestion = if status == axum::http::StatusCode::NOT_FOUND {
-        "Graph data not found. Make sure you have built the project graph first via POST /build_graph (with JSON {\"project_dir\": \"/path/to/project\"}). Also verify the filepath and function name exist."
-            .to_string()
+        "Graph data not found.".to_string()
     } else {
         "An error occurred while generating the call graph. Please check server logs.".to_string()
     };
@@ -884,4 +846,353 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
     html = html.replace("__GRAPH_JSON__", &serde_json::to_string(&graph_data).unwrap());
 
     html
+} 
+
+pub async fn init(
+    State(storage): State<Arc<StorageManager>>,
+    Json(request): Json<InitRequest>,
+) -> Result<Json<ApiResponse<InitResponse>>, StatusCode> {
+    let project_dir = std::path::Path::new(&request.project_dir);
+
+    if !project_dir.exists() || !project_dir.is_dir() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let project_id = format!("{:x}", md5::compute(request.project_dir.as_bytes()));
+
+    // First try to load existing graph from persistence
+    match storage.get_persistence().load_graph(&project_id) {
+        Ok(Some(graph)) => {
+            let stats = graph.get_stats().clone();
+            // Cache in memory
+            storage.set_graph(graph);
+
+            let resp = InitResponse {
+                project_id,
+                loaded_from_cache: true,
+                total_functions: stats.total_functions,
+                total_files: stats.total_files,
+            };
+
+            Ok(Json(ApiResponse { success: true, data: resp }))
+        }
+        Ok(None) => {
+            // Build and persist, then cache
+            let mut analyzer = CodeAnalyzer::new();
+            match analyzer.analyze_directory(project_dir) {
+                Ok(cg) => {
+                    let stats = cg.get_stats();
+
+                    // Convert to PetCodeGraph
+                    let mut pet_graph = crate::codegraph::types::PetCodeGraph::new();
+                    for function in cg.functions.values() {
+                        pet_graph.add_function(function.clone());
+                    }
+                    for relation in &cg.call_relations {
+                        if let Err(e) = pet_graph.add_call_relation(relation.clone()) {
+                            tracing::warn!("Failed to add call relation: {}", e);
+                        }
+                    }
+                    pet_graph.update_stats();
+
+                    if let Err(e) = storage.get_persistence().save_graph(&project_id, &pet_graph) {
+                        tracing::error!("Failed to save graph: {}", e);
+                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
+
+                    // Register this project as parsed for later querying
+                    if let Err(e) = storage.get_persistence().register_project(&project_id, &request.project_dir) {
+                        tracing::warn!("Failed to register project in registry: {}", e);
+                    }
+
+                    // Cache in memory
+                    storage.set_graph(pet_graph);
+
+                    let resp = InitResponse {
+                        project_id,
+                        loaded_from_cache: false,
+                        total_functions: stats.total_functions,
+                        total_files: stats.total_files,
+                    };
+
+                    Ok(Json(ApiResponse { success: true, data: resp }))
+                }
+                Err(e) => {
+                    tracing::error!("Failed to analyze directory: {}", e);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to load graph: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+} 
+
+pub async fn investigate_repo(
+	State(storage): State<Arc<StorageManager>>,
+	Json(request): Json<super::models::InvestigateRepoRequest>,
+) -> Result<Json<ApiResponse<super::models::InvestigateRepoResponse>>, StatusCode> {
+	// Ensure project is initialized (reuse init logic quickly)
+	let init_req = super::models::InitRequest { project_dir: request.project_dir.clone() };
+	let init_resp = match init(State(storage.clone()), Json(init_req)).await {
+		Ok(r) => r.0.data,
+		Err(e) => return Err(e),
+	};
+
+	// Load graph from memory
+	let graph = storage.get_graph_clone().ok_or(StatusCode::NOT_FOUND)?;
+
+	// Compute out-degree for each function and collect top 15
+	use std::cmp::Reverse;
+	let mut items: Vec<(usize, uuid::Uuid)> = Vec::new();
+	for (func_id, _node_idx) in graph.function_to_node.iter() {
+		let out_degree = graph.get_callees(func_id).len();
+		items.push((out_degree, *func_id));
+	}
+	items.sort_by_key(|(deg, _)| Reverse(*deg));
+	let top = items.into_iter().take(15).collect::<Vec<_>>();
+
+	use std::collections::BTreeSet;
+	
+	// Helper function to build directory tree
+	fn build_directory_tree(root_path: &std::path::Path) -> std::io::Result<String> {
+		// List of directories to ignore
+		let ignored_dirs = [
+			"node_modules",
+			"target",
+			"dist",
+			"build",
+			"vendor",
+			".git",
+			".svn",
+			".hg",
+			".vscode",
+			".idea",
+			".DS_Store",
+			"__pycache__",
+			".pytest_cache",
+			"coverage",
+			".nyc_output",
+			".sass-cache",
+			".yarn",
+			".pnpm",
+			"go/pkg",
+			"go/bin",
+		];
+		
+		fn is_ignored(name: &str, ignored_dirs: &[&str]) -> bool {
+			// Ignore hidden files/directories (starting with .)
+			if name.starts_with('.') {
+				return true;
+			}
+			
+			// Ignore specific directories
+			ignored_dirs.contains(&name)
+		}
+		
+		// Recursive function to build tree structure
+		fn build_tree_recursive(
+			path: &std::path::Path,
+			prefix: &str,
+			ignored_dirs: &[&str],
+			is_ignored: fn(&str, &[&str]) -> bool,
+		) -> std::io::Result<String> {
+			let mut result = String::new();
+			
+			// If it's a directory, process its contents
+			if path.is_dir() {
+				let mut entries: Vec<_> = std::fs::read_dir(path)?
+					.filter_map(|entry| entry.ok())
+					.filter(|entry| {
+						let name = entry.file_name();
+						let name_str = name.to_string_lossy();
+						!is_ignored(&name_str, ignored_dirs)
+					})
+					.collect();
+				
+				// Sort entries: directories first, then files, both alphabetically
+				entries.sort_by(|a, b| {
+					let a_is_dir = a.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
+					let b_is_dir = b.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
+					
+					match (a_is_dir, b_is_dir) {
+						(true, false) => std::cmp::Ordering::Less,
+						(false, true) => std::cmp::Ordering::Greater,
+						_ => {
+							let a_name = a.file_name().to_string_lossy().to_string();
+							let b_name = b.file_name().to_string_lossy().to_string();
+							a_name.cmp(&b_name)
+						}
+					}
+				});
+				
+				// Process each entry
+				let count = entries.len();
+				for (i, entry) in entries.iter().enumerate() {
+					let is_last_entry = i == count - 1;
+					
+					// Get file name
+					let file_name = entry.file_name()
+						.to_string_lossy()
+						.to_string();
+					
+					// Add current item to result
+					let connector = if is_last_entry { "└── " } else { "├── " };
+					result.push_str(&format!("{}{}{}\n", prefix, connector, file_name));
+					
+					// If it's a directory, recursively process its contents
+					if entry.path().is_dir() {
+						let new_prefix = if is_last_entry {
+							format!("{}    ", prefix)
+						} else {
+							format!("{}│   ", prefix)
+						};
+						
+						let entry_result = build_tree_recursive(
+							entry.path().as_path(),
+							&new_prefix,
+							ignored_dirs,
+							is_ignored,
+						)?;
+						
+						result.push_str(&entry_result);
+					}
+				}
+			}
+			
+			Ok(result)
+		}
+		
+		// Start building the tree
+		let file_name = root_path.file_name()
+			.and_then(|name| name.to_str())
+			.unwrap_or("");
+		let mut result = String::new();
+		result.push_str(&format!("{}\n", file_name));
+		let tree_content = build_tree_recursive(root_path, "", &ignored_dirs, is_ignored)?;
+		result.push_str(&tree_content);
+		Ok(result)
+	}
+	
+	let mut files_needed: BTreeSet<std::path::PathBuf> = BTreeSet::new();
+	let mut core_functions: Vec<super::models::InvestigateFunctionInfo> = Vec::new();
+	for (out_degree, func_id) in top.iter() {
+		if let Some(f) = graph.get_function_by_id(func_id) {
+			// Collect callers with deduplication based on function_name + file_path
+			let mut callers_set: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
+			let callers = graph.get_callers(func_id)
+				.into_iter()
+				.filter_map(|(caller, _rel)| {
+					let function_name = caller.name.clone();
+					let file_path = caller.file_path.display().to_string().replace(&request.project_dir, "").trim_start_matches('/').to_string();
+					let key = (function_name.clone(), file_path.clone());
+					if callers_set.insert(key) {
+						Some(super::models::CallRelation {
+							function_name,
+							file_path,
+						})
+					} else {
+						None
+					}
+				})
+				.collect();
+
+			// Collect callees with deduplication based on function_name + file_path
+			let mut callees_set: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
+			let callees = graph.get_callees(func_id)
+				.into_iter()
+				.filter_map(|(callee, _rel)| {
+					let function_name = callee.name.clone();
+					let file_path = callee.file_path.display().to_string().replace(&request.project_dir, "").trim_start_matches('/').to_string();
+					let key = (function_name.clone(), file_path.clone());
+					if callees_set.insert(key) {
+						Some(super::models::CallRelation {
+							function_name,
+							file_path,
+						})
+					} else {
+						None
+					}
+				})
+				.collect();
+
+			core_functions.push(super::models::InvestigateFunctionInfo {
+				name: f.name.clone(),
+				file_path: f.file_path.display().to_string().replace(&request.project_dir, "").trim_start_matches('/').to_string(),
+				out_degree: *out_degree,
+				callers,
+				callees,
+			});
+			files_needed.insert(f.file_path.clone());
+		}
+	}
+
+	// For each unique file, build code skeleton text (reuse skeleton builder logic)
+	let mut file_skeletons: Vec<super::models::CodeSkeletonResponse> = Vec::new();
+	for path in files_needed.into_iter() {
+		let rel_path = path.display().to_string().replace(&request.project_dir, "").trim_start_matches('/').to_string();
+		// Reuse existing batch skeletonizer by calling internal logic inline
+		let code = match std::fs::read_to_string(&path) {
+			Ok(c) => c,
+			Err(_) => continue,
+		};
+		let (mut parser, language_id) = match crate::codegraph::treesitter::parsers::get_ast_parser_by_filename(&path) {
+			Ok(v) => v,
+			Err(_) => continue,
+		};
+		let symbols = parser.parse(&code, &path);
+		let symbols_struct: Vec<crate::codegraph::treesitter::ast_instance_structs::SymbolInformation> =
+			symbols.iter().map(|s| s.read().symbol_info_struct()).collect();
+		use uuid::Uuid;
+		use std::collections::HashMap;
+		let guid_to_children: HashMap<Uuid, Vec<Uuid>> = symbols
+			.iter()
+			.map(|s| (s.read().guid().clone(), s.read().childs_guid().clone()))
+			.collect();
+		let ast_markup = crate::codegraph::treesitter::file_ast_markup::FileASTMarkup {
+			symbols_sorted_by_path_len: symbols_struct.clone(),
+		};
+		let guid_to_info: HashMap<Uuid, &crate::codegraph::treesitter::ast_instance_structs::SymbolInformation> =
+			ast_markup
+				.symbols_sorted_by_path_len
+				.iter()
+				.map(|s| (s.guid.clone(), s))
+				.collect();
+		let formatter = crate::codegraph::treesitter::skeletonizer::make_formatter(&language_id);
+		use crate::codegraph::treesitter::structs::SymbolType;
+		let class_symbols: Vec<_> = ast_markup
+			.symbols_sorted_by_path_len
+			.iter()
+			.filter(|x| x.symbol_type == SymbolType::StructDeclaration || x.symbol_type == SymbolType::FunctionDeclaration)
+			.collect();
+		let mut lines: Vec<String> = Vec::new();
+		for symbol in class_symbols {
+			let skeleton_line = formatter.make_skeleton(&symbol, &code.to_string(), &guid_to_children, &guid_to_info);
+			lines.push(skeleton_line);
+		}
+		let skeleton_text = if lines.is_empty() { String::new() } else { lines.join("\n\n") };
+		file_skeletons.push(super::models::CodeSkeletonResponse {
+			filepath: rel_path,
+			language: language_id.to_string(),
+			skeleton_text,
+		});
+	}
+
+	// Build directory tree
+	let directory_tree = match build_directory_tree(std::path::Path::new(&request.project_dir)) {
+		Ok(tree) => tree,
+		Err(_) => "".to_string(),
+	};
+	
+	let resp = super::models::InvestigateRepoResponse {
+		project_id: init_resp.project_id,
+		total_functions: init_resp.total_functions,
+		core_functions,
+		file_skeletons,
+		directory_tree,
+	};
+
+	Ok(Json(ApiResponse { success: true, data: resp }))
 } 

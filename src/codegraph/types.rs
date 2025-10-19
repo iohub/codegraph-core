@@ -17,16 +17,6 @@ pub struct FunctionInfo {
     pub namespace: String,
     pub language: String,
     pub signature: Option<String>,
-    pub return_type: Option<String>,
-    pub parameters: Vec<ParameterInfo>,
-}
-
-/// 参数信息
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ParameterInfo {
-    pub name: String,
-    pub type_name: Option<String>,
-    pub default_value: Option<String>,
 }
 
 /// 调用关系

@@ -171,8 +171,6 @@ impl IncrementalManager {
                         namespace: namespace.clone(),
                         language: language.clone(),
                         signature: Some(symbol_ref.name().to_string()),
-                        return_type: None,
-                        parameters: vec![],
                     };
                     functions.push(function);
                 },
@@ -388,6 +386,7 @@ impl IncrementalManager {
                 "ts" | "tsx" => "typescript".to_string(),
                 "java" => "java".to_string(),
                 "cpp" | "cc" | "cxx" | "c++" | "c" | "h" | "hpp" | "hxx" | "hh" => "cpp".to_string(),
+                "go" => "go".to_string(),
                 _ => "unknown".to_string(),
             }
         } else {
@@ -448,6 +447,17 @@ impl IncrementalManager {
                     if line.trim().starts_with("namespace ") {
                         if let Some(name) = line.trim().split_whitespace().nth(1) {
                             return name.to_string();
+                        }
+                    }
+                }
+                "global".to_string()
+            },
+            "go" => {
+                // 查找package声明
+                for line in content.lines() {
+                    if line.trim().starts_with("package ") {
+                        if let Some(package) = line.trim().split_whitespace().nth(1) {
+                            return package.trim_end_matches(';').to_string();
                         }
                     }
                 }
@@ -518,4 +528,30 @@ impl Default for IncrementalManager {
     fn default() -> Self {
         Self::new()
     }
+} 
+
+impl crate::storage::traits::IncrementalUpdater for IncrementalManager {
+    fn compute_file_md5(&self, file_path: &std::path::Path) -> Result<String, std::io::Error> {
+        Self::compute_file_md5(self, file_path)
+    }
+
+    fn needs_update(&self, file_path: &std::path::Path) -> Result<bool, std::io::Error> {
+        Self::needs_update(self, file_path)
+    }
+
+    fn refresh_file(
+        &mut self,
+        file_path: &std::path::PathBuf,
+        entity_graph: &mut EntityGraph,
+        call_graph: &mut PetCodeGraph,
+    ) -> Result<(), String> {
+        Self::refresh_file(self, file_path, entity_graph, call_graph)
+    }
+
+    fn get_file_index(&self) -> &FileIndex { Self::get_file_index(self) }
+    fn get_snippet_index(&self) -> &SnippetIndex { Self::get_snippet_index(self) }
+    fn get_all_file_metadata(&self) -> &HashMap<std::path::PathBuf, FileMetadata> { Self::get_all_file_metadata(self) }
+
+    fn save_state(&self, path: &std::path::Path) -> Result<(), String> { Self::save_state(self, path) }
+    fn load_state(&mut self, path: &std::path::Path) -> Result<(), String> { Self::load_state(self, path) }
 } 
