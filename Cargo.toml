@@ -50,7 +50,7 @@ typetag = "0.2"
 
 lancedb = "=0.4.15"
 arrow = "50"
-fastembed = "5.7.0"
+reqwest = { version = "0.13.1", features = ["json"] }
 
 [dev-dependencies]
 tempfile = "3.8"

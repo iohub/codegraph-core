@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::fs;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::env;
 use lancedb::{connect, Connection};
 use arrow::array::{
     FixedSizeListBuilder, Float32Builder, Int64Builder, RecordBatch, StringBuilder,
@@ -9,10 +10,21 @@ use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatchIterator;
 use uuid::Uuid;
 use tracing::{info, error, debug};
-use fastembed::{TextEmbedding, InitOptions, EmbeddingModel};
+use reqwest::Client;
+use serde::Deserialize;
 
 use crate::codegraph::treesitter::TreeSitterParser;
 use crate::codegraph::parser::CodeParser;
+
+#[derive(Deserialize)]
+struct EmbeddingResponse {
+    data: Vec<EmbeddingData>,
+}
+
+#[derive(Deserialize)]
+struct EmbeddingData {
+    embedding: Vec<f32>,
+}
 
 struct CodePoint {
     id: String,
@@ -29,7 +41,8 @@ struct CodePoint {
 pub struct VectorizeService {
     connection: Connection,
     table_name: String,
-    embedding_model: Arc<Mutex<TextEmbedding>>,
+    client: Client,
+    api_token: String,
 }
 
 impl VectorizeService {
@@ -37,16 +50,16 @@ impl VectorizeService {
         // LanceDB connection (embedded)
         let connection = connect(db_path).execute().await?;
         
-        // Initialize local embedding model
-        info!("Initializing local embedding model (BGESmallENV15)...");
-        let model = tokio::task::spawn_blocking(move || {
-            TextEmbedding::try_new(InitOptions::new(EmbeddingModel::BGESmallENV15))
-        }).await??;
+        // Initialize HTTP client and get API token
+        let api_token = env::var("SILICONFLOW_API_KEY")
+            .map_err(|_| "SILICONFLOW_API_KEY environment variable not set. Please set it to use remote embedding service.")?;
+        let client = Client::new();
         
         Ok(Self {
             connection,
             table_name,
-            embedding_model: Arc::new(Mutex::new(model)),
+            client,
+            api_token,
         })
     }
 
@@ -56,9 +69,8 @@ impl VectorizeService {
         if !table_names.contains(&self.table_name) {
             info!("Creating table: {}", self.table_name);
             
-            // BGE-Small-EN-v1.5 has 384 dimensions
-            // Adjust vector size accordingly
-            let vector_size = 384; 
+            // Qwen/Qwen3-Embedding-4B has 2560 dimensions
+            let vector_size = 2560; 
             
             let schema = Arc::new(Schema::new(vec![
                 Field::new("id", DataType::Utf8, false),
@@ -84,31 +96,46 @@ impl VectorizeService {
         Ok(())
     }
 
-    /// Get embedding for code block using local model
+    /// Get embedding for code block using remote model
     async fn get_embedding(&self, code_block: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         if code_block.is_empty() {
             return Err("Code block is empty".into());
         }
-        // Truncate if too long (fastembed handles this but good to be safe)
-        let code_block = if code_block.len() > 2048 {
-            &code_block[..2048]
+
+        // Truncate if too long (approx 32k tokens, safe limit 30k chars for now)
+        // Note: 32K context window is quite large, but we should still have a safety limit
+        // Assuming ~4 chars per token for English, 32k tokens is ~128k chars.
+        // For mixed content, being conservative with 64k chars is safe.
+        let code_block = if code_block.len() > 64000 {
+            &code_block[..64000]
         } else {
             code_block
         };
         
-        let model = self.embedding_model.clone();
-        let code_block_owned = code_block.to_string();
+        let response = self.client.post("https://api.siliconflow.cn/v1/embeddings")
+            .header("Authorization", format!("Bearer {}", self.api_token))
+            .header("Content-Type", "application/json")
+            .json(&serde_json::json!({
+                "model": "Qwen/Qwen3-Embedding-4B", // Correcting this line
+                "input": code_block,
+                "encoding_format": "float"
+            }))
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await?;
+            return Err(format!("API request failed with status {}: {}", status, text).into());
+        }
+
+        let embedding_response: EmbeddingResponse = response.json().await?;
         
-        // Run embedding generation in blocking task
-        let embeddings = tokio::task::spawn_blocking(move || {
-            let mut model = model.lock().map_err(|e| e.to_string())?;
-            model.embed(vec![code_block_owned], None).map_err(|e| e.to_string())
-        }).await??;
-        
-        let vector = embeddings.into_iter().next().ok_or("Failed to generate embedding")?;
-        
-        // debug!("Embedding vector created with size: {}", vector.len());
-        Ok(vector)
+        if let Some(data) = embedding_response.data.into_iter().next() {
+            Ok(data.embedding)
+        } else {
+            Err("No embedding data returned from API".into())
+        }
     }
 
     /// Vectorize directory
@@ -221,8 +248,8 @@ impl VectorizeService {
             return Ok(());
         }
 
-        // BGE-Small-EN-v1.5 has 384 dimensions
-        let vector_size = 384;
+        // Qwen/Qwen3-Embedding-4B has 2560 dimensions
+        let vector_size = 2560;
 
         let schema = Arc::new(Schema::new(vec![
             Field::new("id", DataType::Utf8, false),
