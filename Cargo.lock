@@ -1159,6 +1159,7 @@ dependencies = [
  "chrono",
  "clap",
  "dyn_partial_eq",
+ "futures",
  "glob",
  "itertools 0.14.0",
  "lancedb",

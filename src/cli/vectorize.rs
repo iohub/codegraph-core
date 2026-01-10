@@ -3,8 +3,9 @@ use std::fs;
 use std::sync::Arc;
 use std::env;
 use lancedb::{connect, Connection};
+use lancedb::query::{QueryBase, ExecutableQuery};
 use arrow::array::{
-    FixedSizeListBuilder, Float32Builder, Int64Builder, RecordBatch, StringBuilder,
+    FixedSizeListBuilder, Float32Builder, Int64Builder, RecordBatch, StringBuilder, AsArray
 };
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatchIterator;
@@ -12,6 +13,8 @@ use uuid::Uuid;
 use tracing::{info, error, debug};
 use reqwest::Client;
 use serde::Deserialize;
+use async_trait::async_trait;
+use futures::TryStreamExt;
 
 use crate::codegraph::treesitter::TreeSitterParser;
 use crate::codegraph::parser::CodeParser;
@@ -38,11 +41,81 @@ struct CodePoint {
     code_block: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct SearchResult {
+    pub file_path: String,
+    pub symbol_name: String,
+    pub code_block: String,
+    pub score: f32,
+}
+
+#[async_trait]
+pub trait EmbeddingProvider: Send + Sync {
+    async fn get_embedding(&self, text: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>>;
+}
+
+pub struct SiliconFlowEmbeddingProvider {
+    client: Client,
+    api_token: String,
+}
+
+impl SiliconFlowEmbeddingProvider {
+    pub fn new(api_token: String) -> Self {
+        Self {
+            client: Client::new(),
+            api_token,
+        }
+    }
+}
+
+#[async_trait]
+impl EmbeddingProvider for SiliconFlowEmbeddingProvider {
+    async fn get_embedding(&self, code_block: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+        if code_block.is_empty() {
+            return Err("Code block is empty".into());
+        }
+
+        // Truncate if too long (approx 32k tokens, safe limit 30k chars for now)
+        // Note: 32K context window is quite large, but we should still have a safety limit
+        // Assuming ~4 chars per token for English, 32k tokens is ~128k chars.
+        // For mixed content, being conservative with 64k chars is safe.
+        let code_block = if code_block.len() > 64000 {
+            &code_block[..64000]
+        } else {
+            code_block
+        };
+        
+        let response = self.client.post("https://api.siliconflow.cn/v1/embeddings")
+            .header("Authorization", format!("Bearer {}", self.api_token))
+            .header("Content-Type", "application/json")
+            .json(&serde_json::json!({
+                "model": "Qwen/Qwen3-Embedding-4B", 
+                "input": code_block,
+                "encoding_format": "float"
+            }))
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await?;
+            return Err(format!("API request failed with status {}: {}", status, text).into());
+        }
+
+        let embedding_response: EmbeddingResponse = response.json().await?;
+        
+        if let Some(data) = embedding_response.data.into_iter().next() {
+            Ok(data.embedding)
+        } else {
+            Err("No embedding data returned from API".into())
+        }
+    }
+}
+
 pub struct VectorizeService {
     connection: Connection,
     table_name: String,
-    client: Client,
-    api_token: String,
+    embedding_provider: Box<dyn EmbeddingProvider>,
 }
 
 impl VectorizeService {
@@ -53,13 +126,27 @@ impl VectorizeService {
         // Initialize HTTP client and get API token
         let api_token = env::var("SILICONFLOW_API_KEY")
             .map_err(|_| "SILICONFLOW_API_KEY environment variable not set. Please set it to use remote embedding service.")?;
-        let client = Client::new();
+        
+        let provider = SiliconFlowEmbeddingProvider::new(api_token);
         
         Ok(Self {
             connection,
             table_name,
-            client,
-            api_token,
+            embedding_provider: Box::new(provider),
+        })
+    }
+    
+    /// Create a new VectorizeService with a custom embedding provider
+    pub async fn new_with_provider(
+        db_path: &str, 
+        table_name: String, 
+        provider: Box<dyn EmbeddingProvider>
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let connection = connect(db_path).execute().await?;
+        Ok(Self {
+            connection,
+            table_name,
+            embedding_provider: provider,
         })
     }
 
@@ -96,48 +183,6 @@ impl VectorizeService {
         Ok(())
     }
 
-    /// Get embedding for code block using remote model
-    async fn get_embedding(&self, code_block: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
-        if code_block.is_empty() {
-            return Err("Code block is empty".into());
-        }
-
-        // Truncate if too long (approx 32k tokens, safe limit 30k chars for now)
-        // Note: 32K context window is quite large, but we should still have a safety limit
-        // Assuming ~4 chars per token for English, 32k tokens is ~128k chars.
-        // For mixed content, being conservative with 64k chars is safe.
-        let code_block = if code_block.len() > 64000 {
-            &code_block[..64000]
-        } else {
-            code_block
-        };
-        
-        let response = self.client.post("https://api.siliconflow.cn/v1/embeddings")
-            .header("Authorization", format!("Bearer {}", self.api_token))
-            .header("Content-Type", "application/json")
-            .json(&serde_json::json!({
-                "model": "Qwen/Qwen3-Embedding-4B", // Correcting this line
-                "input": code_block,
-                "encoding_format": "float"
-            }))
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let text = response.text().await?;
-            return Err(format!("API request failed with status {}: {}", status, text).into());
-        }
-
-        let embedding_response: EmbeddingResponse = response.json().await?;
-        
-        if let Some(data) = embedding_response.data.into_iter().next() {
-            Ok(data.embedding)
-        } else {
-            Err("No embedding data returned from API".into())
-        }
-    }
-
     /// Vectorize directory
     pub async fn vectorize_directory(&self, dir_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         info!("Starting vectorization of directory: {}", dir_path);
@@ -152,11 +197,11 @@ impl VectorizeService {
         let mut total_vectors = 0;
         
         for file_path in files {
-            debug!("Processing file: {}", file_path.display());
+            info!("Processing file: {}", file_path.display());
             match self.process_file(&file_path, &mut ts_parser).await {
                 Ok(vectors) => {
                     total_vectors += vectors;
-                    debug!("File {} processed successfully with {} vectors", file_path.display(), vectors);
+                    info!("File {} processed successfully with {} vectors", file_path.display(), vectors);
                 }
                 Err(e) => {
                     error!("Failed to process file {}: {}", file_path.display(), e);
@@ -197,7 +242,7 @@ impl VectorizeService {
                         });
                     
                     // Generate embedding
-                    let embedding = match self.get_embedding(&code_block).await {
+                    let embedding = match self.embedding_provider.get_embedding(&code_block).await {
                         Ok(vec) => vec,
                         Err(e) => {
                             error!("Failed to get embedding for symbol {}: {}", symbol_ref.name(), e);
@@ -319,6 +364,50 @@ impl VectorizeService {
         debug!("Upload completed");
         Ok(())
     }
+
+    /// Search for code blocks using semantic search
+    pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, Box<dyn std::error::Error>> {
+        // 1. Generate embedding for the query
+        let query_vector = self.embedding_provider.get_embedding(query).await?;
+
+        // 2. Search in LanceDB
+        let table = self.connection.open_table(&self.table_name).execute().await?;
+        
+        let mut results_stream = table.query()
+            .nearest_to(query_vector)?
+            .limit(limit)
+            .execute()
+            .await?;
+            
+        // 3. Parse results
+        let mut search_results = Vec::new();
+        
+        while let Some(batch) = results_stream.try_next().await? {
+            let file_path_col = batch.column_by_name("file_path").ok_or("Missing file_path column")?.as_string::<i32>();
+            let symbol_name_col = batch.column_by_name("symbol_name").ok_or("Missing symbol_name column")?.as_string::<i32>();
+            let code_block_col = batch.column_by_name("code_block").ok_or("Missing code_block column")?.as_string::<i32>();
+            
+            let dist_col = batch.column_by_name("_distance");
+            let dist_vals = if let Some(d) = dist_col {
+                d.as_any().downcast_ref::<arrow::array::Float32Array>()
+            } else {
+                None
+            };
+
+            for i in 0..batch.num_rows() {
+                let score = if let Some(d) = dist_vals { d.value(i) } else { 0.0 };
+                
+                search_results.push(SearchResult {
+                    file_path: file_path_col.value(i).to_string(),
+                    symbol_name: symbol_name_col.value(i).to_string(),
+                    code_block: code_block_col.value(i).to_string(),
+                    score,
+                });
+            }
+        }
+        
+        Ok(search_results)
+    }
 }
 
 /// Run vectorize command
@@ -339,4 +428,56 @@ pub async fn run_vectorize(path: String, collection: String, db_path: String) ->
     
     info!("Vectorize command completed successfully");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    struct MockEmbeddingProvider;
+
+    #[async_trait]
+    impl EmbeddingProvider for MockEmbeddingProvider {
+        async fn get_embedding(&self, _text: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+            // Return a dummy vector of size 2560
+            Ok(vec![0.1; 2560])
+        }
+    }
+
+    #[tokio::test]
+    async fn test_search() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let db_path = dir.path().to_str().unwrap();
+        let table_name = "test_vectors".to_string();
+
+        let provider = Box::new(MockEmbeddingProvider);
+        let service = VectorizeService::new_with_provider(db_path, table_name.clone(), provider).await?;
+        
+        service.ensure_collection().await?;
+
+        // Manually insert some data using upload_points
+        let point = CodePoint {
+            id: Uuid::new_v4().to_string(),
+            vector: vec![0.1; 2560],
+            file_path: "test.rs".to_string(),
+            symbol_name: "test_fn".to_string(),
+            symbol_type: "Function".to_string(),
+            language: "Rust".to_string(),
+            line_start: 1,
+            line_end: 10,
+            code_block: "fn test_fn() {}".to_string(),
+        };
+
+        service.upload_points(&[point]).await?;
+
+        // Search
+        let results = service.search("test query", 5).await?;
+        
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].symbol_name, "test_fn");
+        assert_eq!(results[0].file_path, "test.rs");
+
+        Ok(())
+    }
 }

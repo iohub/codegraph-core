@@ -51,6 +51,7 @@ typetag = "0.2"
 lancedb = "=0.4.15"
 arrow = "50"
 reqwest = { version = "0.13.1", features = ["json"] }
+futures = "0.3.31"
 
 [dev-dependencies]
 tempfile = "3.8"

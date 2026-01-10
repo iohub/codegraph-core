@@ -12,7 +12,6 @@ A powerful Rust-based tool for analyzing code dependencies, building code graphs
 
 ### 🧠 Word Embedding & Vector Indexing
 - **Semantic Code Search**: Generate word embeddings for code blocks using external embedding services
-- **Vector Database Integration**: Store and query code embeddings using Qdrant vector database
 - **Function & Class Vectorization**: Create semantic representations of functions and classes
 - **Batch Processing**: Efficiently process entire codebases for vectorization
 
