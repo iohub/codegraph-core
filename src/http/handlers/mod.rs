@@ -925,23 +925,66 @@ fn setup_watcher(
     let project_id_clone = project_id.clone();
     let runtime_handle = tokio::runtime::Handle::current();
 
+    // Create a channel for debounce signals
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+
+    // Spawn the debouncer task
+    runtime_handle.spawn(async move {
+        // Wait 20s to prevent frequent re-analysis
+        const DEBOUNCE_DURATION: std::time::Duration = std::time::Duration::from_secs(20);
+
+        loop {
+            // Wait for the first change event
+            if rx.recv().await.is_none() {
+                break; // Channel closed
+            }
+
+            tracing::info!("File change detected, starting debounce timer (20s)");
+
+            // Debounce logic
+            let mut last_change = std::time::Instant::now();
+            loop {
+                let deadline = tokio::time::Instant::from_std(last_change + DEBOUNCE_DURATION);
+                let timeout = tokio::time::sleep_until(deadline);
+
+                tokio::select! {
+                    _ = timeout => {
+                        // Timer expired without new events
+                        break;
+                    }
+                    msg = rx.recv() => {
+                        match msg {
+                            Some(_) => {
+                                // New event received, reset timer
+                                last_change = std::time::Instant::now();
+                                tracing::info!("Change received during debounce, resetting timer");
+                            }
+                            None => return, // Channel closed
+                        }
+                    }
+                }
+            }
+
+            // Debounce finished, trigger analysis
+            tracing::info!("Debounce complete, triggering re-analysis");
+            let storage = storage_clone.clone();
+            let dir = project_dir_clone.clone();
+            let id = project_id_clone.clone();
+
+            if let Err(e) = perform_analysis(storage, dir, id).await {
+                tracing::error!("Re-analysis failed: {:?}", e);
+            } else {
+                tracing::info!("Re-analysis completed successfully");
+            }
+        }
+    });
+
     let watcher_res = notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
         match res {
             Ok(event) => {
                 if event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove() {
-                     tracing::info!("File change detected: {:?}, triggering re-analysis", event.paths);
-                     
-                     let storage = storage_clone.clone();
-                     let dir = project_dir_clone.clone();
-                     let id = project_id_clone.clone();
-                     
-                     runtime_handle.spawn(async move {
-                         if let Err(e) = perform_analysis(storage, dir, id).await {
-                             tracing::error!("Re-analysis failed: {:?}", e);
-                         } else {
-                             tracing::info!("Re-analysis completed successfully");
-                         }
-                     });
+                     tracing::info!("File change detected: {:?}, queueing re-analysis", event.paths);
+                     let _ = tx.send(());
                 }
             }
             Err(e) => tracing::error!("Watch error: {:?}", e),
