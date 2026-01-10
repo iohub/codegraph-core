@@ -10,6 +10,7 @@ use super::models::*;
 use md5;
 use uuid;
 use serde_json::json;
+use notify::Watcher;
 
 pub async fn build_graph(
     State(storage): State<Arc<StorageManager>>,
@@ -848,6 +849,118 @@ fn generate_echarts_call_graph_html(call_graph_data: &super::models::QueryCallGr
     html
 } 
 
+async fn perform_analysis(
+    storage: Arc<StorageManager>,
+    project_dir: std::path::PathBuf,
+    project_id: String,
+) -> Result<InitResponse, StatusCode> {
+    let storage_clone = storage.clone();
+    let project_dir_clone = project_dir.clone();
+    let project_id_clone = project_id.clone();
+
+    let result = tokio::task::spawn_blocking(move || {
+        let mut analyzer = CodeAnalyzer::new();
+        match analyzer.analyze_directory(&project_dir_clone) {
+            Ok(cg) => {
+                let stats = cg.get_stats();
+
+                // Convert to PetCodeGraph
+                let mut pet_graph = crate::codegraph::types::PetCodeGraph::new();
+                for function in cg.functions.values() {
+                    pet_graph.add_function(function.clone());
+                }
+                for relation in &cg.call_relations {
+                    if let Err(e) = pet_graph.add_call_relation(relation.clone()) {
+                        tracing::warn!("Failed to add call relation: {}", e);
+                    }
+                }
+                pet_graph.update_stats();
+
+                if let Err(e) = storage_clone.get_persistence().save_graph(&project_id_clone, &pet_graph) {
+                    tracing::error!("Failed to save graph: {}", e);
+                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                }
+
+                // Register this project as parsed for later querying
+                if let Err(e) = storage_clone.get_persistence().register_project(&project_id_clone, project_dir_clone.to_str().unwrap_or_default()) {
+                    tracing::warn!("Failed to register project in registry: {}", e);
+                }
+
+                // Cache in memory
+                storage_clone.set_graph(pet_graph);
+
+                let resp = InitResponse {
+                    project_id: project_id_clone,
+                    loaded_from_cache: false,
+                    total_functions: stats.total_functions,
+                    total_files: stats.total_files,
+                };
+
+                Ok(resp)
+            }
+            Err(e) => {
+                tracing::error!("Failed to analyze directory: {}", e);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    }).await;
+
+    match result {
+        Ok(res) => res,
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+fn setup_watcher(
+    storage: Arc<StorageManager>,
+    project_dir: std::path::PathBuf,
+    project_id: String,
+) {
+    if storage.has_watcher(&project_id) {
+        return;
+    }
+
+    let storage_clone = storage.clone();
+    let project_dir_clone = project_dir.clone();
+    let project_id_clone = project_id.clone();
+    let runtime_handle = tokio::runtime::Handle::current();
+
+    let watcher_res = notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
+        match res {
+            Ok(event) => {
+                if event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove() {
+                     tracing::info!("File change detected: {:?}, triggering re-analysis", event.paths);
+                     
+                     let storage = storage_clone.clone();
+                     let dir = project_dir_clone.clone();
+                     let id = project_id_clone.clone();
+                     
+                     runtime_handle.spawn(async move {
+                         if let Err(e) = perform_analysis(storage, dir, id).await {
+                             tracing::error!("Re-analysis failed: {:?}", e);
+                         } else {
+                             tracing::info!("Re-analysis completed successfully");
+                         }
+                     });
+                }
+            }
+            Err(e) => tracing::error!("Watch error: {:?}", e),
+        }
+    });
+
+    match watcher_res {
+        Ok(mut watcher) => {
+             if let Err(e) = watcher.watch(&project_dir, notify::RecursiveMode::Recursive) {
+                tracing::error!("Failed to start watcher: {:?}", e);
+            } else {
+                storage.add_watcher(project_id, watcher);
+                tracing::info!("Started watching project: {}", project_dir.display());
+            }
+        }
+        Err(e) => tracing::error!("Failed to create watcher: {:?}", e),
+    }
+}
+
 pub async fn init(
     State(storage): State<Arc<StorageManager>>,
     Json(request): Json<InitRequest>,
@@ -859,16 +972,17 @@ pub async fn init(
     }
 
     let project_id = format!("{:x}", md5::compute(request.project_dir.as_bytes()));
+    let project_dir_buf = project_dir.to_path_buf();
 
     // First try to load existing graph from persistence
-    match storage.get_persistence().load_graph(&project_id) {
+    let result = match storage.get_persistence().load_graph(&project_id) {
         Ok(Some(graph)) => {
             let stats = graph.get_stats().clone();
             // Cache in memory
             storage.set_graph(graph);
 
             let resp = InitResponse {
-                project_id,
+                project_id: project_id.clone(),
                 loaded_from_cache: true,
                 total_functions: stats.total_functions,
                 total_files: stats.total_files,
@@ -878,56 +992,23 @@ pub async fn init(
         }
         Ok(None) => {
             // Build and persist, then cache
-            let mut analyzer = CodeAnalyzer::new();
-            match analyzer.analyze_directory(project_dir) {
-                Ok(cg) => {
-                    let stats = cg.get_stats();
-
-                    // Convert to PetCodeGraph
-                    let mut pet_graph = crate::codegraph::types::PetCodeGraph::new();
-                    for function in cg.functions.values() {
-                        pet_graph.add_function(function.clone());
-                    }
-                    for relation in &cg.call_relations {
-                        if let Err(e) = pet_graph.add_call_relation(relation.clone()) {
-                            tracing::warn!("Failed to add call relation: {}", e);
-                        }
-                    }
-                    pet_graph.update_stats();
-
-                    if let Err(e) = storage.get_persistence().save_graph(&project_id, &pet_graph) {
-                        tracing::error!("Failed to save graph: {}", e);
-                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-                    }
-
-                    // Register this project as parsed for later querying
-                    if let Err(e) = storage.get_persistence().register_project(&project_id, &request.project_dir) {
-                        tracing::warn!("Failed to register project in registry: {}", e);
-                    }
-
-                    // Cache in memory
-                    storage.set_graph(pet_graph);
-
-                    let resp = InitResponse {
-                        project_id,
-                        loaded_from_cache: false,
-                        total_functions: stats.total_functions,
-                        total_files: stats.total_files,
-                    };
-
-                    Ok(Json(ApiResponse { success: true, data: resp }))
-                }
-                Err(e) => {
-                    tracing::error!("Failed to analyze directory: {}", e);
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
-                }
+            match perform_analysis(storage.clone(), project_dir_buf.clone(), project_id.clone()).await {
+                Ok(resp) => Ok(Json(ApiResponse { success: true, data: resp })),
+                Err(e) => Err(e),
             }
         }
         Err(e) => {
             tracing::error!("Failed to load graph: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
+    };
+    
+    // Start watcher if initialization was successful
+    if result.is_ok() {
+        setup_watcher(storage, project_dir_buf, project_id);
     }
+    
+    result
 } 
 
 pub async fn investigate_repo(
