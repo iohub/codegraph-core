@@ -18,6 +18,7 @@ use futures::TryStreamExt;
 
 use crate::codegraph::treesitter::TreeSitterParser;
 use crate::codegraph::parser::CodeParser;
+use crate::config::Config;
 
 #[derive(Deserialize)]
 struct EmbeddingResponse {
@@ -54,22 +55,29 @@ pub trait EmbeddingProvider: Send + Sync {
     async fn get_embedding(&self, text: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>>;
 }
 
-pub struct SiliconFlowEmbeddingProvider {
+pub struct OpenAICompatibleEmbeddingProvider {
     client: Client,
     api_token: String,
+    base_url: String,
+    model: String,
 }
 
-impl SiliconFlowEmbeddingProvider {
-    pub fn new(api_token: String) -> Self {
+impl OpenAICompatibleEmbeddingProvider {
+    pub fn new(api_token: String, base_url: Option<String>, model: String) -> Self {
+        let base_url = base_url.unwrap_or_else(|| "https://api.siliconflow.cn/v1".to_string());
+        // Clean up the URL if it contains backticks or extra spaces
+        let base_url = base_url.replace('`', "").trim().to_string();
         Self {
             client: Client::new(),
             api_token,
+            base_url,
+            model,
         }
     }
 }
 
 #[async_trait]
-impl EmbeddingProvider for SiliconFlowEmbeddingProvider {
+impl EmbeddingProvider for OpenAICompatibleEmbeddingProvider {
     async fn get_embedding(&self, code_block: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         if code_block.is_empty() {
             return Err("Code block is empty".into());
@@ -85,11 +93,12 @@ impl EmbeddingProvider for SiliconFlowEmbeddingProvider {
             code_block
         };
         
-        let response = self.client.post("https://api.siliconflow.cn/v1/embeddings")
+        let url = format!("{}/embeddings", self.base_url.trim_end_matches('/'));
+        let response = self.client.post(&url)
             .header("Authorization", format!("Bearer {}", self.api_token))
             .header("Content-Type", "application/json")
             .json(&serde_json::json!({
-                "model": "Qwen/Qwen3-Embedding-4B", 
+                "model": self.model, 
                 "input": code_block,
                 "encoding_format": "float"
             }))
@@ -113,21 +122,37 @@ impl EmbeddingProvider for SiliconFlowEmbeddingProvider {
 }
 
 pub struct VectorizeService {
-    connection: Connection,
+    connection: Connection, 
     table_name: String,
     embedding_provider: Box<dyn EmbeddingProvider>,
 }
 
 impl VectorizeService {
-    pub async fn new(db_path: &str, table_name: String) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new(db_path: &str, table_name: String, config: Option<&Config>) -> Result<Self, Box<dyn std::error::Error>> {
         // LanceDB connection (embedded)
         let connection = connect(db_path).execute().await?;
         
         // Initialize HTTP client and get API token
-        let api_token = env::var("SILICONFLOW_API_KEY")
-            .map_err(|_| "SILICONFLOW_API_KEY environment variable not set. Please set it to use remote embedding service.")?;
+        let mut api_token = env::var("SILICONFLOW_API_KEY").ok();
+        let mut base_url = None;
+        let mut model = "Qwen/Qwen3-Embedding-4B".to_string(); // Default fallback
+
+        if let Some(conf) = config {
+             let embedding_config = &conf.codegraph.embedding;
+             if !embedding_config.api_token.is_empty() {
+                 api_token = Some(embedding_config.api_token.clone());
+             }
+             if !embedding_config.api_base_url.is_empty() {
+                 base_url = Some(embedding_config.api_base_url.clone());
+             }
+             if !embedding_config.model.is_empty() {
+                 model = embedding_config.model.clone();
+             }
+        }
         
-        let provider = SiliconFlowEmbeddingProvider::new(api_token);
+        let api_token = api_token.ok_or("API Key not found in config or environment")?;
+        
+        let provider = OpenAICompatibleEmbeddingProvider::new(api_token, base_url, model);
         
         Ok(Self {
             connection,
@@ -411,14 +436,14 @@ impl VectorizeService {
 }
 
 /// Run vectorize command
-pub async fn run_vectorize(path: String, collection: String, db_path: String) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_vectorize(path: String, collection: String, db_path: String, config: Option<Config>) -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting vectorize command");
     info!("Path: {}", path);
     info!("Collection: {}", collection);
     info!("LanceDB Path: {}", db_path);
     
     // Create vectorize service
-    let service = VectorizeService::new(&db_path, collection).await?;
+    let service = VectorizeService::new(&db_path, collection, config.as_ref()).await?;
     
     // Ensure collection exists
     service.ensure_collection().await?;
@@ -478,6 +503,40 @@ mod tests {
         assert_eq!(results[0].symbol_name, "test_fn");
         assert_eq!(results[0].file_path, "test.rs");
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_service_creation_with_config() -> Result<(), Box<dyn std::error::Error>> {
+        use crate::config::{Config, CodeGraphConfig, EmbeddingConfig, HttpConfig, LlmConfig, AppConfig, AgentConfig};
+        use std::collections::HashMap;
+
+        let dir = tempdir()?;
+        let db_path = dir.path().to_str().unwrap();
+        let table_name = "test_vectors_config".to_string();
+
+        let embedding_config = EmbeddingConfig {
+            model: "test-model".to_string(),
+            api_token: "test-token".to_string(),
+            api_base_url: "http://test-url".to_string(),
+        };
+
+        let config = Config {
+            http: HttpConfig { server_port: 8000 },
+            llm: LlmConfig { use_provider: "openai".to_string(), providers: HashMap::new() },
+            app: AppConfig { enable_streaming: false },
+            agent: AgentConfig { conductor_max_steps: None, coding_max_steps: None, repo_max_steps: None, lang: None },
+            codegraph: CodeGraphConfig {
+                db_uri: "test_db".to_string(),
+                collection: "test_coll".to_string(),
+                embedding: embedding_config,
+            },
+        };
+
+        let service = VectorizeService::new(db_path, table_name, Some(&config)).await;
+        
+        assert!(service.is_ok());
+        
         Ok(())
     }
 }

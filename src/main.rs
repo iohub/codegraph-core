@@ -3,8 +3,9 @@ use codegraph_cli::cli::{Cli, CodeGraphRunner};
 use codegraph_cli::cli::args::Commands;
 use codegraph_cli::http::CodeGraphServer;
 use codegraph_cli::storage::StorageManager;
+use codegraph_cli::config::Config;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,9 +25,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_env_filter(filter_layer)
         .init();
 
+    // Load configuration
+    let config = match Config::load() {
+        Ok(c) => Some(c),
+        Err(e) => {
+            warn!("Failed to load configuration: {}", e);
+            None
+        }
+    };
+
     match &cli.command {
         Commands::Server { address, storage_mode } => {
-            let server_addr = address.as_deref().unwrap_or("127.0.0.1:8080");
+            let default_port = config.as_ref().map(|c| c.http.server_port).unwrap_or(8080);
+            let default_addr = format!("127.0.0.1:{}", default_port);
+            let server_addr = address.as_deref().unwrap_or(&default_addr);
             info!("Starting CodeGraph HTTP server on {}", server_addr);
 
             // Determine storage mode
@@ -39,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Vectorize { .. } => {
             // 使用CodeGraphRunner处理vectorize命令
-            CodeGraphRunner::run(cli).await?;
+            CodeGraphRunner::run(cli, config).await?;
         }
     }
 
