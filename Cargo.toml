@@ -13,7 +13,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 clap = { version = "4.0", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "=0.4.38", features = ["serde"] }
 
 # HTTP service dependencies
 axum = "0.7"
@@ -47,11 +47,10 @@ itertools = "0.14"
 similar = "2.3"
 typetag = "0.2"
 
-# Vector database dependencies
-qdrant-client = "1.11"
 
-# HTTP client for embedding service
-reqwest = { version = "0.11", features = ["json", "rustls-tls"], default-features = false }
+lancedb = "=0.4.15"
+arrow = "50"
+fastembed = "5.7.0"
 
 [dev-dependencies]
 tempfile = "3.8"

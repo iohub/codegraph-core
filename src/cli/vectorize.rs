@@ -1,121 +1,117 @@
 use std::path::Path;
 use std::fs;
-use std::collections::HashMap;
-use qdrant_client::Qdrant;
-use qdrant_client::config::QdrantConfig;
-use qdrant_client::qdrant::{CreateCollection, VectorParams, Distance, PointStruct, VectorsConfig, Value, UpsertPointsBuilder};
+use std::sync::{Arc, Mutex};
+use lancedb::{connect, Connection};
+use arrow::array::{
+    FixedSizeListBuilder, Float32Builder, Int64Builder, RecordBatch, StringBuilder,
+};
+use arrow::datatypes::{DataType, Field, Schema};
+use arrow::record_batch::RecordBatchIterator;
 use uuid::Uuid;
 use tracing::{info, error, debug};
-use serde_json::json;
-use reqwest;
+use fastembed::{TextEmbedding, InitOptions, EmbeddingModel};
 
 use crate::codegraph::treesitter::TreeSitterParser;
 use crate::codegraph::parser::CodeParser;
 
+struct CodePoint {
+    id: String,
+    vector: Vec<f32>,
+    file_path: String,
+    symbol_name: String,
+    symbol_type: String,
+    language: String,
+    line_start: i64,
+    line_end: i64,
+    code_block: String,
+}
+
 pub struct VectorizeService {
-    qdrant_client: Qdrant,
-    collection_name: String,
-    embedding_client: reqwest::Client,
-    embedding_url: String,
+    connection: Connection,
+    table_name: String,
+    embedding_model: Arc<Mutex<TextEmbedding>>,
 }
 
 impl VectorizeService {
-    pub async fn new(qdrant_url: &str, collection_name: String) -> Result<Self, Box<dyn std::error::Error>> {
-        let config = QdrantConfig::from_url(qdrant_url);
-        let qdrant_client = Qdrant::new(config)?;
-        let embedding_client = reqwest::Client::new();
-        let embedding_url = "http://localhost:9200/embedding".to_string();
+    pub async fn new(db_path: &str, table_name: String) -> Result<Self, Box<dyn std::error::Error>> {
+        // LanceDB connection (embedded)
+        let connection = connect(db_path).execute().await?;
+        
+        // Initialize local embedding model
+        info!("Initializing local embedding model (BGESmallENV15)...");
+        let model = tokio::task::spawn_blocking(move || {
+            TextEmbedding::try_new(InitOptions::new(EmbeddingModel::BGESmallENV15))
+        }).await??;
         
         Ok(Self {
-            qdrant_client,
-            collection_name,
-            embedding_client,
-            embedding_url,
+            connection,
+            table_name,
+            embedding_model: Arc::new(Mutex::new(model)),
         })
     }
 
-    /// 创建或获取集合
+    /// Create or get the collection (table)
     pub async fn ensure_collection(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let collections = self.qdrant_client.list_collections().await?;
-        let collection_exists = collections
-            .collections
-            .iter()
-            .any(|c| c.name == self.collection_name);
-
-        if !collection_exists {
-            info!("Creating collection: {}", self.collection_name);
+        let table_names = self.connection.table_names().execute().await?;
+        if !table_names.contains(&self.table_name) {
+            info!("Creating table: {}", self.table_name);
             
-            let create_collection = CreateCollection {
-                collection_name: self.collection_name.clone(),
-                vectors_config: Some(VectorsConfig {
-                    config: Some(qdrant_client::qdrant::vectors_config::Config::Params(
-                        VectorParams {
-                            size: 768,
-                            distance: Distance::Cosine.into(),
-                            ..Default::default()
-                        }
-                    ))
-                }), // 768维向量，使用余弦相似度
-                ..Default::default()
-            };
+            // BGE-Small-EN-v1.5 has 384 dimensions
+            // Adjust vector size accordingly
+            let vector_size = 384; 
             
-            self.qdrant_client.create_collection(create_collection).await?;
-            info!("Collection {} created successfully", self.collection_name);
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("id", DataType::Utf8, false),
+                Field::new("vector", DataType::FixedSizeList(
+                    Arc::new(Field::new("item", DataType::Float32, true)),
+                    vector_size
+                ), false),
+                Field::new("file_path", DataType::Utf8, false),
+                Field::new("symbol_name", DataType::Utf8, false),
+                Field::new("symbol_type", DataType::Utf8, false),
+                Field::new("language", DataType::Utf8, false),
+                Field::new("line_start", DataType::Int64, false),
+                Field::new("line_end", DataType::Int64, false),
+                Field::new("code_block", DataType::Utf8, false),
+            ]));
+            
+            self.connection.create_empty_table(&self.table_name, schema).execute().await?;
+            info!("Table {} created successfully", self.table_name);
         } else {
-            info!("Collection {} already exists", self.collection_name);
+            info!("Table {} already exists", self.table_name);
         }
 
         Ok(())
     }
 
-    /// 获取代码块的嵌入向量（HTTP请求实现）
+    /// Get embedding for code block using local model
     async fn get_embedding(&self, code_block: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         if code_block.is_empty() {
             return Err("Code block is empty".into());
         }
-        // if code_block len > 2048 get first 1800 chars
+        // Truncate if too long (fastembed handles this but good to be safe)
         let code_block = if code_block.len() > 2048 {
-            &code_block[..1800]
+            &code_block[..2048]
         } else {
             code_block
         };
-        let request_body = json!({
-            "content": code_block
-        });
-        debug!("Sending embedding request for code block (length: {})", code_block.len());
         
-        let response = self.embedding_client
-            .post(&self.embedding_url)
-            .json(&request_body)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            return Err(format!("Embedding service returned error: {}", response.status()).into());
-        }
-
-        let response_json: serde_json::Value = response.json().await?;
+        let model = self.embedding_model.clone();
+        let code_block_owned = code_block.to_string();
         
-        // 解析返回的嵌入向量 - 支持二维数组格式: [{"embedding": [[...]]}]
-        let vector = response_json
-            .get(0)
-            .and_then(|item| item.get("embedding"))
-            .and_then(|embedding| embedding.as_array())
-            .and_then(|outer_array| outer_array.get(0))
-            .and_then(|inner_array| inner_array.as_array())
-            .map(|values| {
-                values.iter()
-                    .filter_map(|v| v.as_f64().map(|f| f as f32))
-                    .collect::<Vec<f32>>()
-            })
-            .filter(|vec| !vec.is_empty())
-            .ok_or("Failed to parse embedding from response")?;
-            
-        info!("Embedding vector created with size: {}", vector.len());
+        // Run embedding generation in blocking task
+        let embeddings = tokio::task::spawn_blocking(move || {
+            let mut model = model.lock().map_err(|e| e.to_string())?;
+            model.embed(vec![code_block_owned], None).map_err(|e| e.to_string())
+        }).await??;
+        
+        let vector = embeddings.into_iter().next().ok_or("Failed to generate embedding")?;
+        
+        // debug!("Embedding vector created with size: {}", vector.len());
         Ok(vector)
     }
 
-    /// 向量化目录中的代码文件
+    /// Vectorize directory
     pub async fn vectorize_directory(&self, dir_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         info!("Starting vectorization of directory: {}", dir_path);
         
@@ -145,12 +141,12 @@ impl VectorizeService {
         Ok(())
     }
 
-    /// 处理单个文件
+    /// Process single file
     async fn process_file(&self, file_path: &Path, ts_parser: &mut TreeSitterParser) -> Result<usize, Box<dyn std::error::Error>> {
-        // 读取文件内容
+        // Read file content
         let _content = fs::read_to_string(file_path)?;
         
-        // 使用TreeSitter解析器获取代码块
+        // Parse with TreeSitter
         let symbols = ts_parser.parse_file(&file_path.to_path_buf())?;
         
         let mut vectors_created = 0;
@@ -160,12 +156,12 @@ impl VectorizeService {
             let symbol_guard = symbol.read();
             let symbol_ref = symbol_guard.as_ref();
             
-            // 只处理函数和类定义
+            // Only process function and class definitions
             match symbol_ref.symbol_type() {
                 crate::codegraph::treesitter::structs::SymbolType::StructDeclaration |
                 crate::codegraph::treesitter::structs::SymbolType::FunctionDeclaration => {
                     
-                    // 获取代码块内容
+                    // Get code block content
                     let symbol_info = symbol_ref.symbol_info_struct();
                     let code_block = symbol_info.get_content_from_file_blocked()
                         .unwrap_or_else(|e| {
@@ -173,7 +169,7 @@ impl VectorizeService {
                             symbol_ref.name().to_string()
                         });
                     
-                    // 生成嵌入向量
+                    // Generate embedding
                     let embedding = match self.get_embedding(&code_block).await {
                         Ok(vec) => vec,
                         Err(e) => {
@@ -182,28 +178,24 @@ impl VectorizeService {
                         }
                     };
                     
-                    // 创建点数据
-                    let point_id = Uuid::new_v4().to_string();
-                    // 创建payload
-                    let mut payload = HashMap::new();
-                    payload.insert("file_path", Value::from(file_path.to_string_lossy().to_string()));
-                    payload.insert("symbol_name", Value::from(symbol_ref.name().to_string()));
-                    payload.insert("symbol_type", Value::from(format!("{:?}", symbol_ref.symbol_type())));
-                    payload.insert("language", Value::from(format!("{:?}", symbol_ref.language())));
-                    payload.insert("line_start", Value::from((symbol_ref.full_range().start_point.row + 1) as i64));
-                    payload.insert("line_end", Value::from((symbol_ref.full_range().end_point.row + 1) as i64));
-                    payload.insert("code_block", Value::from(code_block));
+                    // Create point
+                    let point = CodePoint {
+                        id: Uuid::new_v4().to_string(),
+                        vector: embedding,
+                        file_path: file_path.to_string_lossy().to_string(),
+                        symbol_name: symbol_ref.name().to_string(),
+                        symbol_type: format!("{:?}", symbol_ref.symbol_type()),
+                        language: format!("{:?}", symbol_ref.language()),
+                        line_start: (symbol_ref.full_range().start_point.row + 1) as i64,
+                        line_end: (symbol_ref.full_range().end_point.row + 1) as i64,
+                        code_block,
+                    };
                     
-                    let point = PointStruct::new(
-                        point_id,
-                        embedding,
-                        payload
-                    );
-                    debug!("Point: {:?}", point);
+                    debug!("Point created for symbol: {}", point.symbol_name);
                     points.push(point);
                     vectors_created += 1;
                     
-                    // 批量上传，每100个向量上传一次
+                    // Batch upload every 100 vectors
                     if points.len() >= 100 {
                         self.upload_points(&points).await?;
                         points.clear();
@@ -213,7 +205,7 @@ impl VectorizeService {
             }
         }
         
-        // 上传剩余的向量
+        // Upload remaining vectors
         if !points.is_empty() {
             self.upload_points(&points).await?;
         }
@@ -221,31 +213,101 @@ impl VectorizeService {
         Ok(vectors_created)
     }
 
-    /// 上传向量到Qdrant
-    async fn upload_points(&self, points: &[PointStruct]) -> Result<(), Box<dyn std::error::Error>> {
-        debug!("Uploading {} vectors to Qdrant", points.len());
+    /// Upload vectors to LanceDB
+    async fn upload_points(&self, points: &[CodePoint]) -> Result<(), Box<dyn std::error::Error>> {
+        debug!("Uploading {} vectors to LanceDB", points.len());
         
-        let upsert_points = UpsertPointsBuilder::new(&self.collection_name, points.to_vec()).wait(true);
-        let operation_info = self.qdrant_client
-            .upsert_points(upsert_points)
-            .await?;
+        if points.is_empty() {
+            return Ok(());
+        }
+
+        // BGE-Small-EN-v1.5 has 384 dimensions
+        let vector_size = 384;
+
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("id", DataType::Utf8, false),
+            Field::new("vector", DataType::FixedSizeList(
+                Arc::new(Field::new("item", DataType::Float32, true)),
+                vector_size
+            ), false),
+            Field::new("file_path", DataType::Utf8, false),
+            Field::new("symbol_name", DataType::Utf8, false),
+            Field::new("symbol_type", DataType::Utf8, false),
+            Field::new("language", DataType::Utf8, false),
+            Field::new("line_start", DataType::Int64, false),
+            Field::new("line_end", DataType::Int64, false),
+            Field::new("code_block", DataType::Utf8, false),
+        ]));
+
+        // Build arrays
+        let mut id_builder = StringBuilder::new();
+        let mut vector_builder = FixedSizeListBuilder::new(Float32Builder::new(), vector_size);
+        let mut file_path_builder = StringBuilder::new();
+        let mut symbol_name_builder = StringBuilder::new();
+        let mut symbol_type_builder = StringBuilder::new();
+        let mut language_builder = StringBuilder::new();
+        let mut line_start_builder = Int64Builder::new();
+        let mut line_end_builder = Int64Builder::new();
+        let mut code_block_builder = StringBuilder::new();
         
-        debug!("Upload completed: {:?}", operation_info);
+        for p in points {
+            id_builder.append_value(&p.id);
+            
+            // Ensure vector size matches
+            if p.vector.len() != vector_size as usize {
+                error!("Vector size mismatch: expected {}, got {}", vector_size, p.vector.len());
+                continue;
+            }
+
+            vector_builder.values().append_slice(&p.vector);
+            vector_builder.append(true);
+            
+            file_path_builder.append_value(&p.file_path);
+            symbol_name_builder.append_value(&p.symbol_name);
+            symbol_type_builder.append_value(&p.symbol_type);
+            language_builder.append_value(&p.language);
+            line_start_builder.append_value(p.line_start);
+            line_end_builder.append_value(p.line_end);
+            code_block_builder.append_value(&p.code_block);
+        }
+        
+        let batch = RecordBatch::try_new(schema.clone(), vec![
+            Arc::new(id_builder.finish()),
+            Arc::new(vector_builder.finish()),
+            Arc::new(file_path_builder.finish()),
+            Arc::new(symbol_name_builder.finish()),
+            Arc::new(symbol_type_builder.finish()),
+            Arc::new(language_builder.finish()),
+            Arc::new(line_start_builder.finish()),
+            Arc::new(line_end_builder.finish()),
+            Arc::new(code_block_builder.finish()),
+        ])?;
+        
+        let table = self.connection.open_table(&self.table_name).execute().await?;
+        
+        let batches = vec![Ok(batch)];
+        let batch_iter = RecordBatchIterator::new(batches, schema.clone());
+        table.add(batch_iter).execute().await?;
+        
+        debug!("Upload completed");
         Ok(())
     }
 }
 
-/// 运行向量化命令
-pub async fn run_vectorize(path: String, collection: String, qdrant_url: String) -> Result<(), Box<dyn std::error::Error>> {
+/// Run vectorize command
+pub async fn run_vectorize(path: String, collection: String, db_path: String) -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting vectorize command");
     info!("Path: {}", path);
     info!("Collection: {}", collection);
-    info!("Qdrant URL: {}", qdrant_url);
+    info!("LanceDB Path: {}", db_path);
     
-    // 创建向量化服务
-    let service = VectorizeService::new(&qdrant_url, collection).await?;
+    // Create vectorize service
+    let service = VectorizeService::new(&db_path, collection).await?;
     
-    // 向量化目录
+    // Ensure collection exists
+    service.ensure_collection().await?;
+    
+    // Vectorize directory
     service.vectorize_directory(&path).await?;
     
     info!("Vectorize command completed successfully");

@@ -44,18 +44,18 @@ pub enum Commands {
         #[clap(long, value_enum)]
         storage_mode: Option<StorageMode>,
     },
-    /// Vectorize code blocks and save to Qdrant
+    /// Vectorize code blocks and save to LanceDB
     Vectorize {
         /// Path to the directory to vectorize
         #[clap(long, value_parser)]
         path: String,
         
-        /// Qdrant collection name
+        /// Collection (Table) name
         #[clap(long, value_parser)]
         collection: String,
         
-        /// Qdrant server URL
-        #[clap(long, value_parser, default_value = "http://localhost:6334")]
-        qdrant_url: String,
+        /// LanceDB URI (e.g. data/lancedb)
+        #[clap(long, value_parser, default_value = "data/lancedb")]
+        db_uri: String,
     },
 }

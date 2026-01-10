@@ -17,9 +17,9 @@ impl CodeGraphRunner {
                 // TODO: 启动HTTP服务器
                 info!("Server mode not fully implemented yet");
             }
-            Commands::Vectorize { path, collection, qdrant_url } => {
+            Commands::Vectorize { path, collection, db_uri } => {
                 info!("Starting vectorize mode");
-                run_vectorize(path, collection, qdrant_url).await?;
+                run_vectorize(path, collection, db_uri).await?;
             }
         }
 
