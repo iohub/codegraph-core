@@ -10,6 +10,9 @@ pub use petgraph_storage::{PetGraphStorage, PetGraphStorageManager};
 pub use traits::{GraphPersistence, IncrementalUpdater, GraphSerializer};
 
 use std::sync::Arc;
+use std::sync::Mutex;
+use std::collections::HashMap;
+use notify::RecommendedWatcher;
 use parking_lot::RwLock;
 use crate::codegraph::types::PetCodeGraph;
 use crate::cli::args::StorageMode;
@@ -19,6 +22,7 @@ pub struct StorageManager {
     incremental: Arc<IncrementalManager>,
     graph: Arc<RwLock<Option<PetCodeGraph>>>,
     storage_mode: StorageMode,
+    watchers: Arc<Mutex<HashMap<String, RecommendedWatcher>>>,
 }
 
 impl StorageManager {
@@ -32,7 +36,16 @@ impl StorageManager {
             incremental: Arc::new(IncrementalManager::new()),
             graph: Arc::new(RwLock::new(None)),
             storage_mode,
+            watchers: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    pub fn add_watcher(&self, project_id: String, watcher: RecommendedWatcher) {
+        self.watchers.lock().unwrap().insert(project_id, watcher);
+    }
+
+    pub fn has_watcher(&self, project_id: &str) -> bool {
+        self.watchers.lock().unwrap().contains_key(project_id)
     }
 
     pub fn set_storage_mode(&mut self, storage_mode: StorageMode) {
