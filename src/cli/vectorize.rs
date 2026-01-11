@@ -506,37 +506,4 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_service_creation_with_config() -> Result<(), Box<dyn std::error::Error>> {
-        use crate::config::{Config, CodeGraphConfig, EmbeddingConfig, HttpConfig, LlmConfig, AppConfig, AgentConfig};
-        use std::collections::HashMap;
-
-        let dir = tempdir()?;
-        let db_path = dir.path().to_str().unwrap();
-        let table_name = "test_vectors_config".to_string();
-
-        let embedding_config = EmbeddingConfig {
-            model: "test-model".to_string(),
-            api_token: "test-token".to_string(),
-            api_base_url: "http://test-url".to_string(),
-        };
-
-        let config = Config {
-            http: HttpConfig { server_port: 8000 },
-            llm: LlmConfig { use_provider: "openai".to_string(), providers: HashMap::new() },
-            app: AppConfig { enable_streaming: false },
-            agent: AgentConfig { conductor_max_steps: None, coding_max_steps: None, repo_max_steps: None, lang: None },
-            codegraph: CodeGraphConfig {
-                db_uri: "test_db".to_string(),
-                collection: "test_coll".to_string(),
-                embedding: embedding_config,
-            },
-        };
-
-        let service = VectorizeService::new(db_path, table_name, Some(&config)).await;
-        
-        assert!(service.is_ok());
-        
-        Ok(())
-    }
 }

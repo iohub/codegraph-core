@@ -79,11 +79,11 @@ The project uses the following key dependencies:
 #### 2. Vectorize Codebase
 
 ```bash
-# Vectorize a directory and store in Qdrant
+# Vectorize a directory and store in LanceDB
 ./target/release/codegraph-cli vectorize \
   --path /path/to/your/project \
   --collection my_code_collection \
-  --qdrant-url http://localhost:6334
+  --db-uri data/lancedb
 ```
 
 ### HTTP API
@@ -142,29 +142,29 @@ curl -X POST http://localhost:8080/query_code_snippet \
 
 ## Word Embedding Vector Index
 
-### Setup Qdrant
+### Configuration
 
-```bash
-# Using Docker
-docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant
+CodeGraph Core uses a configuration file located at `~/.codeactor/config/config.toml` to manage embedding settings.
 
-# Or install locally following Qdrant documentation
+Example configuration:
+
+```toml
+[codegraph]
+db_uri = "data/lancedb"
+collection = "my_code_collection"
+
+[codegraph.embedding]
+model = "Qwen/Qwen3-Embedding-4B"
+api_token = "sk-..."
+api_base_url = "https://api.siliconflow.cn/v1"
 ```
-
-### Setup Embedding Service
-
-The vectorization feature requires an HTTP embedding service running on `http://localhost:9200/embedding`. The service should:
-
-- Accept POST requests with JSON payload: `{"content": "code_block"}`
-- Return embeddings in format: `[{"embedding": [[vector_values]]}]`
-- Support 768-dimensional vectors (configurable)
 
 ### Vectorization Process
 
 1. **Code Parsing**: Uses Tree-sitter to extract functions and classes
 2. **Content Extraction**: Extracts code blocks with context
-3. **Embedding Generation**: Sends code to embedding service
-4. **Vector Storage**: Stores embeddings in Qdrant with metadata
+3. **Embedding Generation**: Sends code to the configured embedding provider
+4. **Vector Storage**: Stores embeddings in LanceDB (embedded vector database)
 5. **Batch Processing**: Processes files in batches for efficiency
 
 ### Vector Metadata
@@ -312,6 +312,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 
 - Tree-sitter for excellent parsing capabilities
-- Qdrant for vector database functionality
+- LanceDB for vector database functionality
 - ECharts for beautiful visualizations
 - The Rust community for amazing tools and libraries
