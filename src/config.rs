@@ -50,6 +50,7 @@ pub struct EmbeddingConfig {
     pub model: String,
     pub api_token: String,
     pub api_base_url: String,
+    pub dimensions: Option<usize>,
 }
 
 

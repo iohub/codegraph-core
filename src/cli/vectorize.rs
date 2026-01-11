@@ -125,6 +125,7 @@ pub struct VectorizeService {
     connection: Connection, 
     table_name: String,
     embedding_provider: Box<dyn EmbeddingProvider>,
+    dimensions: i32,
 }
 
 impl VectorizeService {
@@ -136,6 +137,7 @@ impl VectorizeService {
         let mut api_token = env::var("SILICONFLOW_API_KEY").ok();
         let mut base_url = None;
         let mut model = "Qwen/Qwen3-Embedding-4B".to_string(); // Default fallback
+        let mut dimensions = 2560;
 
         if let Some(conf) = config {
              let embedding_config = &conf.codegraph.embedding;
@@ -148,6 +150,9 @@ impl VectorizeService {
              if !embedding_config.model.is_empty() {
                  model = embedding_config.model.clone();
              }
+             if let Some(dim) = embedding_config.dimensions {
+                 dimensions = dim as i32;
+             }
         }
         
         let api_token = api_token.ok_or("API Key not found in config or environment")?;
@@ -158,6 +163,7 @@ impl VectorizeService {
             connection,
             table_name,
             embedding_provider: Box::new(provider),
+            dimensions,
         })
     }
     
@@ -172,6 +178,7 @@ impl VectorizeService {
             connection,
             table_name,
             embedding_provider: provider,
+            dimensions: 2560,
         })
     }
 
@@ -318,8 +325,7 @@ impl VectorizeService {
             return Ok(());
         }
 
-        // Qwen/Qwen3-Embedding-4B has 2560 dimensions
-        let vector_size = 2560;
+        let vector_size = self.dimensions;
 
         let schema = Arc::new(Schema::new(vec![
             Field::new("id", DataType::Utf8, false),
@@ -503,6 +509,43 @@ mod tests {
         assert_eq!(results[0].symbol_name, "test_fn");
         assert_eq!(results[0].file_path, "test.rs");
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_service_creation_with_config() -> Result<(), Box<dyn std::error::Error>> {
+        use crate::config::{Config, CodeGraphConfig, EmbeddingConfig, HttpConfig, LlmConfig, AppConfig, AgentConfig};
+        use std::collections::HashMap;
+
+        let dir = tempdir()?;
+        let db_path = dir.path().to_str().unwrap();
+        let table_name = "test_vectors_config".to_string();
+
+        let embedding_config = EmbeddingConfig {
+            model: "test-model".to_string(),
+            api_token: "test-token".to_string(),
+            api_base_url: "http://test-url".to_string(),
+            dimensions: Some(1024),
+        };
+
+        let config = Config {
+            http: HttpConfig { server_port: 8000 },
+            llm: LlmConfig { use_provider: "openai".to_string(), providers: HashMap::new() },
+            app: AppConfig { enable_streaming: false },
+            agent: AgentConfig { conductor_max_steps: None, coding_max_steps: None, repo_max_steps: None, lang: None },
+            codegraph: CodeGraphConfig {
+                db_uri: "test_db".to_string(),
+                collection: "test_coll".to_string(),
+                embedding: embedding_config,
+            },
+        };
+
+        let service = VectorizeService::new(db_path, table_name, Some(&config)).await?;
+        
+        // Use reflection or just check if it works (since dimensions is private)
+        // Ideally we should add a getter for testing, but for now let's just ensure it builds and runs
+        assert_eq!(service.dimensions, 1024);
+        
         Ok(())
     }
 
