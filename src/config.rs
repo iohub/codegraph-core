@@ -41,7 +41,6 @@ pub struct AppConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct CodeGraphConfig {
     pub db_uri: String,
-    pub collection: String,
     pub embedding: EmbeddingConfig,
 }
 

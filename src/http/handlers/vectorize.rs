@@ -48,7 +48,14 @@ pub async fn build_embedding_index(
     // Get config
     let config = storage.get_config().ok_or(AxumStatusCode::INTERNAL_SERVER_ERROR)?;
     let db_path = config.codegraph.db_uri.clone();
-    let collection = config.codegraph.collection.clone();
+    
+    // Calculate collection name: last_dir_md5(repo_path)
+    let path = std::path::Path::new(&repo_path);
+    let last_dir = path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown");
+    let hash = md5::compute(&repo_path);
+    let collection = format!("{}_{:x}", last_dir, hash);
     
     // Create service and run vectorization
     let service = VectorizeService::new(&db_path, collection, Some(&config)).await
@@ -84,7 +91,13 @@ pub async fn semantic_search(
     // Get config
     let config = storage.get_config().ok_or(AxumStatusCode::INTERNAL_SERVER_ERROR)?;
     let db_path = config.codegraph.db_uri.clone();
-    let collection = config.codegraph.collection.clone();
+    let repo_path = request.repo_path.clone().ok_or(AxumStatusCode::BAD_REQUEST)?;
+    let path = std::path::Path::new(&repo_path);
+    let last_dir = path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown");
+    let hash = md5::compute(&repo_path);
+    let collection = format!("{}_{:x}", last_dir, hash);
     
     // Create service
     let service = VectorizeService::new(&db_path, collection, Some(&config)).await

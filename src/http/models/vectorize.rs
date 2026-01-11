@@ -15,6 +15,7 @@ pub struct BuildEmbeddingResponse {
 pub struct SemanticSearchRequest {
     pub text: String,
     pub limit: Option<usize>,
+    pub repo_path: Option<String>,
 }
 
 #[derive(Serialize)]
