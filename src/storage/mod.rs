@@ -11,11 +11,12 @@ pub use traits::{GraphPersistence, IncrementalUpdater, GraphSerializer};
 
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use notify::RecommendedWatcher;
 use parking_lot::RwLock;
 use crate::codegraph::types::PetCodeGraph;
 use crate::cli::args::StorageMode;
+use crate::config::Config;
 
 pub struct StorageManager {
     persistence: Arc<PersistenceManager>,
@@ -23,6 +24,8 @@ pub struct StorageManager {
     graph: Arc<RwLock<Option<PetCodeGraph>>>,
     storage_mode: StorageMode,
     watchers: Arc<Mutex<HashMap<String, RecommendedWatcher>>>,
+    pub vector_tasks: Arc<Mutex<HashSet<String>>>,
+    pub config: Arc<RwLock<Option<Config>>>,
 }
 
 impl StorageManager {
@@ -37,7 +40,17 @@ impl StorageManager {
             graph: Arc::new(RwLock::new(None)),
             storage_mode,
             watchers: Arc::new(Mutex::new(HashMap::new())),
+            vector_tasks: Arc::new(Mutex::new(HashSet::new())),
+            config: Arc::new(RwLock::new(None)),
         }
+    }
+
+    pub fn set_config(&self, config: Config) {
+        *self.config.write() = Some(config);
+    }
+
+    pub fn get_config(&self) -> Option<Config> {
+        self.config.read().clone()
     }
 
     pub fn add_watcher(&self, project_id: String, watcher: RecommendedWatcher) {

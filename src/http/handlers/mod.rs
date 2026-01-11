@@ -12,6 +12,10 @@ use uuid;
 use serde_json::json;
 use notify::Watcher;
 
+pub mod vectorize;
+
+pub use vectorize::{build_embedding_index, semantic_search};
+
 pub async fn build_graph(
     State(storage): State<Arc<StorageManager>>,
     Json(request): Json<BuildGraphRequest>,
@@ -152,13 +156,13 @@ pub async fn query_call_graph(
                 name: function.name.clone(),
                 line_start: function.line_start,
                 line_end: function.line_end,
-                callers: callers.iter().map(|(caller_func, relation)| {
+                callers: callers.iter().map(|(caller_func, _relation)| {
                     super::models::CallRelation {
                         function_name: caller_func.name.clone(),
                         file_path: caller_func.file_path.display().to_string(),
                     }
                 }).collect(),
-                callees: callees.iter().map(|(callee_func, relation)| {
+                callees: callees.iter().map(|(callee_func, _relation)| {
                     super::models::CallRelation {
                         function_name: callee_func.name.clone(),
                         file_path: callee_func.file_path.display().to_string(),
@@ -194,13 +198,13 @@ pub async fn query_call_graph(
                 name: function.name.clone(),
                 line_start: function.line_start,
                 line_end: function.line_end,
-                callers: callers.iter().map(|(caller_func, relation)| {
+                callers: callers.iter().map(|(caller_func, _relation)| {
                     super::models::CallRelation {
                         function_name: caller_func.name.clone(),
                         file_path: caller_func.file_path.display().to_string(),
                     }
                 }).collect(),
-                callees: callees.iter().map(|(callee_func, relation)| {
+                callees: callees.iter().map(|(callee_func, _relation)| {
                     super::models::CallRelation {
                         function_name: callee_func.name.clone(),
                         file_path: callee_func.file_path.display().to_string(),
@@ -267,7 +271,7 @@ fn expand_call_chain(
         graph.get_callees(&uuid)
     };
     
-    for (related_func, relation) in relations {
+    for (related_func, _relation) in relations {
         // Check if we already have this function in our list
         let existing_function = functions.iter_mut().find(|f| f.id == related_func.id.to_string());
         
