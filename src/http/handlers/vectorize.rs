@@ -47,7 +47,7 @@ pub async fn build_embedding_index(
     
     // Get config
     let config = storage.get_config().ok_or(AxumStatusCode::INTERNAL_SERVER_ERROR)?;
-    let db_path = config.codegraph.db_uri.clone();
+    let db_path = config.codegraph.embedding_db_uri.clone();
     
     // Calculate collection name: last_dir_md5(repo_path)
     let path = std::path::Path::new(&repo_path);
@@ -90,7 +90,7 @@ pub async fn semantic_search(
 ) -> Result<Json<ApiResponse<SemanticSearchResponse>>, AxumStatusCode> {
     // Get config
     let config = storage.get_config().ok_or(AxumStatusCode::INTERNAL_SERVER_ERROR)?;
-    let db_path = config.codegraph.db_uri.clone();
+    let db_path = config.codegraph.embedding_db_uri.clone();
     let repo_path = request.repo_path.clone().ok_or(AxumStatusCode::BAD_REQUEST)?;
     let path = std::path::Path::new(&repo_path);
     let last_dir = path.file_name()
