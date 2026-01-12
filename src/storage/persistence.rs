@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use crate::codegraph::types::PetCodeGraph;
 use crate::storage::petgraph_storage::PetGraphStorageManager;
 use crate::cli::args::StorageMode;
+use crate::config::Config;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -28,14 +29,12 @@ struct ProjectsRegistry {
 
 impl PersistenceManager {
     pub fn new() -> Self {
-        Self::with_storage_mode(StorageMode::Json)
+        let config = Config::load().expect("Failed to load configuration");
+        let base_dir = PathBuf::from(config.codegraph.graph_db_uri);
+        Self::with_storage_mode(StorageMode::Json, base_dir)
     }
 
-    pub fn with_storage_mode(storage_mode: StorageMode) -> Self {
-        let base_dir = std::env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
-            .join(".codegraph_db");
-        
+    pub fn with_storage_mode(storage_mode: StorageMode, base_dir: PathBuf) -> Self {
         // Create base directory if it doesn't exist
         if !base_dir.exists() {
             fs::create_dir_all(&base_dir).ok();

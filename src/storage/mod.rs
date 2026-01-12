@@ -34,14 +34,32 @@ impl StorageManager {
     }
 
     pub fn with_storage_mode(storage_mode: StorageMode) -> Self {
+        let base_dir = std::env::current_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."))
+            .join(".codegraph_db");
+
         Self {
-            persistence: Arc::new(PersistenceManager::with_storage_mode(storage_mode.clone())),
+            persistence: Arc::new(PersistenceManager::with_storage_mode(storage_mode.clone(), base_dir)),
             incremental: Arc::new(IncrementalManager::new()),
             graph: Arc::new(RwLock::new(None)),
             storage_mode,
             watchers: Arc::new(Mutex::new(HashMap::new())),
             vector_tasks: Arc::new(Mutex::new(HashSet::new())),
             config: Arc::new(RwLock::new(None)),
+        }
+    }
+
+    pub fn with_config(storage_mode: StorageMode, config: Config) -> Self {
+        let base_dir = std::path::PathBuf::from(&config.codegraph.graph_db_uri);
+
+        Self {
+            persistence: Arc::new(PersistenceManager::with_storage_mode(storage_mode.clone(), base_dir)),
+            incremental: Arc::new(IncrementalManager::new()),
+            graph: Arc::new(RwLock::new(None)),
+            storage_mode,
+            watchers: Arc::new(Mutex::new(HashMap::new())),
+            vector_tasks: Arc::new(Mutex::new(HashSet::new())),
+            config: Arc::new(RwLock::new(Some(config))),
         }
     }
 

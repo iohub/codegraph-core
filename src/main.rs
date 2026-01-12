@@ -45,11 +45,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let storage_mode = storage_mode.as_ref().unwrap_or(&cli.storage_mode).clone();
             info!("Using storage mode: {:?}", storage_mode);
 
-            let storage = Arc::new(StorageManager::with_storage_mode(storage_mode));
-            
-            if let Some(cfg) = config {
-                storage.set_config(cfg);
-            }
+            let storage = if let Some(cfg) = config {
+                Arc::new(StorageManager::with_config(storage_mode, cfg))
+            } else {
+                Arc::new(StorageManager::with_storage_mode(storage_mode))
+            };
             
             let server = CodeGraphServer::new(storage);
             server.start(server_addr).await?;
