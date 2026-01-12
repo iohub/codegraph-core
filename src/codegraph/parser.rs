@@ -432,9 +432,7 @@ impl CodeParser {
         for symbol in symbols {
             let symbol_guard = symbol.read();
             let symbol_ref = symbol_guard.as_ref();
-
-            // Debug: Print symbol type and name
-            info!("Found symbol: {:?} - {}", symbol_ref.symbol_type(), symbol_ref.name());
+            debug!("Found symbol: {:?} - {}", symbol_ref.symbol_type(), symbol_ref.name());
 
             match symbol_ref.symbol_type() {
                 crate::codegraph::treesitter::structs::SymbolType::FunctionDeclaration => {
